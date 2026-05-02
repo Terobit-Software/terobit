@@ -1,0 +1,94 @@
+use std::sync::Arc;
+
+use wgpu::rwh::HasWindowHandle;
+use winit::{application::ApplicationHandler, event::{KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{Fullscreen, Window, WindowAttributes, WindowId}};
+
+use crate::app::AppState;
+
+
+
+#[derive(Default)]
+pub struct App {
+    state: Option<AppState>,
+    is_fullscreen: bool
+}
+
+impl ApplicationHandler for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // create the window
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    WindowAttributes::with_visible(Window::default_attributes(), false)
+                )
+                .unwrap(),
+        );
+
+        // create the app state
+        let state = pollster::block_on(AppState::new(
+            event_loop.owned_display_handle(),
+            window.clone(),
+        ));
+        // slap dat state in
+        self.state = Some(state);
+
+        // make the window visible
+        window.set_visible(true);
+
+        // set the title
+        window.set_title("Terobit Player");
+
+        // stop them from resizing to be too small lol
+        window.set_min_inner_size(Some(winit::dpi::LogicalSize::new(200.0, 100.0)));
+
+        // make my window your focus
+        window.focus_window();
+
+        // redraw for the first time
+        window.request_redraw();
+    }
+
+    /// when something happens in the window we should probably handle it tbh
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let state = self.state.as_mut().unwrap();
+        match event {
+            WindowEvent::CloseRequested => {
+                println!("window said please close me");
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                // does what it says lol
+                state.render();
+                state.get_window().request_redraw();
+            }
+            WindowEvent::Resized(size) => {
+                if size.width == 0 || size.height == 0 {
+                    return; // skip resizing if its 0
+                }
+
+                // resize the screen
+                state.resize(size);
+            }
+            WindowEvent::KeyboardInput {
+                event: KeyEvent {
+                    physical_key: PhysicalKey::Code(KeyCode::F11),
+                    state,
+                    ..
+                },
+                ..
+            } => {
+                if state.is_pressed() {
+                    self.is_fullscreen = !self.is_fullscreen;
+
+                    if self.is_fullscreen {
+                        self.state.as_mut().unwrap().get_window().set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    } else {
+                        self.state.as_mut().unwrap().get_window().set_fullscreen(None);
+                    }
+                }
+
+            }
+            _ => (),
+        }
+    }
+}
