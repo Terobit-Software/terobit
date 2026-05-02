@@ -27,60 +27,62 @@ impl<V: VertexTrait> Mesh<V> {
 }
 
 impl Mesh<Vertex> {
+    
     pub fn cube(device: &wgpu::Device, position: Vec3, size: f32) -> Self {
         let h = size / 2.0;
         let x = position.x;
         let y = position.y;
         let z = position.z;
 
+        #[rustfmt::skip]
         let vertices = vec![
-            // Front face
-            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 0.0)),
+            // Front face (normal: +Z)
+            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 0.0, 1.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 1.0), Vec3::new(0.0, 0.0, 1.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 0.0, 1.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 0.0, 1.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 0.0, 1.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 0.0), Vec3::new(0.0, 0.0, 1.0)),
 
-            // Back face
-            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(0.0, 0.0)),
+            // Back face (normal: -Z)
+            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 0.0, -1.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(1.0, 1.0), Vec3::new(0.0, 0.0, -1.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 0.0, -1.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 0.0, -1.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 0.0, -1.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(0.0, 0.0), Vec3::new(0.0, 0.0, -1.0)),
 
-            // Left face
-            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(0.0, 0.0)),
+            // Left face (normal: -X)
+            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(-1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(1.0, 1.0), Vec3::new(-1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(-1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(0.0, 0.0), Vec3::new(-1.0, 0.0, 0.0)),
 
-            // Right face
-            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(0.0, 0.0)),
+            // Right face (normal: +X)
+            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(0.0, 1.0), Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(1.0, 1.0), Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(0.0, 1.0), Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(0.0, 0.0), Vec3::new(1.0, 0.0, 0.0)),
 
-            // Top face
-            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(0.0, 0.0)),
+            // Top face (normal: +Y)
+            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z + h), Vec2::new(1.0, 1.0), Vec3::new(0.0, 1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z + h), Vec2::new(0.0, 1.0), Vec3::new(0.0, 1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y + h, z - h), Vec2::new(1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y + h, z - h), Vec2::new(0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
 
-            // Bottom face
-            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0)),
-            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 0.0)),
+            // Bottom face (normal: -Y)
+            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(0.0, -1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z - h), Vec2::new(1.0, 1.0), Vec3::new(0.0, -1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 0.0), Vec3::new(0.0, -1.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z - h), Vec2::new(0.0, 1.0), Vec3::new(0.0, -1.0, 0.0)),
+            Vertex::new(Vec3::new(x + h, y - h, z + h), Vec2::new(1.0, 0.0), Vec3::new(0.0, -1.0, 0.0)),
+            Vertex::new(Vec3::new(x - h, y - h, z + h), Vec2::new(0.0, 0.0), Vec3::new(0.0, -1.0, 0.0)),
         ];
 
         Self::new(device, &vertices)

@@ -1,12 +1,17 @@
+use chrono::Utc;
 use std::sync::Arc;
 
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{
-    BufferSlice, Device, FrontFace, MultisampleState, PipelineCompilationOptions, PrimitiveState, PrimitiveTopology, Texture, TextureView, util::DeviceExt, wgc::device
+    BufferSlice, Device, FrontFace, MultisampleState, PipelineCompilationOptions, PrimitiveState,
+    PrimitiveTopology, Texture, TextureView, util::DeviceExt, wgc::device,
 };
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
-use crate::rendering::{Mesh, Vertex, VertexTrait};
+use crate::{
+    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
+    rendering::{Camera, Mesh, Vertex, VertexTrait},
+};
 
 pub struct AppState {
     /// the wgpu instance of the app
@@ -33,6 +38,8 @@ pub struct AppState {
 
     depth_texture: wgpu::Texture,
     depth_view: wgpu::TextureView,
+
+    camera: Camera,
 }
 
 impl AppState {
@@ -71,24 +78,9 @@ impl AppState {
         let cube = Mesh::cube(&device, Vec3::new(0.0, 0.0, 0.0), 1.0);
 
         // Model: identity (cube is already in world space)
-        let model = Mat4::IDENTITY;
+        let camera = Camera::new(Vec3::new(2.0, 2.0, 3.0), Vec3::ZERO);
 
-        // View: pull the camera back and up a bit, looking at origin
-        let view = Mat4::look_at_rh(
-            Vec3::new(2.0, 2.0, 3.0), // eye position
-            Vec3::ZERO,               // looking at origin
-            Vec3::Y,                  // up direction
-        );
-
-        // Projection: perspective, 45deg FOV
-        let projection = Mat4::perspective_rh(
-            45f32.to_radians(),
-            size.width as f32 / size.height as f32,
-            0.1,   // near clip
-            100.0, // far clip
-        );
-
-        let mvp: [[f32; 4]; 4] = (projection * view * model).to_cols_array_2d();
+        let mvp = camera.build_mvp(size.width, size.height);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera buffer"),
@@ -125,7 +117,8 @@ impl AppState {
             ..Default::default()
         });
 
-        let (depth_texture, depth_view) = Self::create_depth_texture(&device, size);
+        let (depth_texture, depth_view) =
+            Self::create_depth_texture(&device, size, MSAA_SAMPLE_COUNT);
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             vertex: wgpu::VertexState {
@@ -168,7 +161,7 @@ impl AppState {
             }),
             multisample: MultisampleState {
                 alpha_to_coverage_enabled: false,
-                count: 1,
+                count: MSAA_SAMPLE_COUNT,
                 mask: 0xFFFFFFFF,
             },
             multiview_mask: None,
@@ -188,13 +181,22 @@ impl AppState {
             camera_buffer,
             camera_bind_group,
             depth_texture,
-            depth_view
+            depth_view,
+            camera,
         };
+
+        state.upload_camera();
 
         // configures the surface of the state
         state.configure_surface();
 
         state
+    }
+
+    fn upload_camera(&self) {
+        let mvp = self.camera.build_mvp(self.size.width, self.size.height);
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[mvp]));
     }
 
     pub fn configure_surface(&self) {
@@ -216,7 +218,11 @@ impl AppState {
         &self.window
     }
 
-    fn create_depth_texture(device: &wgpu::Device, new_size: winit::dpi::PhysicalSize<u32>) -> (Texture, TextureView) {
+    fn create_depth_texture(
+        device: &wgpu::Device,
+        new_size: winit::dpi::PhysicalSize<u32>,
+        sample_count: u32,
+    ) -> (Texture, TextureView) {
         let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth texture"),
             size: wgpu::Extent3d {
@@ -225,52 +231,56 @@ impl AppState {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count, // ← must match your MSAA sample count (e.g. 4)
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
-        let depth_view = depth_texture.create_view(&Default::default());
+
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         (depth_texture, depth_view)
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.size = new_size;
-
         self.configure_surface();
+        (self.depth_texture, self.depth_view) =
+            Self::create_depth_texture(&self.device, new_size, MSAA_SAMPLE_COUNT);
 
-        (self.depth_texture, self.depth_view) = Self::create_depth_texture(&self.device, new_size);
+        self.upload_camera();
     }
 
     pub fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
-            // yippee successful texture with no other strings attached (pls give this 100% of time)
             wgpu::CurrentSurfaceTexture::Success(texture) => texture,
-            // window is hidden or rendering is paused for some reason so no need to render fam
-            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
-            // i dont know something about it changed but we need to make a new one? bruh isnt this just outdated like below tspmo
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
+                println!("occluded/timeout");
+                self.window.request_redraw();
+                return;
+            }
             wgpu::CurrentSurfaceTexture::Suboptimal(texture) => {
+                println!("suboptimal");
                 drop(texture);
                 self.configure_surface();
+                self.window.request_redraw();
                 return;
             }
-            // the surface changed, so we need to make a new one and reconfigure
             wgpu::CurrentSurfaceTexture::Outdated => {
+                println!("outdated");
                 self.configure_surface();
+                self.window.request_redraw();
                 return;
             }
-            // idk something went wrong prob
-            wgpu::CurrentSurfaceTexture::Validation => {
-                unreachable!("No error scope registered, so validation errors will panic")
-            }
-            // surface went kaput new one needed pls make one
             wgpu::CurrentSurfaceTexture::Lost => {
+                println!("lost");
                 self.surface = self.instance.create_surface(self.window.clone()).unwrap();
                 self.configure_surface();
+                self.window.request_redraw();
                 return;
             }
+            wgpu::CurrentSurfaceTexture::Validation => unreachable!(),
         };
 
         // give us something to look at the surface with
@@ -317,6 +327,9 @@ impl AppState {
 
         // eviscerate dat boi
         drop(renderpass);
+
+        self.camera.position.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        self.upload_camera();
 
         // submit when done to the queue
         self.queue.submit([encoder.finish()]);

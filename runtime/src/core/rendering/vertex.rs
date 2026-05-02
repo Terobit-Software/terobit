@@ -5,13 +5,15 @@ use crate::rendering::{VertexRaw, VertexTrait};
 pub struct Vertex {
     position: Vec3,
     tex_coords: Vec2,
+    normal: Vec3
 }
 
 impl Vertex {
-    pub fn new(position: Vec3, tex_coords: Vec2) -> Self {
+    pub fn new(position: Vec3, tex_coords: Vec2, normal: Vec3) -> Self {
         Self {
             position,
             tex_coords,
+            normal
         }
     }
 }
@@ -23,6 +25,7 @@ impl VertexTrait for Vertex {
         Self::Raw {
             position: [self.position.x, self.position.y, self.position.z, 1.0],
             tex_coords: [self.tex_coords.x, self.tex_coords.y],
+            normals: [self.normal.x, self.normal.y, self.normal.z]
         }
     }
 
@@ -41,6 +44,11 @@ impl VertexTrait for Vertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2, // [f32; 2]
                 },
+                wgpu::VertexAttribute {
+                    offset: 24,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x3
+                }
             ],
         }
     }

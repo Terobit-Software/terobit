@@ -1,6 +1,6 @@
 use winit::{event_loop::{ControlFlow, EventLoop}};
 
-use crate::app::App;
+use crate::{app::App};
 
 pub struct Runtime {
     app: App,
@@ -11,7 +11,7 @@ impl Runtime {
     pub fn new() -> Self {
         Self {
             app: App::default(),
-            event_loop: Some(EventLoop::new().unwrap()),
+            event_loop: Some(EventLoop::new().unwrap())
         }
     }
 

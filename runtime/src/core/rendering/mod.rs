@@ -9,3 +9,6 @@ pub use vertex_trait::*;
 
 mod mesh;
 pub use mesh::*;
+
+mod camera;
+pub use camera::*;

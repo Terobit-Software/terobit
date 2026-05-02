@@ -1,16 +1,20 @@
 use std::sync::Arc;
 
 use wgpu::rwh::HasWindowHandle;
-use winit::{application::ApplicationHandler, event::{KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{Fullscreen, Window, WindowAttributes, WindowId}};
+use winit::{
+    application::ApplicationHandler,
+    event::{KeyEvent, WindowEvent},
+    event_loop::ActiveEventLoop,
+    keyboard::{KeyCode, PhysicalKey},
+    window::{Fullscreen, Window, WindowAttributes, WindowId},
+};
 
 use crate::app::AppState;
-
-
 
 #[derive(Default)]
 pub struct App {
     state: Option<AppState>,
-    is_fullscreen: bool
+    is_fullscreen: bool,
 }
 
 impl ApplicationHandler for App {
@@ -18,9 +22,10 @@ impl ApplicationHandler for App {
         // create the window
         let window = Arc::new(
             event_loop
-                .create_window(
-                    WindowAttributes::with_visible(Window::default_attributes(), false)
-                )
+                .create_window(WindowAttributes::with_visible(
+                    Window::default_attributes(),
+                    false,
+                ))
                 .unwrap(),
         );
 
@@ -57,9 +62,8 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                // does what it says lol
+                // // does what it says lol
                 state.render();
-                state.get_window().request_redraw();
             }
             WindowEvent::Resized(size) => {
                 if size.width == 0 || size.height == 0 {
@@ -70,25 +74,33 @@ impl ApplicationHandler for App {
                 state.resize(size);
             }
             WindowEvent::KeyboardInput {
-                event: KeyEvent {
-                    physical_key: PhysicalKey::Code(KeyCode::F11),
-                    state,
-                    ..
-                },
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(KeyCode::F11),
+                        state: key_state,
+                        ..
+                    },
                 ..
             } => {
-                if state.is_pressed() {
+                if key_state.is_pressed() {
                     self.is_fullscreen = !self.is_fullscreen;
 
                     if self.is_fullscreen {
-                        self.state.as_mut().unwrap().get_window().set_fullscreen(Some(Fullscreen::Borderless(None)));
+                        state
+                            .get_window()
+                            .set_fullscreen(Some(Fullscreen::Borderless(None)));
                     } else {
-                        self.state.as_mut().unwrap().get_window().set_fullscreen(None);
+                        state.get_window().set_fullscreen(None);
                     }
                 }
-
             }
             _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(state) = self.state.as_ref() {
+            state.get_window().request_redraw();
         }
     }
 }
