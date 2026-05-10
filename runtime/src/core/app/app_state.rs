@@ -1,5 +1,5 @@
 use chrono::Utc;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{
@@ -12,6 +12,8 @@ use crate::{
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
     rendering::{Camera, Mesh, Vertex, VertexTrait},
 };
+use bevy_ecs::{prelude::*, world::WorldId};
+use bevy_ecs::world::World;
 
 pub struct AppState {
     /// the wgpu instance of the app
@@ -33,16 +35,31 @@ pub struct AppState {
 
     // a testing mesh
     mesh: Mesh<Vertex>,
+    /// the camera buffer inside the camera_bind_group
     camera_buffer: wgpu::Buffer,
+    /// the camera resource group for the gpu
     camera_bind_group: wgpu::BindGroup,
 
+    /// the screen depth texture used for 3d rendering
     depth_texture: wgpu::Texture,
+    /// the depth view, pointing to the depth_texture
     depth_view: wgpu::TextureView,
 
+    /// the current camera
     camera: Camera,
+    /// how many frames have been since last_time was updated
+    frame_count: i32,
+    /// last time the framerate was updated
+    last_time: i64,
+
+    /// the currently being rendered scene
+    current_scene: Option<String>,
+    /// the scenes available
+    scenes: HashMap<String, World>
 }
 
 impl AppState {
+    /// create a new app state
     pub async fn new(display: OwnedDisplayHandle, window: Arc<Window>) -> Self {
         // create a new wgpu instance, using the display handle from winit
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(
@@ -183,6 +200,10 @@ impl AppState {
             depth_texture,
             depth_view,
             camera,
+            frame_count: 0,
+            last_time: Utc::now().timestamp_millis(),
+            scenes: HashMap::new(),
+            current_scene: None
         };
 
         state.upload_camera();
@@ -209,7 +230,7 @@ impl AppState {
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Immediate,
         };
         self.surface.configure(&self.device, &surface_config);
     }
@@ -294,6 +315,11 @@ impl AppState {
         // create an encoder to send stuff to father gpu
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
+        self.camera.position.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        self.camera.position.x = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        self.camera.position.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
+        self.upload_camera();
+
         // clear the screen with green
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -328,14 +354,31 @@ impl AppState {
         // eviscerate dat boi
         drop(renderpass);
 
-        self.camera.position.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-        self.upload_camera();
-
         // submit when done to the queue
         self.queue.submit([encoder.finish()]);
         // warn the window hey we boutta present
         self.window.pre_present_notify();
         // present dat boi
         surface_texture.present();
+
+        self.frame_count += 1;
+        if self.last_time + 1000 < Utc::now().timestamp_millis() {
+            println!("{}", self.frame_count);
+            self.frame_count = 0;
+            self.last_time = Utc::now().timestamp_millis();
+        }
+    }
+
+    pub fn create_scene (&mut self, name: String) {
+        self.scenes.insert(
+            name.clone(),
+            World::new()
+        );
+
+        if self.current_scene.is_none() {
+            self.current_scene = Some(name.clone());
+        }
+
+        println!("new scene of name {} created", name);
     }
 }

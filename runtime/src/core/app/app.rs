@@ -9,12 +9,16 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes, WindowId},
 };
 
-use crate::app::AppState;
+use crate::{
+    RuntimeContext,
+    app::{AppState, EventHandlerContainer},
+};
 
 #[derive(Default)]
 pub struct App {
     state: Option<AppState>,
     is_fullscreen: bool,
+    handlers: EventHandlerContainer,
 }
 
 impl ApplicationHandler for App {
@@ -51,6 +55,12 @@ impl ApplicationHandler for App {
 
         // redraw for the first time
         window.request_redraw();
+
+
+        if let Some(handler) = &self.handlers.on_start {
+            let ctx = RuntimeContext { state: self.state.as_mut().unwrap() };
+            handler(ctx)
+        }
     }
 
     /// when something happens in the window we should probably handle it tbh
@@ -62,7 +72,12 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                // // does what it says lol
+                if let Some(handler) = &self.handlers.on_frame {
+                    let ctx = RuntimeContext { state: &mut *state };
+                    handler(ctx, 0.0)
+                }
+
+                // does what it says lol
                 state.render();
             }
             WindowEvent::Resized(size) => {
@@ -102,5 +117,23 @@ impl ApplicationHandler for App {
         if let Some(state) = self.state.as_ref() {
             state.get_window().request_redraw();
         }
+    }
+}
+
+impl App {
+    pub fn get_state(&self) -> &Option<AppState> {
+        &self.state
+    }
+
+    pub fn get_state_mut(&mut self) -> &mut Option<AppState> {
+        &mut self.state
+    }
+
+    pub fn get_handlers(&self) -> &EventHandlerContainer {
+        &self.handlers
+    }
+
+    pub fn get_handlers_mut(&mut self) -> &mut EventHandlerContainer {
+        &mut self.handlers
     }
 }
