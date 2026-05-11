@@ -56,9 +56,10 @@ impl ApplicationHandler for App {
         // redraw for the first time
         window.request_redraw();
 
-
         if let Some(handler) = &self.handlers.on_start {
-            let ctx = RuntimeContext { state: self.state.as_mut().unwrap() };
+            let ctx = RuntimeContext {
+                state: self.state.as_mut().unwrap(),
+            };
             handler(ctx)
         }
     }

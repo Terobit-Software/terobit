@@ -1,6 +1,8 @@
-use runtime::{Runtime, RuntimeContext};
+use glam::Vec3;
+use runtime::{Runtime, RuntimeContext, ecs::Transform};
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
+
 
 fn main() {
     unsafe {
@@ -13,13 +15,16 @@ fn main() {
 
     runtime.on_start(
         |mut ctx: RuntimeContext| {
-            ctx.create_scene("scene or sum shi");
+            let mut scene = ctx.create_scene("main");
+
+            scene.spawn((
+                Transform::default()
+            ));
         }
     );
 
     runtime.on_frame(
         |mut ctx: RuntimeContext, delta: f32| {
-            println!("{}", rand::random::<u32>())
         }
     );
 

@@ -1,6 +1,12 @@
-use winit::{event_loop::{ControlFlow, EventLoop}, keyboard::KeyCode};
+use winit::{
+    event_loop::{ControlFlow, EventLoop},
+    keyboard::KeyCode,
+};
 
-use crate::app::{App, AppState, OnFrameHandler};
+use crate::{
+    app::{App, AppState, OnFrameHandler},
+    ecs::SceneHandle,
+};
 
 pub struct Runtime {
     app: App,
@@ -42,11 +48,22 @@ impl Default for Runtime {
 }
 
 pub struct RuntimeContext<'a> {
-    pub(crate) state: &'a mut AppState,
+    pub state: &'a mut AppState,
 }
 
-impl RuntimeContext<'_> {
-    pub fn create_scene(&mut self, name: &str) {
-        self.state.create_scene(String::from(name));
+impl<'a> RuntimeContext<'a> {
+    pub fn create_scene(&mut self, name: &str) -> SceneHandle<'_> {
+        let n = String::from(name);
+        self.state.create_scene(n.clone());
+
+        SceneHandle {
+            scene: self.state.get_scene_mut(n).unwrap(),
+        }
+    }
+
+    pub fn get_scene(&mut self, name: &str) -> Option<SceneHandle<'_>> {
+        self.state
+            .get_scene_mut(String::from(name))
+            .map(|scene| SceneHandle { scene })
     }
 }

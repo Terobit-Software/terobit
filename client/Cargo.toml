@@ -7,3 +7,5 @@ edition = "2024"
 runtime = { path = "../runtime" }
 dhat = "0.3"
 rand = "0.10.1"
+bevy_ecs = "0.18.1"
+glam = "0.32.1"

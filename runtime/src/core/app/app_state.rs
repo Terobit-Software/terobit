@@ -12,8 +12,8 @@ use crate::{
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
     rendering::{Camera, Mesh, Vertex, VertexTrait},
 };
-use bevy_ecs::{prelude::*, world::WorldId};
 use bevy_ecs::world::World;
+use bevy_ecs::{prelude::*, world::WorldId};
 
 pub struct AppState {
     /// the wgpu instance of the app
@@ -55,7 +55,7 @@ pub struct AppState {
     /// the currently being rendered scene
     current_scene: Option<String>,
     /// the scenes available
-    scenes: HashMap<String, World>
+    scenes: HashMap<String, World>,
 }
 
 impl AppState {
@@ -203,7 +203,7 @@ impl AppState {
             frame_count: 0,
             last_time: Utc::now().timestamp_millis(),
             scenes: HashMap::new(),
-            current_scene: None
+            current_scene: None,
         };
 
         state.upload_camera();
@@ -369,16 +369,21 @@ impl AppState {
         }
     }
 
-    pub fn create_scene (&mut self, name: String) {
-        self.scenes.insert(
-            name.clone(),
-            World::new()
-        );
+    pub fn create_scene(&mut self, name: String) {
+        self.scenes.insert(name.clone(), World::new());
 
         if self.current_scene.is_none() {
             self.current_scene = Some(name.clone());
         }
 
         println!("new scene of name {} created", name);
+    }
+
+    pub fn get_scene(&self, name: String) -> Option<&World> {
+        self.scenes.get(&name)
+    }
+
+    pub fn get_scene_mut(&mut self, name: String) -> Option<&mut World> {
+        self.scenes.get_mut(&name)
     }
 }

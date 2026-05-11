@@ -27,7 +27,6 @@ impl<V: VertexTrait> Mesh<V> {
 }
 
 impl Mesh<Vertex> {
-    
     pub fn cube(device: &wgpu::Device, position: Vec3, size: f32) -> Self {
         let h = size / 2.0;
         let x = position.x;
