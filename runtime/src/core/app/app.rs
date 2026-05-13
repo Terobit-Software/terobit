@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct App {
+pub(crate) struct App {
     state: Option<AppState>,
     is_fullscreen: bool,
     handlers: EventHandlerContainer,

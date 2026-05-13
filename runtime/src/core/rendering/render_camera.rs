@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec3};
 
-pub struct Camera {
+pub(crate) struct RenderCamera {
     pub position: Vec3,
     pub target: Vec3,
     pub up: Vec3,
@@ -9,7 +9,7 @@ pub struct Camera {
     pub far: f32,
 }
 
-impl Camera {
+impl RenderCamera {
     pub fn new(position: Vec3, target: Vec3) -> Self {
         Self {
             position,

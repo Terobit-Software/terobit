@@ -7,8 +7,11 @@ pub use vertex::*;
 mod vertex_trait;
 pub use vertex_trait::*;
 
-mod mesh;
-pub use mesh::*;
+mod render_mesh;
+pub use render_mesh::*;
 
-mod camera;
-pub use camera::*;
+mod render_camera;
+pub use render_camera::*;
+
+mod mesh_source;
+pub use mesh_source::*;

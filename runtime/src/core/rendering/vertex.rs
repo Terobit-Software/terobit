@@ -2,7 +2,7 @@ use glam::{Vec2, Vec3};
 
 use crate::rendering::{VertexRaw, VertexTrait};
 
-pub struct Vertex {
+pub(crate) struct Vertex {
     position: Vec3,
     tex_coords: Vec2,
     normal: Vec3,

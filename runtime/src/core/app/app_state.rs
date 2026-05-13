@@ -10,12 +10,12 @@ use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
-    rendering::{Camera, Mesh, Vertex, VertexTrait},
+    rendering::{RenderCamera, RenderMesh, Vertex, VertexTrait},
 };
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
 
-pub struct AppState {
+pub(crate) struct AppState {
     /// the wgpu instance of the app
     instance: wgpu::Instance,
     /// the window for the app
@@ -34,7 +34,7 @@ pub struct AppState {
     pipeline: wgpu::RenderPipeline,
 
     // a testing mesh
-    mesh: Mesh<Vertex>,
+    mesh: RenderMesh<Vertex>,
     /// the camera buffer inside the camera_bind_group
     camera_buffer: wgpu::Buffer,
     /// the camera resource group for the gpu
@@ -46,7 +46,7 @@ pub struct AppState {
     depth_view: wgpu::TextureView,
 
     /// the current camera
-    camera: Camera,
+    camera: RenderCamera,
     /// how many frames have been since last_time was updated
     frame_count: i32,
     /// last time the framerate was updated
@@ -92,10 +92,10 @@ impl AppState {
             source: wgpu::ShaderSource::Wgsl(shader_source.into()),
         });
 
-        let cube = Mesh::cube(&device, Vec3::new(0.0, 0.0, 0.0), 1.0);
+        let cube = RenderMesh::cube(&device, Vec3::new(0.0, 0.0, 0.0), 1.0);
 
         // Model: identity (cube is already in world space)
-        let camera = Camera::new(Vec3::new(2.0, 2.0, 3.0), Vec3::ZERO);
+        let camera = RenderCamera::new(Vec3::new(2.0, 2.0, 3.0), Vec3::ZERO);
 
         let mvp = camera.build_mvp(size.width, size.height);
 

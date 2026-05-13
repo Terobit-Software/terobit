@@ -1,4 +1,4 @@
-pub trait VertexTrait {
+pub(crate) trait VertexTrait {
     type Raw: bytemuck::Pod + bytemuck::Zeroable;
 
     fn to_raw(&self) -> Self::Raw;

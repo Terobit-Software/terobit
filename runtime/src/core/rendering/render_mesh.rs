@@ -2,13 +2,13 @@ use crate::rendering::{Vertex, VertexTrait};
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
 
-pub struct Mesh<V: VertexTrait> {
+pub(crate) struct RenderMesh<V: VertexTrait> {
     vertex_buffer: wgpu::Buffer,
     vertex_count: u32,
     _phantom: std::marker::PhantomData<V>,
 }
 
-impl<V: VertexTrait> Mesh<V> {
+impl<V: VertexTrait> RenderMesh<V> {
     pub fn new(device: &wgpu::Device, vertices: &[V]) -> Self {
         let raw: Vec<V::Raw> = vertices.iter().map(|v| v.to_raw()).collect();
 
@@ -26,7 +26,7 @@ impl<V: VertexTrait> Mesh<V> {
     }
 }
 
-impl Mesh<Vertex> {
+impl RenderMesh<Vertex> {
     pub fn cube(device: &wgpu::Device, position: Vec3, size: f32) -> Self {
         let h = size / 2.0;
         let x = position.x;
@@ -88,7 +88,7 @@ impl Mesh<Vertex> {
     }
 }
 
-impl<V: VertexTrait> Mesh<V> {
+impl<V: VertexTrait> RenderMesh<V> {
     pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.draw(0..self.vertex_count, 0..1);

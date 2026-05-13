@@ -1,8 +1,10 @@
 mod runtime;
 pub use runtime::*;
 
-pub mod rendering;
+pub(crate) mod rendering;
 
 pub mod app;
 
 pub mod ecs;
+
+pub mod assets;

@@ -1,4 +1,4 @@
 mod core;
 pub use core::*;
 
-pub mod consts;
+pub(crate) mod consts;

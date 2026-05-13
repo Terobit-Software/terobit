@@ -14,7 +14,9 @@ impl Transform {
 
     pub fn new () -> Self {
         Self {
-            ..Default::default()
+            position: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
         }
     }
 
