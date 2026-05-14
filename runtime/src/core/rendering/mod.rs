@@ -15,3 +15,6 @@ pub use render_camera::*;
 
 mod mesh_source;
 pub use mesh_source::*;
+
+mod mesh_helpers;
+pub use mesh_helpers::*;

@@ -19,9 +19,13 @@ fn main() {
         let mut scene = ctx.create_scene("main");
 
         scene.spawn((
-            Transform::default(), 
-            Mesh::cube(), 
+            Transform::default(),
             Camera::default()
+        ));
+
+        scene.spawn((
+            Transform::default(),
+            Mesh::cube()
         ));
     });
 

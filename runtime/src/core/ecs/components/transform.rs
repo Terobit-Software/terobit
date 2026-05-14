@@ -1,6 +1,6 @@
 use glam::{Mat4, Quat, Vec3};
 
-#[derive(bevy_ecs::component::Component)]
+#[derive(bevy_ecs::component::Component, Clone, Copy)]
 pub struct Transform {
     position: Vec3,
     rotation: Quat,

@@ -10,7 +10,7 @@ use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
-    rendering::{RenderCamera, RenderMesh, Vertex, VertexTrait},
+    rendering::{RenderCamera, RenderMesh, Vertex, VertexTrait, accumulate_meshes},
 };
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
@@ -230,7 +230,7 @@ impl AppState {
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: wgpu::PresentMode::Fifo,
         };
         self.surface.configure(&self.device, &surface_config);
     }
@@ -346,6 +346,13 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
+
+        if let Some(scene_name) = self.current_scene.clone() {
+            if let Some(mut scene_instance) = self.get_scene_mut(scene_name) {
+                let meshes = accumulate_meshes(scene_instance);
+                println!("len: {}", meshes.keys().len());
+            }
+        };
 
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);

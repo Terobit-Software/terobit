@@ -16,4 +16,8 @@ impl Mesh {
             source: MeshSource::cube()
         }
     }
+
+    pub(crate) fn get_source (&self) -> &MeshSource {
+        &self.source
+    }
 }
