@@ -32,8 +32,9 @@ pub(crate) struct MeshSourceHandler {
 
 impl MeshSourceHandler {
     pub fn init_default_meshes(state: &mut AppState) -> Result<(), &'static str> {
-        let (verts, indices) = Self::cube_mesh();
-        state.upload_mesh(MeshSourceId::CUBE, &Self::format_verts(verts), &indices);
+        let (vertices, indices) = Self::cube_mesh();
+    
+        state.upload_mesh(MeshSourceId::CUBE, &Self::format_verts(vertices), &indices);
         Ok(())
     }
 

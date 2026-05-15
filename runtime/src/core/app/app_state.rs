@@ -155,7 +155,7 @@ impl AppState {
                 module: &shader_module,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format.add_srgb_suffix(),
+                    format: surface_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -321,30 +321,26 @@ impl AppState {
 
         self.upload_camera();
     }
-
+    
     pub fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(texture) => texture,
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
-                println!("occluded/timeout");
                 self.window.request_redraw();
                 return;
             }
             wgpu::CurrentSurfaceTexture::Suboptimal(texture) => {
-                println!("suboptimal");
                 drop(texture);
                 self.configure_surface();
                 self.window.request_redraw();
                 return;
             }
             wgpu::CurrentSurfaceTexture::Outdated => {
-                println!("outdated");
                 self.configure_surface();
                 self.window.request_redraw();
                 return;
             }
             wgpu::CurrentSurfaceTexture::Lost => {
-                println!("lost");
                 self.surface = self.instance.create_surface(self.window.clone()).unwrap();
                 self.configure_surface();
                 self.window.request_redraw();
@@ -352,44 +348,40 @@ impl AppState {
             }
             wgpu::CurrentSurfaceTexture::Validation => unreachable!(),
         };
-
-        // give us something to look at the surface with
+    
         let texture_view = surface_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor {
-                format: Some(self.surface_format.add_srgb_suffix()), // no idea what this does but i think its important
+                format: Some(self.surface_format.add_srgb_suffix()),
                 ..Default::default()
             });
-
-        // create an encoder to send stuff to father gpu
+    
         let mut encoder = self.device.create_command_encoder(&Default::default());
-
+    
         self.camera.position.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
         self.camera.position.x = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
         self.camera.position.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
         self.upload_camera();
-
+    
+        // collect draw calls and write instance data before renderpass
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
                 if let Some(scene) = self.get_scene_mut(scene_name) {
                     let containers = accumulate_meshes(scene);
                     let mut current_offset: u64 = 0;
                     let mut calls = vec![];
-
+    
                     for (mesh_id, container) in &containers {
-                        let instances: Vec<InstanceRaw> = container
-                            .transforms
+                        let instances: Vec<InstanceRaw> = container.transforms
                             .iter()
                             .map(|t| InstanceRaw::new(*t))
                             .collect();
-                        let data = bytemuck::cast_slice(&instances);
-
-                        self.queue
-                            .write_buffer(&self.instance_buffer, current_offset, data);
-
+                        let data: &[u8] = bytemuck::cast_slice(&instances);
+    
+                        self.queue.write_buffer(&self.instance_buffer, current_offset, data);
+    
                         let byte_size = data.len() as u64;
                         calls.push((*mesh_id, instances.len(), current_offset, byte_size));
-
                         current_offset += byte_size;
                     }
                     calls
@@ -399,8 +391,7 @@ impl AppState {
             } else {
                 vec![]
             };
-
-        // clear the screen with green
+    
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -408,9 +399,7 @@ impl AppState {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    // see we load green
                     load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    // and we store dat boi
                     store: wgpu::StoreOp::Store,
                 },
             })],
@@ -426,38 +415,34 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-
+    
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
-
+    
         for (mesh_id, instance_count, offset, byte_size) in &draw_calls {
-            let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else { continue; };
-        
+            let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else {
+                continue;
+            };
+    
             renderpass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-            // Bind the specific slice for this mesh's instances
-            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(*offset..(*offset + *byte_size))); 
+            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(*offset..(*offset + *byte_size)));
             renderpass.set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             renderpass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
         }
-
-        // eviscerate dat boi
+    
         drop(renderpass);
-
-        // submit when done to the queue
+    
         self.queue.submit([encoder.finish()]);
-        // warn the window hey we boutta present
         self.window.pre_present_notify();
-        // present dat boi
         surface_texture.present();
-
+    
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {
-            println!("{}", self.frame_count);
+            println!("{} fps", self.frame_count);
             self.frame_count = 0;
             self.last_time = Utc::now().timestamp_millis();
         }
     }
-
     pub fn create_scene(&mut self, name: String) {
         self.scenes.insert(name.clone(), World::new());
 
