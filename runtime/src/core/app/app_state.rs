@@ -350,7 +350,7 @@ impl AppState {
         if let Some(scene_name) = self.current_scene.clone() {
             if let Some(mut scene_instance) = self.get_scene_mut(scene_name) {
                 let meshes = accumulate_meshes(scene_instance);
-                println!("len: {}", meshes.keys().len());
+                println!("{:?}", meshes.get(meshes.keys().last().unwrap()).unwrap());
             }
         };
 

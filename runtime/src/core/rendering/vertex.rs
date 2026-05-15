@@ -32,7 +32,7 @@ impl VertexTrait for Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self::Raw>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
@@ -45,10 +45,10 @@ impl VertexTrait for Vertex {
                     format: wgpu::VertexFormat::Float32x2, // [f32; 2]
                 },
                 wgpu::VertexAttribute {
-                    offset: 24,
+                    offset: 24,  // 16 + 2 floats * 4 bytes = 24
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
+                    format: wgpu::VertexFormat::Float32x3,  // [f32; 3]
+                }
             ],
         }
     }

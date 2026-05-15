@@ -1,23 +1,23 @@
-use crate::{assets::AssetReference, rendering::MeshSource};
+use crate::{assets::AssetReference, rendering::{MeshSource, MeshSourceId}};
 #[derive(bevy_ecs::component::Component)]
 pub struct Mesh {
-    source: MeshSource
+    id: MeshSourceId
 }
 
 impl Mesh {
     pub fn from_asset (asset: AssetReference) -> Self {
         Mesh {
-            source: MeshSource::from_reference(asset)
+            id: MeshSourceId::from_reference(asset)
         }
     }
 
     pub fn cube () -> Self {
         Mesh {
-            source: MeshSource::cube()
+            id: MeshSourceId::CUBE
         }
     }
 
-    pub(crate) fn get_source (&self) -> &MeshSource {
-        &self.source
+    pub(crate) fn get_id (&self) -> &MeshSourceId {
+        &self.id
     }
 }

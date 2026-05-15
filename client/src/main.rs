@@ -27,6 +27,11 @@ fn main() {
             Transform::default(),
             Mesh::cube()
         ));
+
+        scene.spawn((
+            Transform::default(),
+            Mesh::cube()
+        ));
     });
 
     runtime.on_frame(|mut ctx: RuntimeContext, delta: f32| {
