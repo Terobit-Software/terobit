@@ -70,7 +70,7 @@ impl AppState {
             flags: wgpu::InstanceFlags::debugging(), // add this
             ..wgpu::InstanceDescriptor::new_with_display_handle(Box::new(display))
         });
-        
+
         // get the adapter, which represents the gpu
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
@@ -155,7 +155,7 @@ impl AppState {
                 module: &shader_module,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format,
+                    format: surface_format.add_srgb_suffix(),
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -369,10 +369,11 @@ impl AppState {
         self.camera.position.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
         self.upload_camera();
 
-        let draw_calls: Vec<(MeshSourceId, usize)> =
+        let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
                 if let Some(scene) = self.get_scene_mut(scene_name) {
                     let containers = accumulate_meshes(scene);
+                    let mut current_offset: u64 = 0;
                     let mut calls = vec![];
 
                     for (mesh_id, container) in &containers {
@@ -381,15 +382,15 @@ impl AppState {
                             .iter()
                             .map(|t| InstanceRaw::new(*t))
                             .collect();
+                        let data = bytemuck::cast_slice(&instances);
 
-                        // write before renderpass
-                        self.queue.write_buffer(
-                            &self.instance_buffer,
-                            0,
-                            bytemuck::cast_slice(&instances),
-                        );
+                        self.queue
+                            .write_buffer(&self.instance_buffer, current_offset, data);
 
-                        calls.push((*mesh_id, instances.len()));
+                        let byte_size = data.len() as u64;
+                        calls.push((*mesh_id, instances.len(), current_offset, byte_size));
+
+                        current_offset += byte_size;
                     }
                     calls
                 } else {
@@ -429,13 +430,12 @@ impl AppState {
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
 
-        for (mesh_id, instance_count) in &draw_calls {
-            let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else {
-                continue;
-            };
-
+        for (mesh_id, instance_count, offset, byte_size) in &draw_calls {
+            let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else { continue; };
+        
             renderpass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            // Bind the specific slice for this mesh's instances
+            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(*offset..(*offset + *byte_size))); 
             renderpass.set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             renderpass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
         }

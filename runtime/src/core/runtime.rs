@@ -15,6 +15,8 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
+        env_logger::init();
+        
         Self {
             app: App::default(),
             event_loop: Some(EventLoop::new().unwrap()),
