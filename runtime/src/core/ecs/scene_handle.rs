@@ -19,6 +19,10 @@ impl SceneHandle<'_> {
     }
 
     pub fn raw (&self) -> &World {
-        self.scene
+        &self.scene
+    }
+
+    pub fn mut_raw (&mut self) -> &mut World {
+        &mut self.scene
     }
 }

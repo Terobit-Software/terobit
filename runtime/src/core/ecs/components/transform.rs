@@ -2,9 +2,9 @@ use glam::{Mat4, Quat, Vec3};
 
 #[derive(bevy_ecs::component::Component, Clone, Copy)]
 pub struct Transform {
-    position: Vec3,
-    rotation: Quat,
-    scale: Vec3,
+    pub position: Vec3,
+    pub rotation: Quat,
+    pub scale: Vec3,
 }
 
 impl Transform {

@@ -9,11 +9,10 @@ use wgpu::{
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
-    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
-    rendering::{
+    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT}, ecs::{Camera, Transform}, rendering::{
         GpuMesh, InstanceRaw, MeshSourceHandler, MeshSourceId, RenderCamera, Vertex, VertexRaw,
         VertexTrait, accumulate_meshes,
-    },
+    }
 };
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
@@ -234,7 +233,24 @@ impl AppState {
         state
     }
 
-    fn upload_camera(&self) {
+    fn upload_camera(&mut self) {
+        let camera_position: Option<Vec3> = if let Some(scene_name) = self.current_scene.clone() {
+            if let Some(scene) = self.get_scene_mut(scene_name) {
+                scene.query::<(&Transform, &Camera)>()
+                    .iter(scene)
+                    .next() // just the first camera
+                    .map(|(transform, _)| transform.position)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(pos) = camera_position {
+            self.camera.position = pos;
+        }
+        
         let mvp = self
             .camera
             .build_view_proj(self.size.width, self.size.height);
@@ -357,11 +373,7 @@ impl AppState {
             });
     
         let mut encoder = self.device.create_command_encoder(&Default::default());
-    
-        self.camera.position.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-        self.camera.position.x = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-        self.camera.position.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
-        self.upload_camera();
+
     
         // collect draw calls and write instance data before renderpass
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
@@ -391,6 +403,8 @@ impl AppState {
             } else {
                 vec![]
             };
+
+        self.upload_camera();
     
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,

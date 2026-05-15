@@ -575,6 +575,7 @@ name = "client"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
+ "chrono",
  "dhat",
  "env_logger",
  "glam 0.32.1",
