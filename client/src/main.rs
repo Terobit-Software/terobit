@@ -36,17 +36,22 @@ fn main() {
     });
 
     runtime.on_frame(|mut ctx: RuntimeContext, delta: f32| {
-        let mut main_scene = ctx.get_scene("main").unwrap();
+        // let mut main_scene = ctx.get_scene("main").unwrap();
 
-        for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
-            let mut pos = Vec3::default();
+        // for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+        //     let mut pos = Vec3::default();
 
-            pos.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-            pos.x = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-            pos.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
+        //     pos.y = 2. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        //     pos.x = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        //     pos.z = 5. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
 
-            transform.position = pos;
-        }
+        //     transform.position = pos;
+        // }
+    });
+
+    runtime.on_key(|mut ctx: RuntimeContext, key_code| {
+        println!("{:?}", key_code.physical_key);
+
     });
 
     runtime.start();

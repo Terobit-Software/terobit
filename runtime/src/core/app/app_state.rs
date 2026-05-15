@@ -9,10 +9,12 @@ use wgpu::{
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
-    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT}, ecs::{Camera, Transform}, rendering::{
+    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
+    ecs::{Camera, Transform},
+    rendering::{
         GpuMesh, InstanceRaw, MeshSourceHandler, MeshSourceId, RenderCamera, Vertex, VertexRaw,
         VertexTrait, accumulate_meshes,
-    }
+    },
 };
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
@@ -236,7 +238,8 @@ impl AppState {
     fn upload_camera(&mut self) {
         let camera_position: Option<Vec3> = if let Some(scene_name) = self.current_scene.clone() {
             if let Some(scene) = self.get_scene_mut(scene_name) {
-                scene.query::<(&Transform, &Camera)>()
+                scene
+                    .query::<(&Transform, &Camera)>()
                     .iter(scene)
                     .next() // just the first camera
                     .map(|(transform, _)| transform.position)
@@ -250,7 +253,7 @@ impl AppState {
         if let Some(pos) = camera_position {
             self.camera.position = pos;
         }
-        
+
         let mvp = self
             .camera
             .build_view_proj(self.size.width, self.size.height);
@@ -337,7 +340,7 @@ impl AppState {
 
         self.upload_camera();
     }
-    
+
     pub fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(texture) => texture,
@@ -364,17 +367,16 @@ impl AppState {
             }
             wgpu::CurrentSurfaceTexture::Validation => unreachable!(),
         };
-    
+
         let texture_view = surface_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor {
                 format: Some(self.surface_format.add_srgb_suffix()),
                 ..Default::default()
             });
-    
+
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
-    
         // collect draw calls and write instance data before renderpass
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
@@ -382,16 +384,18 @@ impl AppState {
                     let containers = accumulate_meshes(scene);
                     let mut current_offset: u64 = 0;
                     let mut calls = vec![];
-    
+
                     for (mesh_id, container) in &containers {
-                        let instances: Vec<InstanceRaw> = container.transforms
+                        let instances: Vec<InstanceRaw> = container
+                            .transforms
                             .iter()
                             .map(|t| InstanceRaw::new(*t))
                             .collect();
                         let data: &[u8] = bytemuck::cast_slice(&instances);
-    
-                        self.queue.write_buffer(&self.instance_buffer, current_offset, data);
-    
+
+                        self.queue
+                            .write_buffer(&self.instance_buffer, current_offset, data);
+
                         let byte_size = data.len() as u64;
                         calls.push((*mesh_id, instances.len(), current_offset, byte_size));
                         current_offset += byte_size;
@@ -405,7 +409,7 @@ impl AppState {
             };
 
         self.upload_camera();
-    
+
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -429,27 +433,30 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-    
+
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
-    
+
         for (mesh_id, instance_count, offset, byte_size) in &draw_calls {
             let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else {
                 continue;
             };
-    
+
             renderpass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(*offset..(*offset + *byte_size)));
+            renderpass.set_vertex_buffer(
+                1,
+                self.instance_buffer.slice(*offset..(*offset + *byte_size)),
+            );
             renderpass.set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             renderpass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
         }
-    
+
         drop(renderpass);
-    
+
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
         surface_texture.present();
-    
+
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {
             println!("{} fps", self.frame_count);
@@ -457,6 +464,7 @@ impl AppState {
             self.last_time = Utc::now().timestamp_millis();
         }
     }
+    
     pub fn create_scene(&mut self, name: String) {
         self.scenes.insert(name.clone(), World::new());
 

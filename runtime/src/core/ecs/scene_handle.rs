@@ -7,10 +7,7 @@ pub struct SceneHandle<'a> {
 }
 
 impl SceneHandle<'_> {
-    pub fn spawn<B>(&mut self, bundle: B) -> Entity
-    where
-        B: Bundle,
-    {
+    pub fn spawn<B: Bundle>(&mut self, bundle: B) -> Entity {
         self.scene.spawn(bundle).id()
     }
 

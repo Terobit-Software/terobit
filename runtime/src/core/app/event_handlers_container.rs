@@ -1,9 +1,11 @@
-use winit::keyboard::KeyCode;
+use std::sync::Arc;
 
-use crate::RuntimeContext;
+use winit::{event::KeyEvent, keyboard::KeyCode};
+
+use crate::{RuntimeContext, app::KeyInput};
 
 pub type OnFrameHandler = Box<dyn Fn(RuntimeContext, f32)>;
-pub type OnKeyHandler = Box<dyn Fn(RuntimeContext, KeyCode)>;
+pub type OnKeyHandler = Arc<dyn Fn(RuntimeContext, KeyInput)>;
 pub type OnStartHandler = Box<dyn Fn(RuntimeContext)>;
 
 #[derive(Default)]

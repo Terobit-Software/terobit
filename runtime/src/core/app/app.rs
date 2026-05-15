@@ -3,9 +3,9 @@ use std::sync::Arc;
 use wgpu::rwh::HasWindowHandle;
 use winit::{
     application::ApplicationHandler,
-    event::{KeyEvent, WindowEvent},
+    event::{ElementState, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{KeyCode, PhysicalKey},
+    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
     window::{Fullscreen, Window, WindowAttributes, WindowId},
 };
 
@@ -13,6 +13,14 @@ use crate::{
     RuntimeContext,
     app::{AppState, EventHandlerContainer},
 };
+
+pub struct KeyInput {
+    pub key: winit::keyboard::Key,
+    pub physical_key: winit::keyboard::PhysicalKey,
+    pub state: winit::event::ElementState,
+    pub repeat: bool,
+    pub text: Option<winit::keyboard::SmolStr>,
+}
 
 #[derive(Default)]
 pub(crate) struct App {
@@ -89,25 +97,53 @@ impl ApplicationHandler for App {
                 // resize the screen
                 state.resize(size);
             }
+            // WindowEvent::KeyboardInput {
+            //     event:
+            //         KeyEvent {
+            //             physical_key: PhysicalKey::Code(KeyCode::F11),
+            //             state: key_state,
+            //             ..
+            //         },
+            //     ..
+            // } => {
+            //     if key_state.is_pressed() {
+            //         self.is_fullscreen = !self.is_fullscreen;
+
+            //         if self.is_fullscreen {
+            //             state
+            //                 .get_window()
+            //                 .set_fullscreen(Some(Fullscreen::Borderless(None)));
+            //         } else {
+            //             state.get_window().set_fullscreen(None);
+            //         }
+            //     }
+            // }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
-                        physical_key: PhysicalKey::Code(KeyCode::F11),
-                        state: key_state,
+                        physical_key,
+                        logical_key,
+                        state,
+                        repeat,
+                        text,
+                        location,
                         ..
                     },
                 ..
             } => {
-                if key_state.is_pressed() {
-                    self.is_fullscreen = !self.is_fullscreen;
-
-                    if self.is_fullscreen {
-                        state
-                            .get_window()
-                            .set_fullscreen(Some(Fullscreen::Borderless(None)));
-                    } else {
-                        state.get_window().set_fullscreen(None);
-                    }
+                let handler = self.get_handlers().on_key.clone();
+                if let Some(handler) = handler {
+                    let input = KeyInput {
+                        key: logical_key,
+                        physical_key,
+                        state,
+                        repeat,
+                        text,
+                    };
+                    let ctx = RuntimeContext {
+                        state: self.state.as_mut().unwrap(),
+                    };
+                    handler(ctx, input);
                 }
             }
             _ => (),

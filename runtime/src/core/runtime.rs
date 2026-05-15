@@ -1,10 +1,11 @@
+use std::sync::Arc;
+
 use winit::{
-    event_loop::{ControlFlow, EventLoop},
-    keyboard::KeyCode,
+    event::KeyEvent, event_loop::{ControlFlow, EventLoop}, keyboard::KeyCode
 };
 
 use crate::{
-    app::{App, AppState, OnFrameHandler},
+    app::{App, AppState, KeyInput, OnFrameHandler},
     ecs::SceneHandle,
 };
 
@@ -16,7 +17,7 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         env_logger::init();
-        
+
         Self {
             app: App::default(),
             event_loop: Some(EventLoop::new().unwrap()),
@@ -38,8 +39,8 @@ impl Runtime {
         self.app.get_handlers_mut().on_start = Some(Box::new(func));
     }
 
-    pub fn on_key<F: Fn(RuntimeContext, KeyCode) + 'static>(&mut self, func: F) {
-        self.app.get_handlers_mut().on_key = Some(Box::new(func));
+    pub fn on_key<F: Fn(RuntimeContext, KeyInput) + 'static>(&mut self, func: F) {
+        self.app.get_handlers_mut().on_key = Some(Arc::new(func));
     }
 }
 
