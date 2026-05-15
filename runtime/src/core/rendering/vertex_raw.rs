@@ -5,13 +5,3 @@ pub(crate) struct VertexRaw {
     pub tex_coords: [f32; 2], // u, v
     pub normals: [f32; 3],
 }
-
-impl VertexRaw {
-    pub fn new(position: [f32; 4], tex_coords: [f32; 2], normals: [f32; 3]) -> Self {
-        VertexRaw {
-            position,
-            tex_coords,
-            normals,
-        }
-    }
-}

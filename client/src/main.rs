@@ -24,12 +24,7 @@ fn main() {
         ));
 
         scene.spawn((
-            Transform::default(),
-            Mesh::cube()
-        ));
-
-        scene.spawn((
-            Transform::default(),
+            Transform::new().with_pos(Vec3 { x: 0.0, y: 0.0, z: 0.0 }),
             Mesh::cube()
         ));
     });

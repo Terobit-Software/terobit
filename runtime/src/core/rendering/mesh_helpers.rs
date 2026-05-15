@@ -2,11 +2,11 @@ use std::{collections::HashMap, fmt::Debug};
 
 use bevy_ecs::world::World;
 
-use crate::{ecs::{Mesh, Transform}, rendering::{MeshSourceId, RenderMesh, Vertex}};
+use crate::{ecs::{Mesh, Transform}, rendering::{MeshSourceId, Vertex}};
 
 pub(crate) struct RenderMeshContainer {
-    id: MeshSourceId,
-    transforms: Vec<Transform>
+    pub id: MeshSourceId,
+    pub transforms: Vec<Transform>
 }
 
 pub(crate) fn accumulate_meshes (scene: &mut World) -> HashMap<MeshSourceId, RenderMeshContainer> {

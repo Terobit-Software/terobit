@@ -21,7 +21,7 @@ impl RenderCamera {
         }
     }
 
-    pub fn build_mvp(&self, width: u32, height: u32) -> [[f32; 4]; 4] {
+    pub fn build_view_proj(&self, width: u32, height: u32) -> [[f32; 4]; 4] {
         let view = Mat4::look_at_rh(self.position, self.target, self.up);
         let projection =
             Mat4::perspective_rh(self.fov, width as f32 / height as f32, self.near, self.far);
