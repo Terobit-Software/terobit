@@ -14,7 +14,6 @@ impl MeshSourceId {
     }
 
     pub const CUBE: Self = Self(0);
-    // etc.
 }
 
 impl From<MeshSourceId> for usize {
@@ -31,6 +30,12 @@ pub(crate) struct MeshSource {
 
 pub(crate) struct MeshSourceHandler {
     meshes: HashMap<MeshSourceId, MeshSource>
+}
+
+impl MeshSourceHandler {
+    pub fn init_default_meshes () -> Result<(), &'static str> {
+        Err("implement this please")
+    }
 }
 
 impl MeshSource {
