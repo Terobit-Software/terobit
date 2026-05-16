@@ -15,3 +15,10 @@ dhat = "0.3"
 chrono = "0.4.44"
 bevy_ecs = "0.18.1"
 env_logger = "0.11.10"
+rapier3d = {version = "0.32.0", features = ["parallel", "simd-stable"]}
+
+[profile.dev.package.rapier3d]
+opt-level = 3
+ 
+[profile.release]
+codegen-units = 1

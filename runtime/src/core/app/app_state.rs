@@ -77,6 +77,9 @@ impl AppState {
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .unwrap();
+
+        println!("{:?}", adapter.get_info().backend);
+
         // get an actual connection to the gpu
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
@@ -189,10 +192,10 @@ impl AppState {
             multiview_mask: None,
         });
 
-        // pre-allocate space for up to 1024 instances
+        // pre-allocate space for up to 500,001 instances
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instance Buffer"),
-            size: (std::mem::size_of::<InstanceRaw>() * 1024) as u64,
+            size: (std::mem::size_of::<InstanceRaw>() * 500000) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -393,8 +396,10 @@ impl AppState {
                             .collect();
                         let data: &[u8] = bytemuck::cast_slice(&instances);
 
+                        let t1 = std::time::Instant::now();
                         self.queue
                             .write_buffer(&self.instance_buffer, current_offset, data);
+                        println!("upload: {:?}", t1.elapsed());
 
                         let byte_size = data.len() as u64;
                         calls.push((*mesh_id, instances.len(), current_offset, byte_size));
@@ -410,6 +415,7 @@ impl AppState {
 
         self.upload_camera();
 
+        let t2 = std::time::Instant::now();
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -433,6 +439,7 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
+        println!("encode: {:?}", t2.elapsed());
 
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
@@ -453,9 +460,11 @@ impl AppState {
 
         drop(renderpass);
 
+        let t3 = std::time::Instant::now();
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
         surface_texture.present();
+        println!("submit: {:?}", t3.elapsed());
 
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {
@@ -464,7 +473,7 @@ impl AppState {
             self.last_time = Utc::now().timestamp_millis();
         }
     }
-    
+
     pub fn create_scene(&mut self, name: String) {
         self.scenes.insert(name.clone(), World::new());
 

@@ -17,7 +17,7 @@ impl RenderCamera {
             up: Vec3::Y,
             fov: 45f32.to_radians(),
             near: 0.1,
-            far: 100.0,
+            far: 1000.0,
         }
     }
 
