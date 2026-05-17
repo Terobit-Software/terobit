@@ -255,6 +255,9 @@ impl AppState {
 
         if let Some(pos) = camera_position {
             self.camera.position = pos;
+            println!("{}", self.camera.position);
+        } else {
+            println!("no camera");
         }
 
         let mvp = self
@@ -399,7 +402,7 @@ impl AppState {
                         let t1 = std::time::Instant::now();
                         self.queue
                             .write_buffer(&self.instance_buffer, current_offset, data);
-                        println!("upload: {:?}", t1.elapsed());
+                        // println!("upload: {:?}", t1.elapsed());
 
                         let byte_size = data.len() as u64;
                         calls.push((*mesh_id, instances.len(), current_offset, byte_size));
@@ -439,7 +442,7 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        println!("encode: {:?}", t2.elapsed());
+        // println!("encode: {:?}", t2.elapsed());
 
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
@@ -464,7 +467,7 @@ impl AppState {
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
         surface_texture.present();
-        println!("submit: {:?}", t3.elapsed());
+        // println!("submit: {:?}", t3.elapsed());
 
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {

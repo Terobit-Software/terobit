@@ -5,9 +5,10 @@ use winit::{
     application::ApplicationHandler,
     event::{ElementState, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
     window::{Fullscreen, Window, WindowAttributes, WindowId},
 };
+
+pub use winit::{keyboard::{Key, KeyCode, NamedKey, PhysicalKey}};
 
 use crate::{
     RuntimeContext,

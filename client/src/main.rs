@@ -2,8 +2,7 @@ use bevy_ecs::entity::Entity;
 use glam::{Quat, Vec3};
 use rand::rng;
 use runtime::{
-    Runtime, RuntimeContext,
-    ecs::{Camera, Mesh, Transform},
+    Runtime, RuntimeContext, app::{KeyCode, KeyInput, PhysicalKey}, ecs::{Camera, Mesh, Transform}
 };
 use chrono::Utc;
 use rayon::prelude::*;
@@ -27,7 +26,7 @@ fn main() {
             Camera::default()
         ));
 
-        for i in 0..500000 {
+        for i in 0..50000 {
             scene.spawn((
                 Transform::new().with_pos(Vec3 { x: rand::random_range(-150..150) as f32, y: rand::random_range(-150..150) as f32, z: rand::random_range(-150..150) as f32 }),
                 Mesh::cube()
@@ -36,33 +35,45 @@ fn main() {
     });
 
     runtime.on_frame(|mut ctx: RuntimeContext, delta: f32| {
-        let mut main_scene = ctx.get_scene("main").unwrap();
+        // let mut main_scene = ctx.get_scene("main").unwrap();
 
-        for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
-            let mut pos = Vec3::default();
+        // // for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+        // //     let mut pos = Vec3::default();
 
-            pos.y = 15. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-            pos.x = 50. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
-            pos.z = 50. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
+        // //     pos.y = 15. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        // //     pos.x = 50. * (Utc::now().timestamp_millis() as f64 / 1000.).sin() as f32;
+        // //     pos.z = 50. * (Utc::now().timestamp_millis() as f64 / 1000.).cos() as f32;
 
-            transform.position = pos;
-        }
+        // //     transform.position = pos;
+        // // }
 
-        let t0 = std::time::Instant::now();
+        // let t0 = std::time::Instant::now();
 
-        // main_scene.query::<(&mut Transform, &Mesh)>().par_iter_mut(main_scene.mut_raw()).for_each(
-        //     |(mut transform, mesh)| {
-        //         transform.position.y -= 0.1;
-        //     }
-        // );
+        // // main_scene.query::<(&mut Transform, &Mesh)>().par_iter_mut(main_scene.mut_raw()).for_each(
+        // //     |(mut transform, mesh)| {
+        // //         transform.position.y -= 0.1;
+        // //     }
+        // // );
 
-        println!("transforms: {:?}", t0.elapsed());
-        println!("sz: {}", std::mem::size_of::<Entity>())
+        // println!("transforms: {:?}", t0.elapsed());
+        // println!("sz: {}", std::mem::size_of::<Entity>())
     });
 
     runtime.on_key(|mut ctx: RuntimeContext, key_code| {
-        println!("{:?}", key_code.physical_key);
-
+        let mut main_scene = ctx.get_scene("main").unwrap();
+        match key_code.physical_key {
+            PhysicalKey::Code(code) => {
+                match code {
+                    KeyCode::KeyA => {
+                        for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+                            transform.position.z -= 0.5;
+                        }
+                    },
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
     });
 
     runtime.start();
