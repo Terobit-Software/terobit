@@ -65,8 +65,23 @@ fn main() {
             PhysicalKey::Code(code) => {
                 match code {
                     KeyCode::KeyA => {
-                        for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+                        for (mut transform, _) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
                             transform.position.z -= 0.5;
+                        }
+                    },
+                    KeyCode::KeyD => {
+                        for (mut transform, _) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+                            transform.position.z += 0.5;
+                        }
+                    },
+                    KeyCode::KeyS => {
+                        for (mut transform, _) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+                            transform.position.x -= 0.5;
+                        }
+                    },
+                    KeyCode::KeyW => {
+                        for (mut transform, _) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
+                            transform.position.x += 0.5;
                         }
                     },
                     _ => {}
