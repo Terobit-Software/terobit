@@ -35,7 +35,7 @@ fn main() {
     });
 
     runtime.on_frame(|mut ctx: RuntimeContext, delta: f32| {
-        // let mut main_scene = ctx.get_scene("main").unwrap();
+        let mut main_scene = ctx.get_scene("main").unwrap();
 
         // // for (mut transform, camera) in main_scene.query::<(&mut Transform, &Camera)>().iter_mut(main_scene.mut_raw()) {
         // //     let mut pos = Vec3::default();
@@ -49,11 +49,13 @@ fn main() {
 
         // let t0 = std::time::Instant::now();
 
-        // // main_scene.query::<(&mut Transform, &Mesh)>().par_iter_mut(main_scene.mut_raw()).for_each(
-        // //     |(mut transform, mesh)| {
-        // //         transform.position.y -= 0.1;
-        // //     }
-        // // );
+        main_scene.query::<(&mut Transform, &Mesh)>().par_iter_mut(main_scene.mut_raw()).for_each(
+            |(mut transform, mesh)| {
+                for _ in 0..1 {
+                    transform.rotation *= Quat::from_rotation_x(0.5_f32.to_radians()) * Quat::from_rotation_y(0.3_f32.to_radians())
+                }
+            }
+        );
 
         // println!("transforms: {:?}", t0.elapsed());
         // println!("sz: {}", std::mem::size_of::<Entity>())
