@@ -19,6 +19,7 @@ use crate::{
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
 
+/// owns all wgpu objects and scene state. one instance lives inside `App` after `resumed` fires
 pub(crate) struct AppState {
     /// the wgpu instance of the app
     instance: wgpu::Instance,
@@ -239,13 +240,18 @@ impl AppState {
     }
 
     fn upload_camera(&mut self) {
-        let camera_position: Option<Vec3> = if let Some(scene_name) = self.current_scene.clone() {
+        // reads position and rotation from the first camera entity and updates the render camera
+        let camera_data: Option<(Vec3, Vec3)> = if let Some(scene_name) = self.current_scene.clone() {
             if let Some(scene) = self.get_scene_mut(scene_name) {
                 scene
                     .query::<(&Transform, &Camera)>()
                     .iter(scene)
-                    .next() // just the first camera
-                    .map(|(transform, _)| transform.position)
+                    .next()
+                    .map(|(transform, _)| {
+                        // forward direction: default facing is +x, rotated by transform.rotation
+                        let forward = transform.rotation * Vec3::X;
+                        (transform.position, transform.position + forward)
+                    })
             } else {
                 None
             }
@@ -253,11 +259,9 @@ impl AppState {
             None
         };
 
-        if let Some(pos) = camera_position {
+        if let Some((pos, target)) = camera_data {
             self.camera.position = pos;
-            println!("{}", self.camera.position);
-        } else {
-            println!("no camera");
+            self.camera.target = target;
         }
 
         let mvp = self
@@ -267,6 +271,7 @@ impl AppState {
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[mvp]));
     }
 
+    /// uploads vertex and index data for a mesh to the gpu and registers it by id
     pub fn upload_mesh(&mut self, id: MeshSourceId, vertices: &[VertexRaw], indices: &[u32]) {
         let vertex_buffer = self
             .device
@@ -294,6 +299,7 @@ impl AppState {
         );
     }
 
+    /// (re)configures the wgpu surface with the current size and format. call after resize
     pub fn configure_surface(&self) {
         // creates a surface config
         let surface_config = wgpu::SurfaceConfiguration {
@@ -309,6 +315,7 @@ impl AppState {
         self.surface.configure(&self.device, &surface_config);
     }
 
+    /// returns a reference to the underlying winit window
     pub fn get_window(&self) -> &Window {
         &self.window
     }
@@ -338,6 +345,7 @@ impl AppState {
         (depth_texture, depth_view)
     }
 
+    /// handles window resize: updates size, reconfigures surface, recreates depth texture
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.size = new_size;
         self.configure_surface();
@@ -347,6 +355,7 @@ impl AppState {
         self.upload_camera();
     }
 
+    /// renders the current frame: uploads instance data, submits draw calls, presents
     pub fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(texture) => texture,
@@ -477,6 +486,7 @@ impl AppState {
         }
     }
 
+    /// creates a new scene. the first scene created becomes the active render target
     pub fn create_scene(&mut self, name: String) {
         self.scenes.insert(name.clone(), World::new());
 
@@ -487,10 +497,12 @@ impl AppState {
         println!("new scene of name {} created", name);
     }
 
+    /// returns a shared reference to a scene by name
     pub fn get_scene(&self, name: String) -> Option<&World> {
         self.scenes.get(&name)
     }
 
+    /// returns a mutable reference to a scene by name
     pub fn get_scene_mut(&mut self, name: String) -> Option<&mut World> {
         self.scenes.get_mut(&name)
     }

@@ -53,3 +53,28 @@ impl VertexTrait for Vertex {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use glam::{Vec2, Vec3};
+    use crate::rendering::VertexTrait;
+
+    #[test]
+    fn to_raw_position_includes_w_one() {
+        let v = Vertex::new(Vec3::new(1.0, 2.0, 3.0), Vec2::ZERO, Vec3::Y);
+        assert_eq!(v.to_raw().position, [1.0, 2.0, 3.0, 1.0]);
+    }
+
+    #[test]
+    fn to_raw_tex_coords_preserved() {
+        let v = Vertex::new(Vec3::ZERO, Vec2::new(0.5, 0.75), Vec3::Y);
+        assert_eq!(v.to_raw().tex_coords, [0.5, 0.75]);
+    }
+
+    #[test]
+    fn to_raw_normals_preserved() {
+        let v = Vertex::new(Vec3::ZERO, Vec2::ZERO, Vec3::new(0.0, 1.0, 0.0));
+        assert_eq!(v.to_raw().normals, [0.0, 1.0, 0.0]);
+    }
+}

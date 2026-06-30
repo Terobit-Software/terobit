@@ -3,7 +3,7 @@ use std::sync::Arc;
 use wgpu::rwh::HasWindowHandle;
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, KeyEvent, WindowEvent},
+    event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
     window::{Fullscreen, Window, WindowAttributes, WindowId},
 };
@@ -15,11 +15,17 @@ use crate::{
     app::{AppState, EventHandlerContainer},
 };
 
+/// keyboard event passed to `on_key` callbacks
 pub struct KeyInput {
+    /// layout-aware logical key (e.g. 'A', 'Enter')
     pub key: winit::keyboard::Key,
+    /// position-based physical key, layout-independent
     pub physical_key: winit::keyboard::PhysicalKey,
+    /// pressed or released
     pub state: winit::event::ElementState,
+    /// true if this is a key-repeat event (key held down)
     pub repeat: bool,
+    /// the text produced by this keypress, if any
     pub text: Option<winit::keyboard::SmolStr>,
 }
 
@@ -148,6 +154,23 @@ impl ApplicationHandler for App {
                 }
             }
             _ => (),
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        if let DeviceEvent::MouseMotion { delta: (dx, dy) } = event {
+            let handler = self.handlers.on_mouse_motion.clone();
+            if let Some(handler) = handler {
+                if let Some(state) = self.state.as_mut() {
+                    let ctx = RuntimeContext { state };
+                    handler(ctx, dx, dy);
+                }
+            }
         }
     }
 

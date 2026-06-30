@@ -36,3 +36,42 @@ impl Debug for RenderMeshContainer {
         write!(f, "(id: {}, count: {})", self.id.0, self.transforms.len())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use glam::Vec3;
+    use crate::{ecs::{Mesh, Transform}, rendering::MeshSourceId};
+
+    #[test]
+    fn empty_world_gives_empty_map() {
+        let mut world = World::new();
+        assert!(accumulate_meshes(&mut world).is_empty());
+    }
+
+    #[test]
+    fn single_entity_single_container_single_transform() {
+        let mut world = World::new();
+        world.spawn((Transform::new(), Mesh::cube()));
+        let result = accumulate_meshes(&mut world);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[&MeshSourceId::CUBE].transforms.len(), 1);
+    }
+
+    #[test]
+    fn two_same_mesh_one_container_two_transforms() {
+        let mut world = World::new();
+        world.spawn((Transform::new(), Mesh::cube()));
+        world.spawn((Transform::new().with_pos(Vec3::X), Mesh::cube()));
+        let result = accumulate_meshes(&mut world);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[&MeshSourceId::CUBE].transforms.len(), 2);
+    }
+
+    #[test]
+    fn transform_without_mesh_not_included() {
+        let mut world = World::new();
+        world.spawn(Transform::new()); // no Mesh component
+        assert!(accumulate_meshes(&mut world).is_empty());
+    }
+}

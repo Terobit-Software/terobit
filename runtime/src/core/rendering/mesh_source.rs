@@ -4,13 +4,17 @@ use glam::{Vec2, Vec3};
 
 use crate::{app::AppState, assets::AssetReference, ecs::Mesh, rendering::{Vertex, VertexRaw, VertexTrait}};
 
+/// unique id for a mesh type. used to look up gpu buffers in the mesh registry
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MeshSourceId(pub usize);
 
 impl MeshSourceId {
+    /// derives a mesh id from an asset reference (placeholder — always returns 0 for now)
     pub fn from_reference(asset: AssetReference) -> Self {
         Self(0)
     }
+
+    /// built-in cube mesh id
     pub const CUBE: Self = Self(0);
 }
 
@@ -142,5 +146,56 @@ impl MeshSource {
 
     pub(crate) fn get_id(&self) -> MeshSourceId {
         self.id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rendering::VertexTrait;
+
+    #[test]
+    fn cube_constant_is_zero() {
+        assert_eq!(MeshSourceId::CUBE, MeshSourceId(0));
+    }
+
+    #[test]
+    fn from_usize_roundtrip() {
+        let id = MeshSourceId::from(42_usize);
+        let back: usize = id.into();
+        assert_eq!(back, 42);
+    }
+
+    #[test]
+    fn cube_mesh_has_24_vertices() {
+        // 6 faces * 4 verts, hard normals so no sharing
+        let (verts, _) = MeshSourceHandler::cube_mesh();
+        assert_eq!(verts.len(), 24);
+    }
+
+    #[test]
+    fn cube_mesh_has_36_indices() {
+        // 6 faces * 2 tris * 3 verts
+        let (_, indices) = MeshSourceHandler::cube_mesh();
+        assert_eq!(indices.len(), 36);
+    }
+
+    #[test]
+    fn cube_mesh_indices_in_range() {
+        let (verts, indices) = MeshSourceHandler::cube_mesh();
+        let max = verts.len() as u32;
+        for &i in &indices {
+            assert!(i < max, "index {i} out of bounds (vertex count {max})");
+        }
+    }
+
+    #[test]
+    fn cube_mesh_normals_are_unit_length() {
+        let (verts, _) = MeshSourceHandler::cube_mesh();
+        for v in &verts {
+            let [nx, ny, nz] = v.to_raw().normals;
+            let len = (nx * nx + ny * ny + nz * nz).sqrt();
+            assert!((len - 1.0).abs() < 1e-5, "normal not unit: ({nx}, {ny}, {nz})");
+        }
     }
 }
