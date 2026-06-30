@@ -5,9 +5,7 @@ use std::{
 
 use glam::{Quat, Vec3};
 use runtime::{
-    Runtime, RuntimeContext,
-    app::{KeyCode, PhysicalKey},
-    ecs::{Camera, Mesh, Transform},
+    Runtime, RuntimeContext, app::{KeyCode, PhysicalKey}, ecs::{Camera, Material, Mesh, Transform},
 };
 
 #[global_allocator]
@@ -51,6 +49,7 @@ fn main() {
                     rand::random_range(-150..150) as f32,
                 )).with_scale(Vec3::new( rand::random_range(1..2) as f32, rand::random_range(1..2) as f32, rand::random_range(1..2) as f32)),
                 chair.clone(),
+                Material::red()
             ));
         }
 
@@ -62,6 +61,7 @@ fn main() {
                     rand::random_range(-150..150) as f32,
                 )),
                 Mesh::cube(),
+                Material::blue()
             ));
         }
 

@@ -1,0 +1,39 @@
+// Windows resource file for the client binary.
+// Edit this file to customize version info, icons, manifests, etc.
+// Docs: https://learn.microsoft.com/en-us/windows/win32/menurc/resource-definition-statements
+
+// ---- icon ----
+// Uncomment and point at your .ico file to set the app icon.
+// 1 ICON "icon.ico"
+
+// ---- version info ----
+// Shown in file properties -> Details tab.
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          0x40004L    // VOS_NT_WINDOWS32
+FILETYPE        0x1L        // VFT_APP
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"    // language: en-US, codepage: UTF-16
+        BEGIN
+            VALUE "FileDescription",  "Terobit Client"
+            VALUE "FileVersion",      "0.1.0.0"
+            VALUE "InternalName",     "client"
+            VALUE "OriginalFilename", "client.exe"
+            VALUE "ProductName",      "Terobit"
+            VALUE "ProductVersion",   "0.1.0.0"
+            VALUE "CompanyName",      ""
+            VALUE "LegalCopyright",   ""
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

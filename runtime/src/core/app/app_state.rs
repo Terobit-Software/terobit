@@ -411,7 +411,8 @@ impl AppState {
                         let instances: Vec<InstanceRaw> = container
                             .transforms
                             .iter()
-                            .map(|t| InstanceRaw::new(*t))
+                            .zip(container.colors.iter())
+                            .map(|(t, &color)| InstanceRaw::new(*t, color))
                             .collect();
                         let data: &[u8] = bytemuck::cast_slice(&instances);
 
