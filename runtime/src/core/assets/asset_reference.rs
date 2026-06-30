@@ -1,21 +1,23 @@
+use std::path::PathBuf;
 
-/// the kind of asset being referenced
+/// the category of asset being referenced
 pub enum AssetReferenceType {
-    MESH
+    Mesh,
 }
 
-/// a reference to an asset on disk (placeholder, not actually loading anything yet)
+/// a reference to an asset file on disk, passed to `RuntimeContext::load_mesh`
 pub struct AssetReference {
-    asset_type: AssetReferenceType
+    /// path to the asset file
+    pub path: PathBuf,
+    pub asset_type: AssetReferenceType,
 }
 
 impl AssetReference {
-    /// creates a new asset reference (placeholder — always returns a mesh type for now)
-    pub fn new () -> Self {
-        // TODO: actually make it work yk
-
-        AssetReference {
-            asset_type: AssetReferenceType::MESH
+    /// creates a reference to a mesh asset at the given path
+    pub fn mesh(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            asset_type: AssetReferenceType::Mesh,
         }
     }
 }

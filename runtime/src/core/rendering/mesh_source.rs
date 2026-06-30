@@ -2,19 +2,14 @@ use std::collections::HashMap;
 
 use glam::{Vec2, Vec3};
 
-use crate::{app::AppState, assets::AssetReference, ecs::Mesh, rendering::{Vertex, VertexRaw, VertexTrait}};
+use crate::{app::AppState, rendering::{Vertex, VertexRaw, VertexTrait}};
 
 /// unique id for a mesh type. used to look up gpu buffers in the mesh registry
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MeshSourceId(pub usize);
 
 impl MeshSourceId {
-    /// derives a mesh id from an asset reference (placeholder — always returns 0 for now)
-    pub fn from_reference(asset: AssetReference) -> Self {
-        Self(0)
-    }
-
-    /// built-in cube mesh id
+    /// built-in cube mesh id. custom meshes start at 1 and increment
     pub const CUBE: Self = Self(0);
 }
 
@@ -134,14 +129,6 @@ impl MeshSourceHandler {
 impl MeshSource {
     pub fn cube() -> Self {
         Self { id: MeshSourceId::CUBE }
-    }
-
-    pub fn from_reference(asset: AssetReference) -> Self {
-        Self { id: MeshSourceId(0) }
-    }
-
-    pub fn from_id(id: MeshSourceId) -> Self {
-        Self { id }
     }
 
     pub(crate) fn get_id(&self) -> MeshSourceId {

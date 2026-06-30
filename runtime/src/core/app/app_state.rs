@@ -1,5 +1,5 @@
 use chrono::Utc;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc};
 
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{
@@ -9,6 +9,7 @@ use wgpu::{
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
+    assets::AssetReader,
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
     ecs::{Camera, Transform},
     rendering::{
@@ -62,6 +63,10 @@ pub(crate) struct AppState {
 
     mesh_registry: HashMap<MeshSourceId, GpuMesh>,
     instance_buffer: wgpu::Buffer,
+    /// counter for assigning unique ids to custom meshes. starts at 1 (0 is reserved for the built-in cube)
+    mesh_id_counter: usize,
+    /// cache mapping file path to its registered MeshSourceId so we don't re-upload the same file
+    mesh_path_cache: HashMap<PathBuf, MeshSourceId>,
 }
 
 impl AppState {
@@ -222,6 +227,8 @@ impl AppState {
             current_scene: None,
             instance_buffer,
             mesh_registry: HashMap::new(),
+            mesh_id_counter: 0,
+            mesh_path_cache: HashMap::new(),
         };
 
         let res = MeshSourceHandler::init_default_meshes(&mut state);
@@ -484,6 +491,26 @@ impl AppState {
             self.frame_count = 0;
             self.last_time = Utc::now().timestamp_millis();
         }
+    }
+
+    /// loads an obj file, uploads it to the gpu, and returns its MeshSourceId.
+    /// calling with the same path twice returns the cached id without re-uploading.
+    pub(crate) fn load_mesh_from_path(&mut self, path: &Path) -> anyhow::Result<MeshSourceId> {
+        let owned = path.to_path_buf();
+
+        if let Some(&id) = self.mesh_path_cache.get(&owned) {
+            return Ok(id);
+        }
+
+        let (vertices, indices) = AssetReader::load_obj(path)?;
+
+        self.mesh_id_counter += 1;
+        let id = MeshSourceId(self.mesh_id_counter);
+
+        self.upload_mesh(id, &vertices, &indices);
+        self.mesh_path_cache.insert(owned, id);
+
+        Ok(id)
     }
 
     /// creates a new scene. the first scene created becomes the active render target

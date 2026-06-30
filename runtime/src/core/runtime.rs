@@ -6,7 +6,7 @@ use winit::{
 
 use crate::{
     app::{App, AppState, KeyInput, OnFrameHandler},
-    ecs::SceneHandle,
+    ecs::{Mesh, SceneHandle},
 };
 
 /// the main entry point for the engine. create one, register callbacks, then call `start()`
@@ -50,7 +50,7 @@ impl Runtime {
     }
 
     /// registers a callback fired on raw mouse motion. dx/dy are physical pixel deltas,
-    /// unaffected by cursor position or os acceleration — ideal for fps look
+    /// unaffected by cursor position or os acceleration, ideal for fps look
     pub fn on_mouse_motion<F: Fn(RuntimeContext, f64, f64) + 'static>(&mut self, func: F) {
         self.app.get_handlers_mut().on_mouse_motion = Some(Arc::new(func));
     }
@@ -98,5 +98,12 @@ impl<'a> RuntimeContext<'a> {
         let window = self.state.get_window();
         let _ = window.set_cursor_grab(winit::window::CursorGrabMode::None);
         window.set_cursor_visible(true);
+    }
+
+    /// loads a mesh from an obj file, uploads it to the gpu, and returns a `Mesh` component
+    /// ready to spawn. calling with the same path twice reuses the cached gpu data
+    pub fn load_mesh(&mut self, path: &str) -> anyhow::Result<Mesh> {
+        let id = self.state.load_mesh_from_path(std::path::Path::new(path))?;
+        Ok(Mesh::with_source_id(id))
     }
 }

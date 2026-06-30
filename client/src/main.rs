@@ -36,17 +36,31 @@ fn main() {
     }));
 
     runtime.on_start(|mut ctx: RuntimeContext| {
+        // load before creating scene so the scene borrow doesn't block ctx
+        let chair = ctx.load_mesh(r"D:\bluffchair.obj").expect("failed to load bluffchair.obj");
+
         let mut scene = ctx.create_scene("main");
 
         scene.spawn((Transform::default(), Camera::default()));
 
         for _ in 0..5000 {
             scene.spawn((
-                Transform::new().with_pos(Vec3 {
-                    x: rand::random_range(-15..15) as f32,
-                    y: rand::random_range(-15..15) as f32,
-                    z: rand::random_range(-15..15) as f32,
-                }),
+                Transform::new().with_pos(Vec3::new(
+                    rand::random_range(-150..150) as f32,
+                    rand::random_range(-150..150) as f32,
+                    rand::random_range(-150..150) as f32,
+                )).with_scale(Vec3::new( rand::random_range(1..2) as f32, rand::random_range(1..2) as f32, rand::random_range(1..2) as f32)),
+                chair.clone(),
+            ));
+        }
+
+        for _ in 0..5000 {
+            scene.spawn((
+                Transform::new().with_pos(Vec3::new(
+                    rand::random_range(-150..150) as f32,
+                    rand::random_range(-150..150) as f32,
+                    rand::random_range(-150..150) as f32,
+                )),
                 Mesh::cube(),
             ));
         }
@@ -105,14 +119,15 @@ fn main() {
             if s.held.contains(&KeyCode::KeyD) { delta += right; }
             if s.held.contains(&KeyCode::KeyA) { delta -= right; }
             if s.held.contains(&KeyCode::Space) { delta.y += 1.0; }
-            if s.held.contains(&KeyCode::ShiftLeft) { delta.y -= 1.0; }
+            if s.held.contains(&KeyCode::ControlLeft) { delta.y -= 1.0; }
 
             // normalize so diagonal movement isn't faster
             if delta.length_squared() > 0.0 {
                 delta = delta.normalize();
             }
 
-            (rotation, delta * MOVE_SPEED)
+            let speed = if s.held.contains(&KeyCode::ShiftLeft) { MOVE_SPEED * 2.0 } else { MOVE_SPEED };
+            (rotation, delta * speed)
         };
 
         for (mut transform, _) in main_scene

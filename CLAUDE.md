@@ -34,7 +34,7 @@ You, the agent, should NEVER under ANY circumstances edit or interact with:
 - **Linting & CI:** All code changes must compile cleanly and pass `cargo clippy` without warnings.
 
 Code that may be considered confusing or hard to understand should be documented with comments.
-Comments should be simple and not complex. Casual language (such as mostly lowercase), no emojis or symbols, and maybe a little humor too. For example:
+Comments should be simple and not complex. Casual language (such as mostly lowercase), no emojis or symbols, and maybe a little humor too. Never use em-dashes (—), instead use commas. For example:
 Good (do this):
 
 ```rust
