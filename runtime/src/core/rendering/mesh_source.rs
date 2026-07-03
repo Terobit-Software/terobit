@@ -9,8 +9,10 @@ use crate::{app::AppState, rendering::{Vertex, VertexRaw, VertexTrait}};
 pub struct MeshSourceId(pub usize);
 
 impl MeshSourceId {
-    /// built-in cube mesh id. custom meshes start at 1 and increment
+    /// built-in cube mesh id. custom meshes start at 2 and increment
     pub const CUBE: Self = Self(0);
+    /// built-in flat plane mesh id (unit quad, xz plane, facing +y)
+    pub const PLANE: Self = Self(1);
 }
 
 impl From<MeshSourceId> for usize {
@@ -31,10 +33,30 @@ pub(crate) struct MeshSourceHandler {
 
 impl MeshSourceHandler {
     pub fn init_default_meshes(state: &mut AppState) -> Result<(), &'static str> {
-        let (vertices, indices) = Self::cube_mesh();
-    
-        state.upload_mesh(MeshSourceId::CUBE, &Self::format_verts(vertices), &indices);
+        let (cube_vertices, cube_indices) = Self::cube_mesh();
+        state.upload_mesh(MeshSourceId::CUBE, &Self::format_verts(cube_vertices), &cube_indices);
+
+        let (plane_vertices, plane_indices) = Self::plane_mesh();
+        state.upload_mesh(MeshSourceId::PLANE, &Self::format_verts(plane_vertices), &plane_indices);
+
         Ok(())
+    }
+
+    /// unit flat quad in the xz plane, centered at origin, facing +y
+    fn plane_mesh() -> (Vec<Vertex>, Vec<u32>) {
+        let h = 0.5_f32;
+        let normal = Vec3::new(0.0, 1.0, 0.0);
+
+        let vertices = vec![
+            Vertex::new(Vec3::new(-h, 0.0, -h), Vec2::new(0.0, 0.0), normal),
+            Vertex::new(Vec3::new(h, 0.0, -h), Vec2::new(1.0, 0.0), normal),
+            Vertex::new(Vec3::new(-h, 0.0, h), Vec2::new(0.0, 1.0), normal),
+            Vertex::new(Vec3::new(h, 0.0, h), Vec2::new(1.0, 1.0), normal),
+        ];
+
+        let indices = vec![0, 1, 2, 2, 1, 3];
+
+        (vertices, indices)
     }
 
     fn format_verts(vertices: Vec<Vertex>) -> Vec<VertexRaw> {
@@ -144,6 +166,18 @@ mod tests {
     #[test]
     fn cube_constant_is_zero() {
         assert_eq!(MeshSourceId::CUBE, MeshSourceId(0));
+    }
+
+    #[test]
+    fn plane_constant_is_one() {
+        assert_eq!(MeshSourceId::PLANE, MeshSourceId(1));
+    }
+
+    #[test]
+    fn plane_mesh_has_4_vertices_and_6_indices() {
+        let (verts, indices) = MeshSourceHandler::plane_mesh();
+        assert_eq!(verts.len(), 4);
+        assert_eq!(indices.len(), 6);
     }
 
     #[test]

@@ -7,9 +7,15 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    /// creates a cube mesh component (the only built-in mesh right now)
+    /// creates a cube mesh component
     pub fn cube() -> Self {
         Mesh { id: MeshSourceId::CUBE }
+    }
+
+    /// creates a flat plane mesh component (unit quad in the xz plane, facing +y).
+    /// scale it via `Transform` to make a floor
+    pub fn plane() -> Self {
+        Mesh { id: MeshSourceId::PLANE }
     }
 
     /// creates a mesh component from a pre-registered mesh id.

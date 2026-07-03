@@ -5,7 +5,7 @@ use std::{
 
 use glam::{Quat, Vec3};
 use runtime::{
-    Runtime, RuntimeContext, app::{KeyCode, PhysicalKey}, ecs::{Camera, Material, Mesh, Transform},
+    Runtime, RuntimeContext, app::{KeyCode, PhysicalKey}, ecs::{Camera, Collider, Material, Mesh, RigidBody, Transform},
 };
 
 #[global_allocator]
@@ -41,15 +41,28 @@ fn main() {
 
         scene.spawn((Transform::default(), Camera::default()));
 
+        // floor: big flat plane, static rigidbody so falling objects rest on it
+        scene.spawn((
+            Transform::new()
+                .with_pos(Vec3::new(0.0, -50.0, 0.0))
+                .with_scale(Vec3::new(400.0, 1.0, 400.0)),
+            Mesh::plane(),
+            Material::new(0.3, 0.3, 0.35, 1.0),
+            RigidBody::new_static(),
+            Collider::cube(),
+        ));
+
         for _ in 0..5000 {
             scene.spawn((
                 Transform::new().with_pos(Vec3::new(
                     rand::random_range(-150..150) as f32,
-                    rand::random_range(-150..150) as f32,
+                    rand::random_range(0..200) as f32,
                     rand::random_range(-150..150) as f32,
                 )).with_scale(Vec3::new( rand::random_range(1..2) as f32, rand::random_range(1..2) as f32, rand::random_range(1..2) as f32)),
                 chair.clone(),
-                Material::red()
+                Material::red(),
+                RigidBody::new(2.0).with_restitution(0.3),
+                Collider::inherit(),
             ));
         }
 
@@ -57,11 +70,13 @@ fn main() {
             scene.spawn((
                 Transform::new().with_pos(Vec3::new(
                     rand::random_range(-150..150) as f32,
-                    rand::random_range(-150..150) as f32,
+                    rand::random_range(0..200) as f32,
                     rand::random_range(-150..150) as f32,
                 )),
                 Mesh::cube(),
-                Material::blue()
+                Material::blue(),
+                RigidBody::new(1.0).with_restitution(0.5),
+                Collider::inherit(),
             ));
         }
 
@@ -92,15 +107,6 @@ fn main() {
     let cam_frame = cam.clone();
     runtime.on_frame(move |mut ctx: RuntimeContext, _delta: f32| {
         let mut main_scene = ctx.get_scene("main").unwrap();
-
-        // spin cubes
-        main_scene
-            .query::<(&mut Transform, &Mesh)>()
-            .par_iter_mut(main_scene.mut_raw())
-            .for_each(|(mut transform, _)| {
-                transform.rotation *= Quat::from_rotation_x(0.5f32.to_radians())
-                    * Quat::from_rotation_y(0.3f32.to_radians());
-            });
 
         // compute camera update from shared state, then drop the lock before touching the world
         let (rotation, delta_pos) = {

@@ -88,10 +88,14 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                let dt = state.tick_delta();
+
                 if let Some(handler) = &self.handlers.on_frame {
                     let ctx = RuntimeContext { state: &mut *state };
-                    handler(ctx, 0.0)
+                    handler(ctx, dt)
                 }
+
+                state.step_physics(dt);
 
                 // does what it says lol
                 state.render();

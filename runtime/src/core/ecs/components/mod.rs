@@ -9,3 +9,6 @@ pub use camera::*;
 
 mod material;
 pub use material::*;
+
+mod physics;
+pub use physics::*;

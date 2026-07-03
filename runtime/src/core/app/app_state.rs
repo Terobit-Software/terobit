@@ -11,7 +11,7 @@ use winit::{event_loop::OwnedDisplayHandle, window::Window};
 use crate::{
     assets::AssetReader,
     consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
-    ecs::{Camera, Transform},
+    ecs::{Camera, PhysicsScene, Transform},
     rendering::{
         GpuMesh, InstanceRaw, MeshSourceHandler, MeshSourceId, RenderCamera, Vertex, VertexRaw,
         VertexTrait, accumulate_meshes,
@@ -63,10 +63,18 @@ pub(crate) struct AppState {
 
     mesh_registry: HashMap<MeshSourceId, GpuMesh>,
     instance_buffer: wgpu::Buffer,
-    /// counter for assigning unique ids to custom meshes. starts at 1 (0 is reserved for the built-in cube)
+    /// counter for assigning unique ids to custom meshes. starts at 1 (0 and 1 are
+    /// reserved for the built-in cube and plane), so the first custom mesh gets id 2
     mesh_id_counter: usize,
     /// cache mapping file path to its registered MeshSourceId so we don't re-upload the same file
     mesh_path_cache: HashMap<PathBuf, MeshSourceId>,
+    /// cpu-side vertex positions per mesh, kept around so `Collider::inherit()` can
+    /// build a physics shape from any mesh (built-in or asset-loaded)
+    mesh_points: HashMap<MeshSourceId, Vec<Vec3>>,
+    /// clock used to compute real per-frame dt, drives both `on_frame` and the physics step
+    physics_clock: std::time::Instant,
+    /// the physics simulation for the current scene
+    physics: PhysicsScene,
 }
 
 impl AppState {
@@ -227,8 +235,11 @@ impl AppState {
             current_scene: None,
             instance_buffer,
             mesh_registry: HashMap::new(),
-            mesh_id_counter: 0,
+            mesh_id_counter: 1,
             mesh_path_cache: HashMap::new(),
+            mesh_points: HashMap::new(),
+            physics_clock: std::time::Instant::now(),
+            physics: PhysicsScene::new(),
         };
 
         let res = MeshSourceHandler::init_default_meshes(&mut state);
@@ -278,8 +289,16 @@ impl AppState {
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[mvp]));
     }
 
-    /// uploads vertex and index data for a mesh to the gpu and registers it by id
+    /// uploads vertex and index data for a mesh to the gpu and registers it by id.
+    /// also keeps a cpu-side copy of the vertex positions so `Collider::inherit()`
+    /// can build a physics shape from this mesh later
     pub fn upload_mesh(&mut self, id: MeshSourceId, vertices: &[VertexRaw], indices: &[u32]) {
+        let points = vertices
+            .iter()
+            .map(|v| Vec3::new(v.position[0], v.position[1], v.position[2]))
+            .collect();
+        self.mesh_points.insert(id, points);
+
         let vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -325,6 +344,22 @@ impl AppState {
     /// returns a reference to the underlying winit window
     pub fn get_window(&self) -> &Window {
         &self.window
+    }
+
+    /// seconds elapsed since the last call, resets the clock. drives `on_frame`'s delta
+    /// and the physics step so both run at the actual frame rate instead of a fixed 0.0
+    pub(crate) fn tick_delta(&mut self) -> f32 {
+        let now = std::time::Instant::now();
+        let dt = now.duration_since(self.physics_clock).as_secs_f32();
+        self.physics_clock = now;
+        dt
+    }
+
+    /// steps physics (gravity, integration, contact resolution) for the current scene
+    pub(crate) fn step_physics(&mut self, dt: f32) {
+        let Some(scene_name) = self.current_scene.as_ref() else { return };
+        let Some(scene) = self.scenes.get_mut(scene_name) else { return };
+        self.physics.step(scene, dt, &self.mesh_points);
     }
 
     fn create_depth_texture(
