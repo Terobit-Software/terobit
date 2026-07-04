@@ -41,12 +41,15 @@ fn main() {
 
         scene.spawn((Transform::default(), Camera::default()));
 
-        // floor: big flat plane, static rigidbody so falling objects rest on it
+        // floor: big flat slab, static rigidbody so falling objects rest on it.
+        // uses Mesh::cube() (not plane()) since Collider::cube() is a box centered on
+        // the transform, a plane mesh sits flush at y=0 so its top would float 0.5
+        // units above the collider's actual surface
         scene.spawn((
             Transform::new()
                 .with_pos(Vec3::new(0.0, -50.0, 0.0))
                 .with_scale(Vec3::new(400.0, 1.0, 400.0)),
-            Mesh::plane(),
+            Mesh::cube(),
             Material::new(0.3, 0.3, 0.35, 1.0),
             RigidBody::new_static(),
             Collider::cube(),

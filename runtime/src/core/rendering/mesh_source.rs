@@ -63,13 +63,12 @@ impl MeshSourceHandler {
         vertices.iter().map(|v| v.to_raw()).collect()
     }
 
-    /// Unit cube centered at origin.
-    /// Each face has its own 4 vertices so normals are hard (flat), not shared.
+    /// unit cube centered at origin. each face gets its own 4 vertices so
+    /// normals are hard (flat), not shared
     fn cube_mesh() -> (Vec<Vertex>, Vec<u32>) {
-        let h = 0.5_f32; // half-extent
+        let h = 0.5_f32;
 
-        // Each face: 4 verts (tl, tr, bl, br), normal pointing outward
-        // UV: simple 0..1 across each face
+        // each face: 4 verts (tl, tr, bl, br), normal pointing outward, uv 0..1 across the face
         let faces: &[(Vec3, Vec3, Vec3, Vec3, Vec3)] = &[
             // (top-left pos, top-right pos, bot-left pos, bot-right pos, normal)
 
@@ -134,10 +133,7 @@ impl MeshSourceHandler {
             vertices.push(Vertex::new(*bl, Vec2::new(0.0, 1.0), *normal));
             vertices.push(Vertex::new(*br, Vec2::new(1.0, 1.0), *normal));
 
-            // Two CCW triangles per face:
-            // tl--tr
-            // |  / |
-            // bl--br
+            // two ccw triangles per face: tl-tr-bl, then bl-tr-br
             indices.extend_from_slice(&[
                 base,     base + 1, base + 2, // tl, tr, bl
                 base + 2, base + 1, base + 3, // bl, tr, br

@@ -33,7 +33,7 @@ You, the agent, should NEVER under ANY circumstances edit or interact with:
 - **Testing:** Integration tests should go in the `tests/` directory. Unit tests should be written inline in the corresponding module under a `#[cfg(test)]` block.
 - **Linting & CI:** All code changes must compile cleanly and pass `cargo clippy` without warnings.
 
-Code that may be considered confusing or hard to understand should be documented with comments.
+You should almost never add comments, except sometimes on non-trivial code, function definitions if the arguments aren't self-explanatory, and class definitions and their members.
 Comments should be simple and not complex. Casual language (such as mostly lowercase), no emojis or symbols, and maybe a little humor too. Never use em-dashes (—), instead use commas. For example:
 Good (do this):
 
@@ -41,6 +41,8 @@ Good (do this):
 // creates 5
 let v: i32 = 5
 ```
+
+^^^ in this situation you would not need a comment, this is just an example of a comment
 
 Bad (dont do this):
 

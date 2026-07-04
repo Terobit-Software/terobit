@@ -3,6 +3,10 @@ name = "client"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "terobit"
+path = "src/main.rs"
+
 [dependencies]
 runtime = { path = "../runtime" }
 dhat = "0.3"

@@ -80,13 +80,11 @@ pub(crate) struct AppState {
 impl AppState {
     /// create a new app state
     pub async fn new(display: OwnedDisplayHandle, window: Arc<Window>) -> Self {
-        // create a new wgpu instance, using the display handle from winit
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            flags: wgpu::InstanceFlags::debugging(), // add this
+            flags: wgpu::InstanceFlags::debugging(),
             ..wgpu::InstanceDescriptor::new_with_display_handle(Box::new(display))
         });
 
-        // get the adapter, which represents the gpu
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -94,20 +92,15 @@ impl AppState {
 
         println!("{:?}", adapter.get_info().backend);
 
-        // get an actual connection to the gpu
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
             .await
             .unwrap();
 
-        // get the size of the window
         let size = window.inner_size();
 
-        // create a surface to render to for the window
         let surface = instance.create_surface(window.clone()).unwrap();
-        // represents how we can interact with the gpu, formats mostly
         let cap = surface.get_capabilities(&adapter);
-        // gets the formats
         let surface_format = cap.formats[0];
 
         let shader_source = include_str!("shaders/root.wgsl");
@@ -116,7 +109,6 @@ impl AppState {
             source: wgpu::ShaderSource::Wgsl(shader_source.into()),
         });
 
-        // Model: identity (cube is already in world space)
         let camera = RenderCamera::new(Vec3::new(2.0, 2.0, 3.0), Vec3::ZERO);
 
         let mvp = camera.build_view_proj(size.width, size.height);
@@ -214,15 +206,14 @@ impl AppState {
             mapped_at_creation: false,
         });
 
-        // creates the actual app state
         let mut state = Self {
-            instance,       // wgpu itself
-            window,         // the window
-            device,         // the gpu
-            queue,          // to send work to the gpu
-            size,           // the size of the surface
-            surface,        // the surface itself
-            surface_format, // the format of the surface (?)
+            instance,
+            window,
+            device,
+            queue,
+            size,
+            surface,
+            surface_format,
             pipeline,
             camera_buffer,
             camera_bind_group,
@@ -250,15 +241,13 @@ impl AppState {
         }
 
         state.upload_camera();
-
-        // configures the surface of the state
         state.configure_surface();
 
         state
     }
 
+    // pulls position and rotation off the first camera entity in the scene, if any
     fn upload_camera(&mut self) {
-        // reads position and rotation from the first camera entity and updates the render camera
         let camera_data: Option<(Vec3, Vec3)> = if let Some(scene_name) = self.current_scene.clone() {
             if let Some(scene) = self.get_scene_mut(scene_name) {
                 scene
@@ -327,7 +316,6 @@ impl AppState {
 
     /// (re)configures the wgpu surface with the current size and format. call after resize
     pub fn configure_surface(&self) {
-        // creates a surface config
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_format,
@@ -434,7 +422,7 @@ impl AppState {
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
-        // collect draw calls and write instance data before renderpass
+        // draw calls and instance uploads happen before the renderpass starts
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
                 if let Some(scene) = self.get_scene_mut(scene_name) {
@@ -451,10 +439,8 @@ impl AppState {
                             .collect();
                         let data: &[u8] = bytemuck::cast_slice(&instances);
 
-                        let t1 = std::time::Instant::now();
                         self.queue
                             .write_buffer(&self.instance_buffer, current_offset, data);
-                        // println!("upload: {:?}", t1.elapsed());
 
                         let byte_size = data.len() as u64;
                         calls.push((*mesh_id, instances.len(), current_offset, byte_size));
@@ -470,7 +456,6 @@ impl AppState {
 
         self.upload_camera();
 
-        let t2 = std::time::Instant::now();
         let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -494,7 +479,6 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        // println!("encode: {:?}", t2.elapsed());
 
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
@@ -515,11 +499,9 @@ impl AppState {
 
         drop(renderpass);
 
-        let t3 = std::time::Instant::now();
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
         surface_texture.present();
-        // println!("submit: {:?}", t3.elapsed());
 
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {

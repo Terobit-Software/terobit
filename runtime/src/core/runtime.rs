@@ -34,7 +34,7 @@ impl Runtime {
         event_loop.run_app(&mut self.app).unwrap();
     }
 
-    /// registers a callback fired every frame. delta time is in seconds (currently always 0.0)
+    /// registers a callback fired every frame. delta time is in seconds
     pub fn on_frame<F: Fn(RuntimeContext, f32) + 'static>(&mut self, func: F) {
         self.app.get_handlers_mut().on_frame = Some(Box::new(func));
     }

@@ -24,8 +24,8 @@ BEGIN
         BEGIN
             VALUE "FileDescription",  "Terobit Client"
             VALUE "FileVersion",      "0.1.0.0"
-            VALUE "InternalName",     "client"
-            VALUE "OriginalFilename", "client.exe"
+            VALUE "InternalName",     "terobit"
+            VALUE "OriginalFilename", "terobit.exe"
             VALUE "ProductName",      "Terobit"
             VALUE "ProductVersion",   "0.1.0.0"
             VALUE "CompanyName",      ""

@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use wgpu::rwh::HasWindowHandle;
 use winit::{
     application::ApplicationHandler,
-    event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent},
+    event::{DeviceEvent, DeviceId, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    window::{Fullscreen, Window, WindowAttributes, WindowId},
+    window::{Window, WindowAttributes, WindowId},
 };
 
 pub use winit::{keyboard::{Key, KeyCode, NamedKey, PhysicalKey}};
@@ -32,13 +31,11 @@ pub struct KeyInput {
 #[derive(Default)]
 pub(crate) struct App {
     state: Option<AppState>,
-    is_fullscreen: bool,
     handlers: EventHandlerContainer,
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // create the window
         let window = Arc::new(
             event_loop
                 .create_window(WindowAttributes::with_visible(
@@ -48,27 +45,17 @@ impl ApplicationHandler for App {
                 .unwrap(),
         );
 
-        // create the app state
         let state = pollster::block_on(AppState::new(
             event_loop.owned_display_handle(),
             window.clone(),
         ));
-        // slap dat state in
         self.state = Some(state);
 
-        // make the window visible
         window.set_visible(true);
-
-        // set the title
         window.set_title("Terobit Player");
-
-        // stop them from resizing to be too small lol
+        // stop them from resizing to be too small
         window.set_min_inner_size(Some(winit::dpi::LogicalSize::new(200.0, 100.0)));
-
-        // make my window your focus
         window.focus_window();
-
-        // redraw for the first time
         window.request_redraw();
 
         if let Some(handler) = &self.handlers.on_start {
@@ -79,7 +66,6 @@ impl ApplicationHandler for App {
         }
     }
 
-    /// when something happens in the window we should probably handle it tbh
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let state = self.state.as_mut().unwrap();
         match event {
@@ -96,39 +82,16 @@ impl ApplicationHandler for App {
                 }
 
                 state.step_physics(dt);
-
-                // does what it says lol
                 state.render();
             }
             WindowEvent::Resized(size) => {
                 if size.width == 0 || size.height == 0 {
-                    return; // skip resizing if its 0
+                    // a zero-size surface is invalid to configure, wgpu will panic on it
+                    return;
                 }
 
-                // resize the screen
                 state.resize(size);
             }
-            // WindowEvent::KeyboardInput {
-            //     event:
-            //         KeyEvent {
-            //             physical_key: PhysicalKey::Code(KeyCode::F11),
-            //             state: key_state,
-            //             ..
-            //         },
-            //     ..
-            // } => {
-            //     if key_state.is_pressed() {
-            //         self.is_fullscreen = !self.is_fullscreen;
-
-            //         if self.is_fullscreen {
-            //             state
-            //                 .get_window()
-            //                 .set_fullscreen(Some(Fullscreen::Borderless(None)));
-            //         } else {
-            //             state.get_window().set_fullscreen(None);
-            //         }
-            //     }
-            // }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {

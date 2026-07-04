@@ -1,14 +1,18 @@
-use glam::Vec3;
-
 /// default field of view in degrees
 pub const DEFAULT_FOV: f32 = 45.0;
-
-/// gravity acceleration applied to all dynamic rigid bodies (m/s^2), points down along -y
-pub const GRAVITY: Vec3 = Vec3::new(0.0, -9.81, 0.0);
 
 /// upper bound on the dt fed into the physics step. keeps a stalled frame (window
 /// drag, resize) from blowing up integration with a huge timestep
 pub const MAX_PHYSICS_DT: f32 = 1.0 / 20.0;
+
+/// max simultaneous rigid bodies jolt will track. bump this if the scene needs more
+pub const MAX_PHYSICS_BODIES: u32 = 65536;
+
+/// scratch memory jolt's temp allocator gets per physics step (bytes). needs to
+/// scale with body count, jolt's own hello world example gets away with 10mb
+/// for ~1000 bodies but that's nowhere near enough once you're pushing tens
+/// of thousands
+pub const PHYSICS_TEMP_ALLOCATOR_BYTES: u32 = 128 * 1024 * 1024;
 
 /// camera near plane distance
 pub const DEFAULT_CAMERA_Z_CLOSE: f32 = 0.1;

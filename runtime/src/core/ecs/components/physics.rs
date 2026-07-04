@@ -1,9 +1,9 @@
 use glam::Vec3;
-use rapier3d::prelude::RigidBodyHandle;
+use rolt::BodyId;
 
 /// physics body for an entity. requires a `Transform` and a `Collider` on the same
-/// entity. the actual simulation lives in rapier, this component is just the spawn
-/// description (mass, restitution, static or not) plus a cache of the handle rapier
+/// entity. the actual simulation lives in jolt, this component is just the spawn
+/// description (mass, restitution, static or not) plus a cache of the handle jolt
 /// assigned it the first time the physics step saw this entity
 #[derive(bevy_ecs::component::Component, Clone)]
 pub struct RigidBody {
@@ -11,7 +11,7 @@ pub struct RigidBody {
     pub restitution: f32,
     pub is_static: bool,
     /// filled in by the physics step the first time it registers this entity
-    pub(crate) handle: Option<RigidBodyHandle>,
+    pub(crate) handle: Option<BodyId>,
 }
 
 impl RigidBody {

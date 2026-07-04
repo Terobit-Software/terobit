@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-/// Uploaded mesh data sitting on the GPU
+/// uploaded mesh data sitting on the gpu
 pub(crate) struct GpuMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
