@@ -32,6 +32,9 @@ pub struct KeyInput {
 pub(crate) struct App {
     state: Option<AppState>,
     handlers: EventHandlerContainer,
+    /// tracked here (not just in client key handlers) so the f7+p profiler hud
+    /// toggle always works regardless of what the game's `on_key` callback does
+    f7_held: bool,
 }
 
 impl ApplicationHandler for App {
@@ -75,14 +78,24 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 let dt = state.tick_delta();
+                state.profiler_mut().start("frame");
 
+                state.profiler_mut().start("on_frame");
                 if let Some(handler) = &self.handlers.on_frame {
                     let ctx = RuntimeContext { state: &mut *state };
                     handler(ctx, dt)
                 }
+                state.profiler_mut().stop("on_frame");
 
+                state.profiler_mut().start("physics");
                 state.step_physics(dt);
+                state.profiler_mut().stop("physics");
+
+                state.profiler_mut().start("render");
                 state.render();
+                state.profiler_mut().stop("render");
+
+                state.profiler_mut().stop("frame");
             }
             WindowEvent::Resized(size) => {
                 if size.width == 0 || size.height == 0 {
@@ -105,6 +118,18 @@ impl ApplicationHandler for App {
                     },
                 ..
             } => {
+                // f7+p toggles the profiler hud, tracked here so it always works
+                // regardless of what the game's own on_key callback does
+                if physical_key == PhysicalKey::Code(KeyCode::F7) {
+                    self.f7_held = state.is_pressed();
+                } else if physical_key == PhysicalKey::Code(KeyCode::KeyP)
+                    && state.is_pressed()
+                    && !repeat
+                    && self.f7_held
+                {
+                    self.state.as_mut().unwrap().toggle_profiler_hud();
+                }
+
                 let handler = self.get_handlers().on_key.clone();
                 if let Some(handler) = handler {
                     let input = KeyInput {

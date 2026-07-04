@@ -13,6 +13,7 @@ use rolt::{
 use crate::{
     consts::{MAX_PHYSICS_BODIES, MAX_PHYSICS_DT, PHYSICS_TEMP_ALLOCATOR_BYTES},
     ecs::{Collider, Mesh, RigidBody, Transform},
+    profiling::Profiler,
     rendering::MeshSourceId,
 };
 
@@ -179,19 +180,31 @@ impl PhysicsScene {
     /// registers any not-yet-registered rigid bodies, steps the simulation, then
     /// writes the resulting transforms back onto the ecs. dt is clamped so a stalled
     /// frame (window drag, resize) doesn't blow up the integration
-    pub fn step(&mut self, scene: &mut World, dt: f32, mesh_points: &HashMap<MeshSourceId, Vec<Vec3>>) {
+    pub fn step(
+        &mut self,
+        scene: &mut World,
+        dt: f32,
+        mesh_points: &HashMap<MeshSourceId, Vec<Vec3>>,
+        profiler: &mut Profiler,
+    ) {
         let dt = dt.min(MAX_PHYSICS_DT);
         if dt <= 0.0 {
             return;
         }
 
+        profiler.start("physics/register");
         self.register_new_bodies(scene, mesh_points);
+        profiler.stop("physics/register");
 
+        profiler.start("physics/update");
         unsafe {
             self.system.update(dt, 1, self.temp_allocator, self.job_system);
         }
+        profiler.stop("physics/update");
 
+        profiler.start("physics/sync");
         self.sync_transforms(scene);
+        profiler.stop("physics/sync");
     }
 
     fn register_new_bodies(&mut self, scene: &mut World, mesh_points: &HashMap<MeshSourceId, Vec<Vec3>>) {

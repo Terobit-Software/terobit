@@ -8,3 +8,5 @@ pub mod app;
 pub mod ecs;
 
 pub mod assets;
+
+pub mod profiling;

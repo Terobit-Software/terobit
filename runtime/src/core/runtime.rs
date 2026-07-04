@@ -7,6 +7,7 @@ use winit::{
 use crate::{
     app::{App, AppState, KeyInput, OnFrameHandler},
     ecs::{Mesh, SceneHandle},
+    profiling::ProfilerScope,
 };
 
 /// the main entry point for the engine. create one, register callbacks, then call `start()`
@@ -105,5 +106,11 @@ impl<'a> RuntimeContext<'a> {
     pub fn load_mesh(&mut self, path: &str) -> anyhow::Result<Mesh> {
         let id = self.state.load_mesh_from_path(std::path::Path::new(path))?;
         Ok(Mesh::with_source_id(id))
+    }
+
+    /// times a labeled section of game code, same profiler the engine uses for
+    /// physics/rendering. shows up in the f7+p hud alongside the built-in sections
+    pub fn profile_scope(&mut self, label: &str) -> ProfilerScope<'_> {
+        self.state.profiler_mut().scope(label)
     }
 }

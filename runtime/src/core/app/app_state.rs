@@ -10,15 +10,32 @@ use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
     assets::AssetReader,
-    consts::{DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT},
+    consts::{
+        DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MAX_HUD_GLYPHS,
+        MSAA_SAMPLE_COUNT,
+    },
     ecs::{Camera, PhysicsScene, Transform},
+    profiling::Profiler,
     rendering::{
-        GpuMesh, InstanceRaw, MeshSourceHandler, MeshSourceId, RenderCamera, Vertex, VertexRaw,
-        VertexTrait, accumulate_meshes,
+        FontAtlas, GLYPH_H, GLYPH_W, GlyphInstance, GpuMesh, InstanceRaw, MeshSourceHandler,
+        MeshSourceId, QuadVertex, RenderCamera, Vertex, VertexRaw, VertexTrait, accumulate_meshes,
     },
 };
 use bevy_ecs::world::World;
 use bevy_ecs::{prelude::*, world::WorldId};
+
+/// everything `init_text_rendering` builds, bundled up so it doesn't have to return
+/// an 8-tuple
+struct TextRenderResources {
+    screen_buffer: wgpu::Buffer,
+    screen_bind_group: wgpu::BindGroup,
+    atlas_bind_group: wgpu::BindGroup,
+    pipeline: wgpu::RenderPipeline,
+    quad_vertex_buffer: wgpu::Buffer,
+    quad_index_buffer: wgpu::Buffer,
+    glyph_instance_buffer: wgpu::Buffer,
+    glyph_uv: HashMap<char, [f32; 4]>,
+}
 
 /// owns all wgpu objects and scene state. one instance lives inside `App` after `resumed` fires
 pub(crate) struct AppState {
@@ -75,6 +92,24 @@ pub(crate) struct AppState {
     physics_clock: std::time::Instant,
     /// the physics simulation for the current scene
     physics: PhysicsScene,
+
+    /// labeled timings/counters for engine internals, exposed to game code too via
+    /// `RuntimeContext`. toggled on screen with f7+p
+    profiler: Profiler,
+    show_profiler_hud: bool,
+    /// screen_size uniform bind group for the text pipeline, separate from the 3d
+    /// camera's since text is drawn in raw pixel space, not world space
+    text_screen_buffer: wgpu::Buffer,
+    text_screen_bind_group: wgpu::BindGroup,
+    /// font atlas bind group (texture + sampler), built once, never changes
+    text_atlas_bind_group: wgpu::BindGroup,
+    text_pipeline: wgpu::RenderPipeline,
+    text_quad_vertex_buffer: wgpu::Buffer,
+    text_quad_index_buffer: wgpu::Buffer,
+    /// rewritten every frame the hud is visible
+    glyph_instance_buffer: wgpu::Buffer,
+    /// character -> uv rect in the atlas, kept around to lay out hud text each frame
+    font_glyph_uv: HashMap<char, [f32; 4]>,
 }
 
 impl AppState {
@@ -206,6 +241,8 @@ impl AppState {
             mapped_at_creation: false,
         });
 
+        let text = Self::init_text_rendering(&device, &queue, surface_format, size);
+
         let mut state = Self {
             instance,
             window,
@@ -231,6 +268,16 @@ impl AppState {
             mesh_points: HashMap::new(),
             physics_clock: std::time::Instant::now(),
             physics: PhysicsScene::new(),
+            profiler: Profiler::new(),
+            show_profiler_hud: false,
+            text_screen_buffer: text.screen_buffer,
+            text_screen_bind_group: text.screen_bind_group,
+            text_atlas_bind_group: text.atlas_bind_group,
+            text_pipeline: text.pipeline,
+            text_quad_vertex_buffer: text.quad_vertex_buffer,
+            text_quad_index_buffer: text.quad_index_buffer,
+            glyph_instance_buffer: text.glyph_instance_buffer,
+            font_glyph_uv: text.glyph_uv,
         };
 
         let res = MeshSourceHandler::init_default_meshes(&mut state);
@@ -244,6 +291,205 @@ impl AppState {
         state.configure_surface();
 
         state
+    }
+
+    /// builds everything the profiler hud's text needs: the font atlas texture, the
+    /// screen-space pipeline that draws glyph quads, and their backing buffers.
+    /// separate from the 3d pipeline since text lives in pixel space, not world space
+    fn init_text_rendering(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        surface_format: wgpu::TextureFormat,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> TextRenderResources {
+        let screen_size = [size.width as f32, size.height as f32];
+        let text_screen_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("text screen size buffer"),
+            contents: bytemuck::cast_slice(&screen_size),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let screen_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("text screen bind group layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let text_screen_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("text screen bind group"),
+            layout: &screen_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: text_screen_buffer.as_entire_binding(),
+            }],
+        });
+
+        let atlas = FontAtlas::build();
+        let atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("font atlas texture"),
+            size: wgpu::Extent3d { width: atlas.width, height: atlas.height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &atlas_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &atlas.pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(atlas.width),
+                rows_per_image: Some(atlas.height),
+            },
+            wgpu::Extent3d { width: atlas.width, height: atlas.height, depth_or_array_layers: 1 },
+        );
+
+        let atlas_view = atlas_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let atlas_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("font atlas bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let text_atlas_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("font atlas bind group"),
+            layout: &atlas_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&atlas_view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&atlas_sampler) },
+            ],
+        });
+
+        let text_shader_source = include_str!("shaders/text.wgsl");
+        let text_shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("text shader"),
+            source: wgpu::ShaderSource::Wgsl(text_shader_source.into()),
+        });
+
+        let text_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            bind_group_layouts: &[Some(&screen_bind_group_layout), Some(&atlas_bind_group_layout)],
+            ..Default::default()
+        });
+
+        let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("text pipeline"),
+            layout: Some(&text_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &text_shader_module,
+                entry_point: Some("vs_main"),
+                buffers: &[QuadVertex::desc(), GlyphInstance::desc()],
+                compilation_options: PipelineCompilationOptions {
+                    constants: &[],
+                    zero_initialize_workgroup_memory: false,
+                },
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &text_shader_module,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                conservative: false,
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+            },
+            // text is a screen-space overlay, drawn on top of everything regardless of
+            // 3d depth, but the pipeline still needs a depth_stencil state that's
+            // compatible with the render pass's depth attachment
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: MultisampleState {
+                alpha_to_coverage_enabled: false,
+                count: MSAA_SAMPLE_COUNT,
+                mask: 0xFFFFFFFF,
+            },
+            cache: None,
+            multiview_mask: None,
+        });
+
+        let text_quad_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("text quad vertex buffer"),
+            contents: bytemuck::cast_slice(&QuadVertex::VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let text_quad_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("text quad index buffer"),
+            contents: bytemuck::cast_slice(&QuadVertex::INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let glyph_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("glyph instance buffer"),
+            size: std::mem::size_of::<GlyphInstance>() as u64 * MAX_HUD_GLYPHS,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        TextRenderResources {
+            screen_buffer: text_screen_buffer,
+            screen_bind_group: text_screen_bind_group,
+            atlas_bind_group: text_atlas_bind_group,
+            pipeline: text_pipeline,
+            quad_vertex_buffer: text_quad_vertex_buffer,
+            quad_index_buffer: text_quad_index_buffer,
+            glyph_instance_buffer,
+            glyph_uv: atlas.glyph_uv,
+        }
     }
 
     // pulls position and rotation off the first camera entity in the scene, if any
@@ -347,7 +593,17 @@ impl AppState {
     pub(crate) fn step_physics(&mut self, dt: f32) {
         let Some(scene_name) = self.current_scene.as_ref() else { return };
         let Some(scene) = self.scenes.get_mut(scene_name) else { return };
-        self.physics.step(scene, dt, &self.mesh_points);
+        self.physics.step(scene, dt, &self.mesh_points, &mut self.profiler);
+    }
+
+    /// engine-wide profiler, also reachable from game code through `RuntimeContext`
+    pub(crate) fn profiler_mut(&mut self) -> &mut Profiler {
+        &mut self.profiler
+    }
+
+    /// flips whether the f7+p profiler hud draws over the scene
+    pub(crate) fn toggle_profiler_hud(&mut self) {
+        self.show_profiler_hud = !self.show_profiler_hud;
     }
 
     fn create_depth_texture(
@@ -383,6 +639,67 @@ impl AppState {
             Self::create_depth_texture(&self.device, new_size, MSAA_SAMPLE_COUNT);
 
         self.upload_camera();
+
+        let screen_size = [new_size.width as f32, new_size.height as f32];
+        self.queue.write_buffer(&self.text_screen_buffer, 0, bytemuck::cast_slice(&screen_size));
+    }
+
+    /// lays out one line of hud text into glyph quads, top-left anchored at (x, y)
+    /// in pixel space. characters missing from the font (shouldn't happen for the
+    /// uppercase/digit/symbol text the hud prints) are skipped, never a panic
+    fn append_line_glyphs(
+        &self,
+        text: &str,
+        x: f32,
+        y: f32,
+        scale: f32,
+        color: [f32; 4],
+        out: &mut Vec<GlyphInstance>,
+    ) {
+        let advance = (GLYPH_W as f32 + 1.0) * scale;
+        let mut cursor_x = x;
+
+        for ch in text.chars() {
+            if let Some(uv) = self.font_glyph_uv.get(&ch) {
+                out.push(GlyphInstance {
+                    screen_pos: [cursor_x, y],
+                    size: [GLYPH_W as f32 * scale, GLYPH_H as f32 * scale],
+                    uv_min: [uv[0], uv[1]],
+                    uv_max: [uv[2], uv[3]],
+                    color,
+                });
+            }
+            cursor_x += advance;
+        }
+    }
+
+    /// builds the f7+p profiler hud: one line per profiled label with its last/avg
+    /// timing, plus any extra values attached to it (instance counts, draw calls, etc)
+    fn build_hud_glyphs(&self) -> Vec<GlyphInstance> {
+        const SCALE: f32 = 2.0;
+        const COLOR: [f32; 4] = [0.2, 1.0, 0.4, 1.0];
+        const MARGIN: f32 = 10.0;
+        let line_height = (GLYPH_H as f32 + 2.0) * SCALE;
+
+        let mut instances = Vec::new();
+        let mut y = MARGIN;
+
+        for (label, entry) in self.profiler.entries() {
+            let mut line =
+                format!("{}: {:.2}MS AVG:{:.2}MS", label.to_uppercase(), entry.last_ms, entry.avg_ms);
+
+            let mut extra: Vec<_> = entry.values.iter().collect();
+            extra.sort_by_key(|(key, _)| key.to_string());
+            for (key, value) in extra {
+                line.push_str(&format!(" {}:{:.0}", key.to_uppercase(), value));
+            }
+
+            self.append_line_glyphs(&line, MARGIN, y, SCALE, COLOR, &mut instances);
+            y += line_height;
+        }
+
+        instances.truncate(MAX_HUD_GLYPHS as usize);
+        instances
     }
 
     /// renders the current frame: uploads instance data, submits draw calls, presents
@@ -423,6 +740,7 @@ impl AppState {
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
         // draw calls and instance uploads happen before the renderpass starts
+        let accumulate_start = std::time::Instant::now();
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
                 if let Some(scene) = self.get_scene_mut(scene_name) {
@@ -453,6 +771,22 @@ impl AppState {
             } else {
                 vec![]
             };
+        self.profiler.record_duration("render/accumulate", accumulate_start.elapsed());
+        let total_instances: usize = draw_calls.iter().map(|(_, count, ..)| count).sum();
+        self.profiler.record_value("render/accumulate", "instances", total_instances as f64);
+
+        let glyph_instances = if self.show_profiler_hud {
+            self.build_hud_glyphs()
+        } else {
+            Vec::new()
+        };
+        if !glyph_instances.is_empty() {
+            self.queue.write_buffer(
+                &self.glyph_instance_buffer,
+                0,
+                bytemuck::cast_slice(&glyph_instances),
+            );
+        }
 
         self.upload_camera();
 
@@ -480,6 +814,8 @@ impl AppState {
             multiview_mask: None,
         });
 
+        let draw_start = std::time::Instant::now();
+
         renderpass.set_pipeline(&self.pipeline);
         renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
 
@@ -497,7 +833,20 @@ impl AppState {
             renderpass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
         }
 
+        if !glyph_instances.is_empty() {
+            renderpass.set_pipeline(&self.text_pipeline);
+            renderpass.set_bind_group(0, &self.text_screen_bind_group, &[]);
+            renderpass.set_bind_group(1, &self.text_atlas_bind_group, &[]);
+            renderpass.set_vertex_buffer(0, self.text_quad_vertex_buffer.slice(..));
+            renderpass.set_vertex_buffer(1, self.glyph_instance_buffer.slice(..));
+            renderpass.set_index_buffer(self.text_quad_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            renderpass.draw_indexed(0..6, 0, 0..glyph_instances.len() as u32);
+        }
+
         drop(renderpass);
+
+        self.profiler.record_duration("render/draw", draw_start.elapsed());
+        self.profiler.record_value("render/draw", "draw_calls", draw_calls.len() as f64);
 
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();

@@ -55,16 +55,60 @@ fn main() {
             Collider::cube(),
         ));
 
+        // containment box: open-top pen so the chair stress test has somewhere to pile
+        // up instead of scattering across the whole floor. off to the side of the
+        // original floor so the two demos don't overlap
+        const BOX_CENTER_X: f32 = 500.0;
+        const BOX_HALF: f32 = 30.0;
+        const WALL_HEIGHT: f32 = 80.0;
+        const WALL_THICKNESS: f32 = 2.0;
+        const FLOOR_Y: f32 = -50.0;
+
+        let floor_top = FLOOR_Y + 0.5;
+        let wall_center_y = floor_top + WALL_HEIGHT / 2.0;
+
+        scene.spawn((
+            Transform::new()
+                .with_pos(Vec3::new(BOX_CENTER_X, FLOOR_Y, 0.0))
+                .with_scale(Vec3::new(BOX_HALF * 2.0, 1.0, BOX_HALF * 2.0)),
+            Mesh::cube(),
+            Material::new(0.3, 0.3, 0.35, 1.0),
+            RigidBody::new_static(),
+            Collider::cube(),
+        ));
+
+        // (x, z, scale_x, scale_z) for each of the 4 walls, corners overlap slightly
+        // so nothing can squeeze out the seams
+        let wall_specs = [
+            (BOX_CENTER_X, BOX_HALF + WALL_THICKNESS / 2.0, BOX_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_THICKNESS),
+            (BOX_CENTER_X, -(BOX_HALF + WALL_THICKNESS / 2.0), BOX_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_THICKNESS),
+            (BOX_CENTER_X + BOX_HALF + WALL_THICKNESS / 2.0, 0.0, WALL_THICKNESS, BOX_HALF * 2.0),
+            (BOX_CENTER_X - BOX_HALF - WALL_THICKNESS / 2.0, 0.0, WALL_THICKNESS, BOX_HALF * 2.0),
+        ];
+
+        for (x, z, scale_x, scale_z) in wall_specs {
+            scene.spawn((
+                Transform::new()
+                    .with_pos(Vec3::new(x, wall_center_y, z))
+                    .with_scale(Vec3::new(scale_x, WALL_HEIGHT, scale_z)),
+                Mesh::cube(),
+                Material::new(0.3, 0.3, 0.35, 1.0),
+                RigidBody::new_static(),
+                Collider::cube(),
+            ));
+        }
+
         for _ in 0..5000 {
             scene.spawn((
                 Transform::new().with_pos(Vec3::new(
-                    rand::random_range(-150..150) as f32,
-                    rand::random_range(0..200) as f32,
-                    rand::random_range(-150..150) as f32,
+                    BOX_CENTER_X + rand::random_range(-25..25) as f32,
+                    rand::random_range(0..250) as f32,
+                    rand::random_range(-25..25) as f32,
                 )).with_scale(Vec3::new( rand::random_range(1..2) as f32, rand::random_range(1..2) as f32, rand::random_range(1..2) as f32)),
                 chair.clone(),
                 Material::red(),
-                RigidBody::new(2.0).with_restitution(0.3),
+                // restitution 0 so nothing bounces back out over the walls
+                RigidBody::new(2.0).with_restitution(0.0),
                 Collider::inherit(),
             ));
         }
