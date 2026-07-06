@@ -22,7 +22,3 @@ pub const DEFAULT_CAMERA_Z_FAR: f32 = 10.0;
 
 /// msaa sample count. 1 = disabled
 pub const MSAA_SAMPLE_COUNT: u32 = 1;
-
-/// max glyph quads the profiler hud can draw in one frame. trims excess rather
-/// than growing the buffer every frame
-pub const MAX_HUD_GLYPHS: u64 = 8192;

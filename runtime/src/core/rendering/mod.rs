@@ -21,9 +21,3 @@ pub use instance::*;
 
 mod gpu_mesh;
 pub use gpu_mesh::*;
-
-mod font;
-pub(crate) use font::*;
-
-mod glyph_instance;
-pub(crate) use glyph_instance::*;
