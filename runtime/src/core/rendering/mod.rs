@@ -21,3 +21,6 @@ pub use instance::*;
 
 mod gpu_mesh;
 pub use gpu_mesh::*;
+
+mod shadow;
+pub(crate) use shadow::*;
