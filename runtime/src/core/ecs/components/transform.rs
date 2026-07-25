@@ -15,7 +15,7 @@ impl Transform {
     }
 
     /// creates a transform at the origin with identity rotation and unit scale
-    pub fn new () -> Self {
+    pub fn new() -> Self {
         Self {
             position: Vec3::ZERO,
             rotation: Quat::IDENTITY,
@@ -24,23 +24,22 @@ impl Transform {
     }
 
     /// sets position, returns self (builder style)
-    pub fn with_pos (mut self, position: Vec3) -> Self {
+    pub fn with_pos(mut self, position: Vec3) -> Self {
         self.position = position;
         self
     }
 
     /// sets rotation, returns self (builder style)
-    pub fn with_rot (mut self, rotation: Quat) -> Self {
+    pub fn with_rot(mut self, rotation: Quat) -> Self {
         self.rotation = rotation;
         self
     }
 
     /// sets scale, returns self (builder style)
-    pub fn with_scale (mut self, scale: Vec3) -> Self {
+    pub fn with_scale(mut self, scale: Vec3) -> Self {
         self.scale = scale;
         self
     }
-
 }
 
 impl Default for Transform {

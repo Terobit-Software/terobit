@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use glam::{Vec2, Vec3};
 
-use crate::{app::AppState, rendering::{Vertex, VertexRaw, VertexTrait}};
+use crate::{
+    app::AppState,
+    rendering::{Vertex, VertexRaw, VertexTrait},
+};
 
 /// unique id for a mesh type. used to look up gpu buffers in the mesh registry
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -16,11 +19,15 @@ impl MeshSourceId {
 }
 
 impl From<MeshSourceId> for usize {
-    fn from(id: MeshSourceId) -> usize { id.0 }
+    fn from(id: MeshSourceId) -> usize {
+        id.0
+    }
 }
 
 impl From<usize> for MeshSourceId {
-    fn from(n: usize) -> Self { Self(n) }
+    fn from(n: usize) -> Self {
+        Self(n)
+    }
 }
 
 pub(crate) struct MeshSource {
@@ -34,10 +41,18 @@ pub(crate) struct MeshSourceHandler {
 impl MeshSourceHandler {
     pub fn init_default_meshes(state: &mut AppState) -> Result<(), &'static str> {
         let (cube_vertices, cube_indices) = Self::cube_mesh();
-        state.upload_mesh(MeshSourceId::CUBE, &Self::format_verts(cube_vertices), &cube_indices);
+        state.upload_mesh(
+            MeshSourceId::CUBE,
+            &Self::format_verts(cube_vertices),
+            &cube_indices,
+        );
 
         let (plane_vertices, plane_indices) = Self::plane_mesh();
-        state.upload_mesh(MeshSourceId::PLANE, &Self::format_verts(plane_vertices), &plane_indices);
+        state.upload_mesh(
+            MeshSourceId::PLANE,
+            &Self::format_verts(plane_vertices),
+            &plane_indices,
+        );
 
         Ok(())
     }
@@ -54,7 +69,7 @@ impl MeshSourceHandler {
             Vertex::new(Vec3::new(h, 0.0, h), Vec2::new(1.0, 1.0), normal),
         ];
 
-        let indices = vec![0, 1, 2, 2, 1, 3];
+        let indices = vec![0, 2, 1, 2, 3, 1];
 
         (vertices, indices)
     }
@@ -74,56 +89,56 @@ impl MeshSourceHandler {
 
             // +Z front
             (
-                Vec3::new(-h,  h,  h),
-                Vec3::new( h,  h,  h),
-                Vec3::new(-h, -h,  h),
-                Vec3::new( h, -h,  h),
+                Vec3::new(-h, h, h),
+                Vec3::new(h, h, h),
+                Vec3::new(-h, -h, h),
+                Vec3::new(h, -h, h),
                 Vec3::new(0.0, 0.0, 1.0),
             ),
             // -Z back
             (
-                Vec3::new( h,  h, -h),
-                Vec3::new(-h,  h, -h),
-                Vec3::new( h, -h, -h),
+                Vec3::new(h, h, -h),
+                Vec3::new(-h, h, -h),
+                Vec3::new(h, -h, -h),
                 Vec3::new(-h, -h, -h),
                 Vec3::new(0.0, 0.0, -1.0),
             ),
             // +X right
             (
-                Vec3::new( h,  h,  h),
-                Vec3::new( h,  h, -h),
-                Vec3::new( h, -h,  h),
-                Vec3::new( h, -h, -h),
+                Vec3::new(h, h, h),
+                Vec3::new(h, h, -h),
+                Vec3::new(h, -h, h),
+                Vec3::new(h, -h, -h),
                 Vec3::new(1.0, 0.0, 0.0),
             ),
             // -X left
             (
-                Vec3::new(-h,  h, -h),
-                Vec3::new(-h,  h,  h),
+                Vec3::new(-h, h, -h),
+                Vec3::new(-h, h, h),
                 Vec3::new(-h, -h, -h),
-                Vec3::new(-h, -h,  h),
+                Vec3::new(-h, -h, h),
                 Vec3::new(-1.0, 0.0, 0.0),
             ),
             // +Y top
             (
-                Vec3::new(-h,  h, -h),
-                Vec3::new( h,  h, -h),
-                Vec3::new(-h,  h,  h),
-                Vec3::new( h,  h,  h),
+                Vec3::new(-h, h, -h),
+                Vec3::new(h, h, -h),
+                Vec3::new(-h, h, h),
+                Vec3::new(h, h, h),
                 Vec3::new(0.0, 1.0, 0.0),
             ),
             // -Y bottom
             (
-                Vec3::new(-h, -h,  h),
-                Vec3::new( h, -h,  h),
+                Vec3::new(-h, -h, h),
+                Vec3::new(h, -h, h),
                 Vec3::new(-h, -h, -h),
-                Vec3::new( h, -h, -h),
+                Vec3::new(h, -h, -h),
                 Vec3::new(0.0, -1.0, 0.0),
             ),
         ];
 
         let mut vertices: Vec<Vertex> = Vec::with_capacity(24); // 6 faces * 4 verts
-        let mut indices: Vec<u32>     = Vec::with_capacity(36); // 6 faces * 2 tris * 3 verts
+        let mut indices: Vec<u32> = Vec::with_capacity(36); // 6 faces * 2 tris * 3 verts
 
         for (i, (tl, tr, bl, br, normal)) in faces.iter().enumerate() {
             let base = (i * 4) as u32;
@@ -133,10 +148,14 @@ impl MeshSourceHandler {
             vertices.push(Vertex::new(*bl, Vec2::new(0.0, 1.0), *normal));
             vertices.push(Vertex::new(*br, Vec2::new(1.0, 1.0), *normal));
 
-            // two ccw triangles per face: tl-tr-bl, then bl-tr-br
+            // two ccw triangles per face: tl-bl-tr, then bl-br-tr
             indices.extend_from_slice(&[
-                base,     base + 1, base + 2, // tl, tr, bl
-                base + 2, base + 1, base + 3, // bl, tr, br
+                base,
+                base + 2,
+                base + 1, // tl, bl, tr
+                base + 2,
+                base + 3,
+                base + 1, // bl, br, tr
             ]);
         }
 
@@ -146,7 +165,9 @@ impl MeshSourceHandler {
 
 impl MeshSource {
     pub fn cube() -> Self {
-        Self { id: MeshSourceId::CUBE }
+        Self {
+            id: MeshSourceId::CUBE,
+        }
     }
 
     pub(crate) fn get_id(&self) -> MeshSourceId {
@@ -212,7 +233,10 @@ mod tests {
         for v in &verts {
             let [nx, ny, nz] = v.to_raw().normals;
             let len = (nx * nx + ny * ny + nz * nz).sqrt();
-            assert!((len - 1.0).abs() < 1e-5, "normal not unit: ({nx}, {ny}, {nz})");
+            assert!(
+                (len - 1.0).abs() < 1e-5,
+                "normal not unit: ({nx}, {ny}, {nz})"
+            );
         }
     }
 }

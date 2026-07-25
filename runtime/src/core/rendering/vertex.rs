@@ -45,10 +45,10 @@ impl VertexTrait for Vertex {
                     format: wgpu::VertexFormat::Float32x2, // [f32; 2]
                 },
                 wgpu::VertexAttribute {
-                    offset: 24,  // 16 + 2 floats * 4 bytes = 24
+                    offset: 24, // 16 + 2 floats * 4 bytes = 24
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x3,  // [f32; 3]
-                }
+                    format: wgpu::VertexFormat::Float32x3, // [f32; 3]
+                },
             ],
         }
     }
@@ -57,8 +57,8 @@ impl VertexTrait for Vertex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::{Vec2, Vec3};
     use crate::rendering::VertexTrait;
+    use glam::{Vec2, Vec3};
 
     #[test]
     fn to_raw_position_includes_w_one() {

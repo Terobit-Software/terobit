@@ -61,18 +61,51 @@ fn build_cascade(
     // 8 corners of the camera frustum slice between split_near and split_far, in view
     // space (camera looks down -z), then carried into world space
     let corners_view = [
-        Vec3::new(-split_near * tan_half_fov_x, -split_near * tan_half_fov_y, -split_near),
-        Vec3::new( split_near * tan_half_fov_x, -split_near * tan_half_fov_y, -split_near),
-        Vec3::new(-split_near * tan_half_fov_x,  split_near * tan_half_fov_y, -split_near),
-        Vec3::new( split_near * tan_half_fov_x,  split_near * tan_half_fov_y, -split_near),
-        Vec3::new(-split_far  * tan_half_fov_x, -split_far  * tan_half_fov_y, -split_far),
-        Vec3::new( split_far  * tan_half_fov_x, -split_far  * tan_half_fov_y, -split_far),
-        Vec3::new(-split_far  * tan_half_fov_x,  split_far  * tan_half_fov_y, -split_far),
-        Vec3::new( split_far  * tan_half_fov_x,  split_far  * tan_half_fov_y, -split_far),
+        Vec3::new(
+            -split_near * tan_half_fov_x,
+            -split_near * tan_half_fov_y,
+            -split_near,
+        ),
+        Vec3::new(
+            split_near * tan_half_fov_x,
+            -split_near * tan_half_fov_y,
+            -split_near,
+        ),
+        Vec3::new(
+            -split_near * tan_half_fov_x,
+            split_near * tan_half_fov_y,
+            -split_near,
+        ),
+        Vec3::new(
+            split_near * tan_half_fov_x,
+            split_near * tan_half_fov_y,
+            -split_near,
+        ),
+        Vec3::new(
+            -split_far * tan_half_fov_x,
+            -split_far * tan_half_fov_y,
+            -split_far,
+        ),
+        Vec3::new(
+            split_far * tan_half_fov_x,
+            -split_far * tan_half_fov_y,
+            -split_far,
+        ),
+        Vec3::new(
+            -split_far * tan_half_fov_x,
+            split_far * tan_half_fov_y,
+            -split_far,
+        ),
+        Vec3::new(
+            split_far * tan_half_fov_x,
+            split_far * tan_half_fov_y,
+            -split_far,
+        ),
     ];
     let corners_world = corners_view.map(|c| inv_view.transform_point3(c));
 
-    let center = corners_world.iter().fold(Vec3::ZERO, |acc, &c| acc + c) / corners_world.len() as f32;
+    let center =
+        corners_world.iter().fold(Vec3::ZERO, |acc, &c| acc + c) / corners_world.len() as f32;
 
     let mut radius: f32 = 0.0;
     for &c in &corners_world {
@@ -87,7 +120,11 @@ fn build_cascade(
     // look_at is degenerate when `up` is parallel to the view direction; the light
     // direction is fixed at startup so this only matters if it's ever pointed
     // near-vertical, but it's a one-line guard against a NaN view matrix if so
-    let up = if light_to_scene.abs().dot(Vec3::Y) > 0.99 { Vec3::Z } else { Vec3::Y };
+    let up = if light_to_scene.abs().dot(Vec3::Y) > 0.99 {
+        Vec3::Z
+    } else {
+        Vec3::Y
+    };
     let light_eye = center - light_to_scene * radius * 2.0;
     let light_view = Mat4::look_at_rh(light_eye, center, up);
 
@@ -106,7 +143,10 @@ fn build_cascade(
     let snap_y = (origin.y / texel_size_ndc).round() * texel_size_ndc - origin.y;
     view_proj = Mat4::from_translation(Vec3::new(snap_x, snap_y, 0.0)) * view_proj;
 
-    CascadeMatrices { view_proj, split_depth: split_far }
+    CascadeMatrices {
+        view_proj,
+        split_depth: split_far,
+    }
 }
 
 /// builds every cascade's light-space view-projection matrix for this frame, from the
@@ -118,11 +158,22 @@ pub(crate) fn compute_cascades(
     shadow_max_distance: f32,
     shadow_map_size: u32,
 ) -> [CascadeMatrices; SHADOW_CASCADE_COUNT] {
-    let splits = cascade_splits(camera.near, shadow_max_distance, crate::consts::SHADOW_SPLIT_LAMBDA);
+    let splits = cascade_splits(
+        camera.near,
+        shadow_max_distance,
+        crate::consts::SHADOW_SPLIT_LAMBDA,
+    );
 
     std::array::from_fn(|i| {
         let split_near = if i == 0 { camera.near } else { splits[i - 1] };
-        build_cascade(camera, aspect, light_dir_to_light, split_near, splits[i], shadow_map_size)
+        build_cascade(
+            camera,
+            aspect,
+            light_dir_to_light,
+            split_near,
+            splits[i],
+            shadow_map_size,
+        )
     })
 }
 
@@ -138,7 +189,10 @@ mod tests {
     fn splits_are_increasing() {
         let splits = cascade_splits(0.1, 600.0, 0.6);
         for i in 1..splits.len() {
-            assert!(splits[i] > splits[i - 1], "splits not monotonic: {splits:?}");
+            assert!(
+                splits[i] > splits[i - 1],
+                "splits not monotonic: {splits:?}"
+            );
         }
     }
 
@@ -157,7 +211,10 @@ mod tests {
         for cascade in &cascades {
             for col in cascade.view_proj.to_cols_array_2d() {
                 for val in col {
-                    assert!(val.is_finite(), "non-finite value in cascade view_proj: {val}");
+                    assert!(
+                        val.is_finite(),
+                        "non-finite value in cascade view_proj: {val}"
+                    );
                 }
             }
         }

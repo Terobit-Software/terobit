@@ -6,7 +6,7 @@ pub struct Camera {}
 
 impl Camera {
     /// creates a new camera marker
-    pub fn new () -> Self {
+    pub fn new() -> Self {
         Camera {}
     }
 }

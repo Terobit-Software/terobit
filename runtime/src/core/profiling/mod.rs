@@ -14,7 +14,13 @@ pub struct ProfilerEntry {
 
 impl ProfilerEntry {
     fn new() -> Self {
-        Self { last_ms: 0.0, avg_ms: 0.0, min_ms: f32::MAX, max_ms: 0.0, values: HashMap::new() }
+        Self {
+            last_ms: 0.0,
+            avg_ms: 0.0,
+            min_ms: f32::MAX,
+            max_ms: 0.0,
+            values: HashMap::new(),
+        }
     }
 
     fn record(&mut self, ms: f32) {
@@ -42,14 +48,20 @@ pub struct Profiler {
 
 impl Profiler {
     pub fn new() -> Self {
-        Self { entries: HashMap::new(), order: Vec::new(), active: HashMap::new() }
+        Self {
+            entries: HashMap::new(),
+            order: Vec::new(),
+            active: HashMap::new(),
+        }
     }
 
     fn entry_mut(&mut self, label: &str) -> &mut ProfilerEntry {
         if !self.entries.contains_key(label) {
             self.order.push(label.to_string());
         }
-        self.entries.entry(label.to_string()).or_insert_with(ProfilerEntry::new)
+        self.entries
+            .entry(label.to_string())
+            .or_insert_with(ProfilerEntry::new)
     }
 
     /// starts timing a labeled section. call `stop` with the same label to record it
@@ -60,20 +72,26 @@ impl Profiler {
     /// stops timing a labeled section and records its duration. no-op if `start`
     /// wasn't called first, a profiler should never be able to crash the app
     pub fn stop(&mut self, label: &str) {
-        let Some(started) = self.active.remove(label) else { return };
+        let Some(started) = self.active.remove(label) else {
+            return;
+        };
         self.record_duration(label, started.elapsed());
     }
 
     /// records a duration measured some other way (e.g. a local `Instant` when
     /// interleaving with borrows that don't play nice with `start`/`stop`)
     pub fn record_duration(&mut self, label: &str, duration: Duration) {
-        self.entry_mut(label).record(duration.as_secs_f32() * 1000.0);
+        self.entry_mut(label)
+            .record(duration.as_secs_f32() * 1000.0);
     }
 
     /// times a scope for as long as the returned guard lives
     pub fn scope(&mut self, label: &str) -> ProfilerScope<'_> {
         self.start(label);
-        ProfilerScope { profiler: self, label: label.to_string() }
+        ProfilerScope {
+            profiler: self,
+            label: label.to_string(),
+        }
     }
 
     /// attaches an arbitrary named value to a label, independent of timing
@@ -83,7 +101,9 @@ impl Profiler {
 
     /// all entries in the order their labels were first seen
     pub fn entries(&self) -> impl Iterator<Item = (&str, &ProfilerEntry)> {
-        self.order.iter().filter_map(|label| self.entries.get(label).map(|e| (label.as_str(), e)))
+        self.order
+            .iter()
+            .filter_map(|label| self.entries.get(label).map(|e| (label.as_str(), e)))
     }
 }
 

@@ -85,15 +85,30 @@ fn scale_key(scale: Vec3) -> ScaleKey {
 type ShapeKey = (MeshSourceId, ScaleKey, u32);
 
 fn to_jolt_vec3(v: Vec3) -> JPC_Vec3 {
-    JPC_Vec3 { x: v.x, y: v.y, z: v.z, _w: v.z }
+    JPC_Vec3 {
+        x: v.x,
+        y: v.y,
+        z: v.z,
+        _w: v.z,
+    }
 }
 
 fn to_jolt_rvec3(v: Vec3) -> JPC_RVec3 {
-    JPC_RVec3 { x: v.x, y: v.y, z: v.z, _w: v.z }
+    JPC_RVec3 {
+        x: v.x,
+        y: v.y,
+        z: v.z,
+        _w: v.z,
+    }
 }
 
 fn to_jolt_quat(q: Quat) -> JPC_Quat {
-    JPC_Quat { x: q.x, y: q.y, z: q.z, w: q.w }
+    JPC_Quat {
+        x: q.x,
+        y: q.y,
+        z: q.z,
+        w: q.w,
+    }
 }
 
 fn from_jolt_rvec3(v: JPC_RVec3) -> Vec3 {
@@ -123,7 +138,11 @@ fn create_box_shape(settings: &JPC_BoxShapeSettings) -> Option<*mut JPC_Shape> {
     let mut shape: *mut JPC_Shape = std::ptr::null_mut();
     let mut err: *mut JPC_String = std::ptr::null_mut();
     unsafe {
-        if JPC_BoxShapeSettings_Create(settings, &mut shape, &mut err) { Some(shape) } else { None }
+        if JPC_BoxShapeSettings_Create(settings, &mut shape, &mut err) {
+            Some(shape)
+        } else {
+            None
+        }
     }
 }
 
@@ -131,7 +150,11 @@ fn create_convex_hull_shape(settings: &JPC_ConvexHullShapeSettings) -> Option<*m
     let mut shape: *mut JPC_Shape = std::ptr::null_mut();
     let mut err: *mut JPC_String = std::ptr::null_mut();
     unsafe {
-        if JPC_ConvexHullShapeSettings_Create(settings, &mut shape, &mut err) { Some(shape) } else { None }
+        if JPC_ConvexHullShapeSettings_Create(settings, &mut shape, &mut err) {
+            Some(shape)
+        } else {
+            None
+        }
     }
 }
 
@@ -174,7 +197,12 @@ impl PhysicsScene {
             JPC_JobSystemThreadPool_new2(JPC_MAX_PHYSICS_JOBS as _, JPC_MAX_PHYSICS_BARRIERS as _)
         };
 
-        Self { system, temp_allocator, job_system, shape_cache: HashMap::new() }
+        Self {
+            system,
+            temp_allocator,
+            job_system,
+            shape_cache: HashMap::new(),
+        }
     }
 
     /// registers any not-yet-registered rigid bodies, steps the simulation, then
@@ -198,7 +226,8 @@ impl PhysicsScene {
 
         profiler.start("physics/update");
         unsafe {
-            self.system.update(dt, 1, self.temp_allocator, self.job_system);
+            self.system
+                .update(dt, 1, self.temp_allocator, self.job_system);
         }
         profiler.stop("physics/update");
 
@@ -207,19 +236,33 @@ impl PhysicsScene {
         profiler.stop("physics/sync");
     }
 
-    fn register_new_bodies(&mut self, scene: &mut World, mesh_points: &HashMap<MeshSourceId, Vec<Vec3>>) {
+    fn register_new_bodies(
+        &mut self,
+        scene: &mut World,
+        mesh_points: &HashMap<MeshSourceId, Vec<Vec3>>,
+    ) {
         let mut query = scene.query::<(Entity, &Transform, &RigidBody, &Collider, Option<&Mesh>)>();
 
         let pending: Vec<_> = query
             .iter(scene)
             .filter(|(_, _, body, ..)| body.handle.is_none())
             .map(|(entity, transform, body, collider, mesh)| {
-                (entity, *transform, body.mass, body.restitution, body.is_static, collider.clone(), mesh.map(|m| *m.get_id()))
+                (
+                    entity,
+                    *transform,
+                    body.mass,
+                    body.restitution,
+                    body.is_static,
+                    collider.clone(),
+                    mesh.map(|m| *m.get_id()),
+                )
             })
             .collect();
 
         for (entity, transform, mass, restitution, is_static, collider, mesh_id) in pending {
-            let Some(shape) = self.shape_for(&collider, mesh_id, transform.scale, mass, mesh_points) else {
+            let Some(shape) =
+                self.shape_for(&collider, mesh_id, transform.scale, mass, mesh_points)
+            else {
                 continue;
             };
 
@@ -229,7 +272,11 @@ impl PhysicsScene {
                 Position: to_jolt_rvec3(transform.position),
                 Rotation: to_jolt_quat(transform.rotation),
                 ObjectLayer: if is_static { OL_NON_MOVING } else { OL_MOVING },
-                MotionType: if is_static { JPC_MOTION_TYPE_STATIC } else { JPC_MOTION_TYPE_DYNAMIC },
+                MotionType: if is_static {
+                    JPC_MOTION_TYPE_STATIC
+                } else {
+                    JPC_MOTION_TYPE_DYNAMIC
+                },
                 Friction: 0.6,
                 Restitution: restitution,
                 Shape: shape,
@@ -243,8 +290,11 @@ impl PhysicsScene {
             }
             let handle = body.id();
 
-            let activation =
-                if is_static { JPC_ACTIVATION_DONT_ACTIVATE } else { JPC_ACTIVATION_ACTIVATE };
+            let activation = if is_static {
+                JPC_ACTIVATION_DONT_ACTIVATE
+            } else {
+                JPC_ACTIVATION_ACTIVATE
+            };
             body_interface.add_body(handle, activation);
 
             if let Some(mut rb) = scene.get_mut::<RigidBody>(entity) {
@@ -317,8 +367,10 @@ impl PhysicsScene {
             // safety: `raw` is a live body interface for the whole scope of `self`, `handle`
             // was assigned by this same physics system in `register_new_bodies`
             unsafe {
-                transform.position = from_jolt_rvec3(JPC_BodyInterface_GetPosition(raw, handle.raw()));
-                transform.rotation = from_jolt_quat(JPC_BodyInterface_GetRotation(raw, handle.raw()));
+                transform.position =
+                    from_jolt_rvec3(JPC_BodyInterface_GetPosition(raw, handle.raw()));
+                transform.rotation =
+                    from_jolt_quat(JPC_BodyInterface_GetRotation(raw, handle.raw()));
             }
         }
     }

@@ -14,17 +14,17 @@ impl SceneHandle<'_> {
     }
 
     /// creates a query against the scene's entities
-    pub fn query<D: QueryData> (&mut self) -> QueryState<D> {
+    pub fn query<D: QueryData>(&mut self) -> QueryState<D> {
         self.scene.query::<D>()
     }
 
     /// returns a shared reference to the underlying world
-    pub fn raw (&self) -> &World {
+    pub fn raw(&self) -> &World {
         &self.scene
     }
 
     /// returns a mutable reference to the underlying world
-    pub fn mut_raw (&mut self) -> &mut World {
+    pub fn mut_raw(&mut self) -> &mut World {
         &mut self.scene
     }
 }

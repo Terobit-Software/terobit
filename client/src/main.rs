@@ -5,7 +5,9 @@ use std::{
 
 use glam::{Quat, Vec3};
 use runtime::{
-    Runtime, RuntimeContext, app::{KeyCode, PhysicalKey}, ecs::{Camera, Collider, Material, Mesh, RigidBody, Transform},
+    Runtime, RuntimeContext,
+    app::{KeyCode, PhysicalKey},
+    ecs::{Camera, Collider, Material, Mesh, RigidBody, Transform},
 };
 
 #[global_allocator]
@@ -35,7 +37,9 @@ fn main() {
 
     runtime.on_start(|mut ctx: RuntimeContext| {
         // load before creating scene so the scene borrow doesn't block ctx
-        let chair = ctx.load_mesh(r"D:\bluffchair.obj").expect("failed to load bluffchair.obj");
+        let chair = ctx
+            .load_mesh(r"D:\bluffchair.obj")
+            .expect("failed to load bluffchair.obj");
 
         let mut scene = ctx.create_scene("main");
 
@@ -57,11 +61,17 @@ fn main() {
 
         for _ in 0..5000 {
             scene.spawn((
-                Transform::new().with_pos(Vec3::new(
-                    rand::random_range(-150..150) as f32,
-                    rand::random_range(0..250) as f32,
-                    rand::random_range(-150..150) as f32,
-                )).with_scale(Vec3::new( rand::random_range(1..2) as f32, rand::random_range(1..2) as f32, rand::random_range(1..2) as f32)),
+                Transform::new()
+                    .with_pos(Vec3::new(
+                        rand::random_range(-150..150) as f32,
+                        rand::random_range(0..250) as f32,
+                        rand::random_range(-150..150) as f32,
+                    ))
+                    .with_scale(Vec3::new(
+                        rand::random_range(1..2) as f32,
+                        rand::random_range(1..2) as f32,
+                        rand::random_range(1..2) as f32,
+                    )),
                 chair.clone(),
                 Material::red(),
                 RigidBody::new(2.0).with_restitution(0.0),
@@ -91,8 +101,8 @@ fn main() {
         let mut s = cam_mouse.lock().unwrap();
         s.yaw -= dx as f32 * SENSITIVITY;
         // dy positive = mouse moved down = look down = pitch decreases
-        s.pitch = (s.pitch - dy as f32 * SENSITIVITY)
-            .clamp(-89f32.to_radians(), 89f32.to_radians());
+        s.pitch =
+            (s.pitch - dy as f32 * SENSITIVITY).clamp(-89f32.to_radians(), 89f32.to_radians());
     });
 
     let cam_key = cam.clone();
@@ -123,19 +133,35 @@ fn main() {
             let right = Quat::from_rotation_y(s.yaw) * Vec3::Z;
 
             let mut delta = Vec3::ZERO;
-            if s.held.contains(&KeyCode::KeyW) { delta += forward; }
-            if s.held.contains(&KeyCode::KeyS) { delta -= forward; }
-            if s.held.contains(&KeyCode::KeyD) { delta += right; }
-            if s.held.contains(&KeyCode::KeyA) { delta -= right; }
-            if s.held.contains(&KeyCode::Space) { delta.y += 1.0; }
-            if s.held.contains(&KeyCode::ControlLeft) { delta.y -= 1.0; }
+            if s.held.contains(&KeyCode::KeyW) {
+                delta += forward;
+            }
+            if s.held.contains(&KeyCode::KeyS) {
+                delta -= forward;
+            }
+            if s.held.contains(&KeyCode::KeyD) {
+                delta += right;
+            }
+            if s.held.contains(&KeyCode::KeyA) {
+                delta -= right;
+            }
+            if s.held.contains(&KeyCode::Space) {
+                delta.y += 1.0;
+            }
+            if s.held.contains(&KeyCode::ControlLeft) {
+                delta.y -= 1.0;
+            }
 
             // normalize so diagonal movement isn't faster
             if delta.length_squared() > 0.0 {
                 delta = delta.normalize();
             }
 
-            let speed = if s.held.contains(&KeyCode::ShiftLeft) { MOVE_SPEED * 2.0 } else { MOVE_SPEED };
+            let speed = if s.held.contains(&KeyCode::ShiftLeft) {
+                MOVE_SPEED * 2.0
+            } else {
+                MOVE_SPEED
+            };
             (rotation, delta * speed)
         };
 

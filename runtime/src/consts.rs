@@ -48,3 +48,7 @@ pub const SHADOW_MAX_DISTANCE: f32 = 600.0;
 /// near cascades much more resolution, which is where shadow aliasing is most visible,
 /// at the cost of the far cascades covering more ground per texel
 pub const SHADOW_SPLIT_LAMBDA: f32 = 0.6;
+
+/// max distinct meshes gpu-culled in a single frame. cost per slot is just a small
+/// uniform/indirect-args buffer entry, not per instance, so this can be generous
+pub const MAX_CULL_MESH_SLOTS: u32 = 256;

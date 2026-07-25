@@ -7,7 +7,7 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-pub use winit::{keyboard::{Key, KeyCode, NamedKey, PhysicalKey}};
+pub use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
 
 use crate::{
     RuntimeContext,
@@ -118,8 +118,9 @@ impl ApplicationHandler for App {
                     },
                 ..
             } => {
-                // f7+p toggles the profiler hud, tracked here so it always works
-                // regardless of what the game's own on_key callback does
+                // f7+p toggles the profiler hud, f7+m toggles the mesh stats hud,
+                // tracked here so both always work regardless of what the game's own
+                // on_key callback does
                 if physical_key == PhysicalKey::Code(KeyCode::F7) {
                     self.f7_held = state.is_pressed();
                 } else if physical_key == PhysicalKey::Code(KeyCode::KeyP)
@@ -128,6 +129,12 @@ impl ApplicationHandler for App {
                     && self.f7_held
                 {
                     self.state.as_mut().unwrap().toggle_profiler_hud();
+                } else if physical_key == PhysicalKey::Code(KeyCode::KeyM)
+                    && state.is_pressed()
+                    && !repeat
+                    && self.f7_held
+                {
+                    self.state.as_mut().unwrap().toggle_mesh_stats_hud();
                 }
 
                 let handler = self.get_handlers().on_key.clone();

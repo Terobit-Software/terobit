@@ -1,33 +1,38 @@
 use chrono::Utc;
-use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec3};
 use glyphon::{
     Attrs, Buffer as TextBuffer, Cache as GlyphonCache, Color as TextColor, FontSystem, Metrics,
     Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use wgpu::{
-    BufferSlice, Device, FrontFace, MultisampleState, PipelineCompilationOptions, PrimitiveState,
-    PrimitiveTopology, Texture, TextureView, util::DeviceExt, wgc::device,
+    FrontFace, MultisampleState, PipelineCompilationOptions, PrimitiveState, PrimitiveTopology,
+    Texture, TextureView, util::DeviceExt,
 };
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
     assets::AssetReader,
     consts::{
-        DEFAULT_CAMERA_Z_CLOSE, DEFAULT_CAMERA_Z_FAR, DEFAULT_FOV, MSAA_SAMPLE_COUNT,
-        SHADOW_CASCADE_COUNT, SHADOW_MAP_SIZE, SHADOW_MAX_DISTANCE, SUN_DIRECTION_TO_LIGHT,
+        MSAA_SAMPLE_COUNT, SHADOW_CASCADE_COUNT, SHADOW_MAP_SIZE, SHADOW_MAX_DISTANCE,
+        SUN_DIRECTION_TO_LIGHT,
     },
     ecs::{Camera, PhysicsScene, Transform},
     profiling::Profiler,
     rendering::{
-        CameraUniform, GpuMesh, InstanceRaw, LightUniform, MeshSourceHandler, MeshSourceId,
-        RenderCamera, Vertex, VertexRaw, VertexTrait, accumulate_meshes, compute_cascades,
-        taa_jitter,
+        CameraUniform, CullGlobals, CullingResources, DrawIndexedIndirectArgs, GpuMesh,
+        InstanceRaw, LightUniform, MeshCullInfo, MeshSourceHandler, MeshSourceId, RenderCamera,
+        Vertex, VertexRaw, VertexTrait, accumulate_meshes, compute_bounding_sphere,
+        compute_cascades, extract_frustum_planes, taa_jitter,
     },
 };
+use bevy_ecs::prelude::*;
 use bevy_ecs::world::World;
-use bevy_ecs::{prelude::*, world::WorldId};
 
 /// offscreen format the 3d scene renders into, before taa resolve. linear (not srgb)
 /// so lighting math and the temporal blend both happen in linear space, matching the
@@ -47,6 +52,7 @@ struct TextRenderResources {
     atlas: TextAtlas,
     renderer: TextRenderer,
     hud_buffer: TextBuffer,
+    mesh_stats_buffer: TextBuffer,
 }
 
 /// owns all wgpu objects and scene state. one instance lives inside `App` after `resumed` fires
@@ -142,6 +148,10 @@ pub(crate) struct AppState {
 
     mesh_registry: HashMap<MeshSourceId, GpuMesh>,
     instance_buffer: wgpu::Buffer,
+    /// gpu-driven frustum + occlusion culling: compute pipelines, hi-z pyramid, and the
+    /// buffers `cull.wgsl` reads/writes. main scene pass draws from
+    /// `culling.visible_instance_buffer` instead of `instance_buffer` directly
+    culling: CullingResources,
     /// counter for assigning unique ids to custom meshes. starts at 1 (0 and 1 are
     /// reserved for the built-in cube and plane), so the first custom mesh gets id 2
     mesh_id_counter: usize,
@@ -150,6 +160,9 @@ pub(crate) struct AppState {
     /// cpu-side vertex positions per mesh, kept around so `Collider::inherit()` can
     /// build a physics shape from any mesh (built-in or asset-loaded)
     mesh_points: HashMap<MeshSourceId, Vec<Vec3>>,
+    /// local-space bounding sphere per mesh, computed once at upload time from
+    /// `mesh_points`, used by `cull.wgsl` to build each instance's world-space bound
+    mesh_bounds: HashMap<MeshSourceId, (Vec3, f32)>,
     /// clock used to compute real per-frame dt, drives both `on_frame` and the physics step
     physics_clock: std::time::Instant,
     /// the physics simulation for the current scene
@@ -159,15 +172,48 @@ pub(crate) struct AppState {
     /// `RuntimeContext`. toggled on screen with f7+p
     profiler: Profiler,
     show_profiler_hud: bool,
-    /// glyphon text stack for the profiler hud. viewport tracks screen size, atlas
-    /// caches rasterized glyphs, renderer draws them into the shared render pass
+    /// toggled on screen with f7+m
+    show_mesh_stats_hud: bool,
+    /// glyphon text stack, shared by both the profiler and mesh stats huds. viewport
+    /// tracks screen size, atlas caches rasterized glyphs, renderer draws them into
+    /// the shared render pass
     text_font_system: FontSystem,
     text_swash_cache: SwashCache,
     text_viewport: Viewport,
     text_atlas: TextAtlas,
     text_renderer: TextRenderer,
-    /// re-shaped every frame the hud is visible
+    /// re-shaped every frame the profiler hud is visible
     hud_text_buffer: TextBuffer,
+    /// re-shaped every frame the mesh stats hud is visible
+    mesh_stats_text_buffer: TextBuffer,
+    /// (mesh_id, pre-cull instance count) snapshot taken the frame a gpu readback of
+    /// post-cull counts was kicked off, in the same slot order as that readback. paired
+    /// against the counts once `culling.take_readback()` resolves them a frame or two
+    /// later, since resolution always lags the frame that started it
+    pending_mesh_stats: Vec<(MeshSourceId, usize)>,
+    /// post-cull instance count per mesh, from the most recently resolved gpu readback.
+    /// mesh stats hud shows this instead of the current frame's count since that one
+    /// isn't available on the cpu yet
+    last_culled_counts: HashMap<MeshSourceId, u32>,
+
+    /// gpu timestamp query pair (index 0 = begin, 1 = end) bracketing the culled scene
+    /// pass, so the profiler hud can show actual gpu execution time for it instead of
+    /// just the cpu time spent recording the draw calls (which barely varies with what's
+    /// on screen - see `record_readback_copy`'s sibling below for why the culled count
+    /// doesn't shrink the number of commands recorded either)
+    scene_timestamp_query_set: wgpu::QuerySet,
+    /// query_set's results, resolved into a plain (non-mappable) buffer first since
+    /// resolve_query_set can't target a mappable one directly
+    scene_timestamp_resolve_buffer: wgpu::Buffer,
+    /// mappable copy of the resolve buffer, read back to the cpu
+    scene_timestamp_readback_buffer: wgpu::Buffer,
+    /// true while a previous frame's timestamp readback hasn't resolved yet
+    scene_timestamp_pending: bool,
+    /// filled in by the readback's map_async callback, [begin_ticks, end_ticks]
+    scene_timestamp_result: Arc<Mutex<Option<[u64; 2]>>>,
+    /// nanoseconds per gpu timestamp tick, queried once at startup, multiply a tick
+    /// difference by this to get real elapsed time
+    timestamp_period_ns: f32,
 }
 
 impl AppState {
@@ -185,8 +231,19 @@ impl AppState {
 
         println!("{:?}", adapter.get_info().backend);
 
+        // cull.wgsl's compacted draws use a nonzero first_instance (each mesh's
+        // base_offset) in draw_indexed_indirect. without this feature wgpu's indirect
+        // validation pass zeroes out any indirect draw whose first_instance isn't 0,
+        // which silently skipped every mesh except whichever one happened to land at
+        // offset 0 that frame, this is what was causing meshes to flicker in and out.
+        // TIMESTAMP_QUERY lets the scene pass be bracketed with gpu timestamps for the
+        // mesh stats hud's "real" render time, see scene_timestamp_query_set
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default())
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::INDIRECT_FIRST_INSTANCE
+                    | wgpu::Features::TIMESTAMP_QUERY,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -407,7 +464,10 @@ impl AppState {
                 topology: PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: FrontFace::Ccw,
-                cull_mode: None,
+                // every mesh winds its triangles ccw with outward-facing normals (see
+                // the cube/plane builders in mesh_source.rs), so the rasterizer can
+                // drop back faces for free instead of shading triangles that face away
+                cull_mode: Some(wgpu::Face::Back),
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
             },
@@ -451,10 +511,11 @@ impl AppState {
                 }],
             });
 
-        let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[Some(&shadow_cascade_bind_group_layout)],
-            ..Default::default()
-        });
+        let shadow_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                bind_group_layouts: &[Some(&shadow_cascade_bind_group_layout)],
+                ..Default::default()
+            });
 
         let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("shadow depth pipeline"),
@@ -488,7 +549,11 @@ impl AppState {
                 depth_write_enabled: Some(true),
                 depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 },
+                bias: wgpu::DepthBiasState {
+                    constant: 2,
+                    slope_scale: 2.0,
+                    clamp: 0.0,
+                },
             }),
             multisample: MultisampleState {
                 alpha_to_coverage_enabled: false,
@@ -498,14 +563,15 @@ impl AppState {
             multiview_mask: None,
         });
 
-        let shadow_cascade_buffers: [wgpu::Buffer; SHADOW_CASCADE_COUNT] = std::array::from_fn(|_| {
-            device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("shadow cascade matrix buffer"),
-                size: std::mem::size_of::<[[f32; 4]; 4]>() as u64,
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            })
-        });
+        let shadow_cascade_buffers: [wgpu::Buffer; SHADOW_CASCADE_COUNT] =
+            std::array::from_fn(|_| {
+                device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("shadow cascade matrix buffer"),
+                    size: std::mem::size_of::<[[f32; 4]; 4]>() as u64,
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                })
+            });
 
         let shadow_cascade_bind_groups: [wgpu::BindGroup; SHADOW_CASCADE_COUNT] =
             std::array::from_fn(|i| {
@@ -519,13 +585,55 @@ impl AppState {
                 })
             });
 
-        // pre-allocate space for up to 500,001 instances
+        // pre-allocate space for up to 500,001 instances. also readable as a storage
+        // buffer since cull.wgsl reads it directly (compute doesn't go through the
+        // vertex-buffer binding)
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instance Buffer"),
             size: (std::mem::size_of::<InstanceRaw>() * 500000) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::VERTEX
+                | wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+
+        // gpu-culled counterpart: same capacity, written only by cull.wgsl, read as a
+        // vertex buffer by the main scene pass
+        let visible_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Visible Instance Buffer"),
+            size: (std::mem::size_of::<InstanceRaw>() * 500000) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
+        let culling = CullingResources::init(
+            &device,
+            size,
+            &depth_view,
+            &instance_buffer,
+            visible_instance_buffer,
+        );
+
+        // scene pass gpu timer (see scene_timestamp_query_set): 2 timestamps (begin, end),
+        // each 8 bytes, resolved into a plain buffer then copied into a mappable one
+        let scene_timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
+            label: Some("scene pass timestamp query set"),
+            ty: wgpu::QueryType::Timestamp,
+            count: 2,
+        });
+        let scene_timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("scene pass timestamp resolve buffer"),
+            size: 2 * 8,
+            usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let scene_timestamp_readback_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("scene pass timestamp readback buffer"),
+            size: 2 * 8,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let timestamp_period_ns = queue.get_timestamp_period();
 
         let (scene_color_texture, scene_color_view) =
             Self::create_color_texture(&device, size, SCENE_COLOR_FORMAT, "scene color texture");
@@ -689,20 +797,32 @@ impl AppState {
             scenes: HashMap::new(),
             current_scene: None,
             instance_buffer,
+            culling,
             mesh_registry: HashMap::new(),
             mesh_id_counter: 1,
             mesh_path_cache: HashMap::new(),
             mesh_points: HashMap::new(),
+            mesh_bounds: HashMap::new(),
             physics_clock: std::time::Instant::now(),
             physics: PhysicsScene::new(),
             profiler: Profiler::new(),
             show_profiler_hud: false,
+            show_mesh_stats_hud: false,
             text_font_system: text.font_system,
             text_swash_cache: text.swash_cache,
             text_viewport: text.viewport,
             text_atlas: text.atlas,
             text_renderer: text.renderer,
             hud_text_buffer: text.hud_buffer,
+            mesh_stats_text_buffer: text.mesh_stats_buffer,
+            pending_mesh_stats: Vec::new(),
+            last_culled_counts: HashMap::new(),
+            scene_timestamp_query_set,
+            scene_timestamp_resolve_buffer,
+            scene_timestamp_readback_buffer,
+            scene_timestamp_pending: false,
+            scene_timestamp_result: Arc::new(Mutex::new(None)),
+            timestamp_period_ns,
         };
 
         let res = MeshSourceHandler::init_default_meshes(&mut state);
@@ -744,13 +864,23 @@ impl AppState {
         );
 
         let hud_buffer = TextBuffer::new(&mut font_system, Metrics::new(16.0, 18.0));
+        let mesh_stats_buffer = TextBuffer::new(&mut font_system, Metrics::new(16.0, 18.0));
 
-        TextRenderResources { font_system, swash_cache, viewport, atlas, renderer, hud_buffer }
+        TextRenderResources {
+            font_system,
+            swash_cache,
+            viewport,
+            atlas,
+            mesh_stats_buffer,
+            renderer,
+            hud_buffer,
+        }
     }
 
     /// pulls position and rotation off the first camera entity in the scene, if any
     fn update_camera_pose(&mut self) {
-        let camera_data: Option<(Vec3, Vec3)> = if let Some(scene_name) = self.current_scene.clone() {
+        let camera_data: Option<(Vec3, Vec3)> = if let Some(scene_name) = self.current_scene.clone()
+        {
             if let Some(scene) = self.get_scene_mut(scene_name) {
                 scene
                     .query::<(&Transform, &Camera)>()
@@ -778,10 +908,12 @@ impl AppState {
     /// also keeps a cpu-side copy of the vertex positions so `Collider::inherit()`
     /// can build a physics shape from this mesh later
     pub fn upload_mesh(&mut self, id: MeshSourceId, vertices: &[VertexRaw], indices: &[u32]) {
-        let points = vertices
+        let points: Vec<Vec3> = vertices
             .iter()
             .map(|v| Vec3::new(v.position[0], v.position[1], v.position[2]))
             .collect();
+        self.mesh_bounds
+            .insert(id, compute_bounding_sphere(&points));
         self.mesh_points.insert(id, points);
 
         let vertex_buffer = self
@@ -841,9 +973,14 @@ impl AppState {
 
     /// steps physics (gravity, integration, contact resolution) for the current scene
     pub(crate) fn step_physics(&mut self, dt: f32) {
-        let Some(scene_name) = self.current_scene.as_ref() else { return };
-        let Some(scene) = self.scenes.get_mut(scene_name) else { return };
-        self.physics.step(scene, dt, &self.mesh_points, &mut self.profiler);
+        let Some(scene_name) = self.current_scene.as_ref() else {
+            return;
+        };
+        let Some(scene) = self.scenes.get_mut(scene_name) else {
+            return;
+        };
+        self.physics
+            .step(scene, dt, &self.mesh_points, &mut self.profiler);
     }
 
     /// engine-wide profiler, also reachable from game code through `RuntimeContext`
@@ -854,6 +991,11 @@ impl AppState {
     /// flips whether the f7+p profiler hud draws over the scene
     pub(crate) fn toggle_profiler_hud(&mut self) {
         self.show_profiler_hud = !self.show_profiler_hud;
+    }
+
+    /// flips whether the f7+m mesh stats hud draws over the scene
+    pub(crate) fn toggle_mesh_stats_hud(&mut self) {
+        self.show_mesh_stats_hud = !self.show_mesh_stats_hud;
     }
 
     fn create_depth_texture(
@@ -872,7 +1014,8 @@ impl AppState {
             sample_count, // ← must match your MSAA sample count (e.g. 4)
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            // TEXTURE_BINDING so the hi-z copy compute pass can textureLoad it
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
 
@@ -918,15 +1061,30 @@ impl AppState {
         (self.depth_texture, self.depth_view) =
             Self::create_depth_texture(&self.device, new_size, MSAA_SAMPLE_COUNT);
 
-        (self.scene_color_texture, self.scene_color_view) =
-            Self::create_color_texture(&self.device, new_size, SCENE_COLOR_FORMAT, "scene color texture");
+        (self.scene_color_texture, self.scene_color_view) = Self::create_color_texture(
+            &self.device,
+            new_size,
+            SCENE_COLOR_FORMAT,
+            "scene color texture",
+        );
         (self.velocity_texture, self.velocity_view) =
             Self::create_color_texture(&self.device, new_size, VELOCITY_FORMAT, "velocity texture");
 
         for i in 0..2 {
-            (self.history_textures[i], self.history_views[i]) =
-                Self::create_color_texture(&self.device, new_size, HISTORY_FORMAT, "taa history texture");
+            (self.history_textures[i], self.history_views[i]) = Self::create_color_texture(
+                &self.device,
+                new_size,
+                HISTORY_FORMAT,
+                "taa history texture",
+            );
         }
+
+        self.culling.resize(
+            &self.device,
+            new_size,
+            &self.depth_view,
+            &self.instance_buffer,
+        );
     }
 
     /// builds the f7+p profiler hud text: one line per profiled label with its last/avg
@@ -948,6 +1106,39 @@ impl AppState {
             for (key, value) in extra {
                 text.push_str(&format!(" {}:{:.0}", key, value));
             }
+        }
+
+        text
+    }
+
+    /// builds the f7+m mesh stats hud text: distinct mesh counts plus per-mesh
+    /// pre-cull/post-cull instance counts. `draw_calls` is this frame's (mesh_id,
+    /// instance_count, ..) list, used for the pre-cull side and the "drawn this frame"
+    /// count; the post-cull side comes from `last_culled_counts`, which lags a frame or
+    /// two behind since it's read back from the gpu (see `culling::CullingResources`)
+    fn build_mesh_stats_text(&self, draw_calls: &[(MeshSourceId, usize, u64, u64)]) -> String {
+        let pre_cull_total: usize = draw_calls.iter().map(|(_, count, ..)| count).sum();
+        let post_cull_total: u32 = self.last_culled_counts.values().sum();
+
+        let mut text = format!(
+            "mesh types registered: {}\nmesh types drawn: {}\ninstances pre-cull: {}\ninstances post-cull: {} (lags ~1 frame)",
+            self.mesh_registry.len(),
+            draw_calls.len(),
+            pre_cull_total,
+            post_cull_total,
+        );
+
+        // draw_calls' order comes from a HashMap rebuilt fresh every frame, so it
+        // shuffles frame to frame - sort by id so the rows hold still
+        let mut rows: Vec<&(MeshSourceId, usize, u64, u64)> = draw_calls.iter().collect();
+        rows.sort_by_key(|(mesh_id, ..)| mesh_id.0);
+
+        for (mesh_id, pre_count, ..) in rows {
+            let post_count = self.last_culled_counts.get(mesh_id).copied().unwrap_or(0);
+            text.push_str(&format!(
+                "\n  mesh {}: {} -> {}",
+                mesh_id.0, pre_count, post_count
+            ));
         }
 
         text
@@ -1001,6 +1192,12 @@ impl AppState {
         // in this function need the current frame's camera pose
         self.update_camera_pose();
 
+        // computed once up front: reused for both this frame's cull frustum and,
+        // further down, the camera uniform
+        let current_view_proj = self
+            .camera
+            .view_proj_mat4(self.size.width, self.size.height);
+
         // draw calls and instance uploads happen before the renderpass starts.
         // taken out of self for the duration of the scene borrow below (accumulate_meshes
         // updates it in place), and put back once that borrow ends
@@ -1042,34 +1239,178 @@ impl AppState {
                 vec![]
             };
         self.prev_transforms = prev_transforms;
-        self.profiler.record_duration("render/accumulate", accumulate_start.elapsed());
+        self.profiler
+            .record_duration("render/accumulate", accumulate_start.elapsed());
         let total_instances: usize = draw_calls.iter().map(|(_, count, ..)| count).sum();
-        self.profiler.record_value("render/accumulate", "instances", total_instances as f64);
+        self.profiler
+            .record_value("render/accumulate", "instances", total_instances as f64);
+
+        // mesh stats hud (f7+m): drain whatever readback landed since last frame before
+        // kicking off a new one below, pairing it with the mesh_id order captured back
+        // when that readback started (not this frame's draw_calls, which may have since
+        // reordered)
+        let _ = self.device.poll(wgpu::PollType::Poll);
+        if let Some(counts) = self.culling.take_readback() {
+            self.last_culled_counts = self
+                .pending_mesh_stats
+                .iter()
+                .zip(counts.iter())
+                .map(|((mesh_id, _), &count)| (*mesh_id, count))
+                .collect();
+        }
+
+        // scene pass gpu timer: same drain-before-kickoff deal as the readback above,
+        // the poll() call already made just now covers both
+        if let Some([begin, end]) = self.scene_timestamp_result.lock().unwrap().take() {
+            self.scene_timestamp_pending = false;
+            let ticks = end.saturating_sub(begin);
+            let ms = ticks as f64 * self.timestamp_period_ns as f64 / 1_000_000.0;
+            self.profiler
+                .record_duration("render/scene_gpu", std::time::Duration::from_secs_f64(ms / 1000.0));
+        }
+
+        // gpu culling: one (mesh id, cull info, indirect args) entry per mesh drawn this
+        // frame, in draw_calls order - that order becomes both buffers' dynamic/indirect
+        // slot index, shared by write_frame_data/record_hiz_build/record_cull_dispatches
+        // below and the main scene pass's indirect draw loop further down. shadow passes
+        // don't participate: they still draw the full unculled draw_calls list, since the
+        // shadow frustum differs from the camera frustum this culls against
+        let cull_start = std::time::Instant::now();
+        let cull_entries: Vec<(MeshSourceId, MeshCullInfo, DrawIndexedIndirectArgs)> = draw_calls
+            .iter()
+            .filter_map(|(mesh_id, instance_count, offset, _byte_size)| {
+                let gpu_mesh = self.mesh_registry.get(mesh_id)?;
+                let (local_center, local_radius) = self
+                    .mesh_bounds
+                    .get(mesh_id)
+                    .copied()
+                    .unwrap_or((Vec3::ZERO, 0.0));
+                let base_offset = (offset / std::mem::size_of::<InstanceRaw>() as u64) as u32;
+
+                Some((
+                    *mesh_id,
+                    MeshCullInfo {
+                        base_offset,
+                        instance_count: *instance_count as u32,
+                        local_radius,
+                        _pad0: 0.0,
+                        local_center: local_center.to_array(),
+                        _pad1: 0.0,
+                    },
+                    DrawIndexedIndirectArgs {
+                        index_count: gpu_mesh.index_count,
+                        instance_count: 0,
+                        first_index: 0,
+                        base_vertex: 0,
+                        first_instance: base_offset,
+                    },
+                ))
+            })
+            .collect();
+        let cull_info_and_args: Vec<(MeshCullInfo, DrawIndexedIndirectArgs)> = cull_entries
+            .iter()
+            .map(|(_, info, args)| (*info, *args))
+            .collect();
+
+        let cull_globals = CullGlobals {
+            frustum_planes: extract_frustum_planes(current_view_proj),
+            prev_view_proj: self.prev_view_proj.to_cols_array_2d(),
+            screen_size: [self.size.width as f32, self.size.height as f32],
+            hiz_mip_count: self.culling.hiz_mip_count() as f32,
+            near: self.camera.near,
+            far: self.camera.far,
+            _pad: [0.0, 0.0, 0.0],
+        };
+        self.culling
+            .write_frame_data(&self.queue, &cull_info_and_args, &cull_globals);
+        // hi-z build skipped: occlusion culling (the only consumer) is disabled, see
+        // cull.wgsl. no point paying for the pyramid rebuild while nothing reads it
+
+        // cull dispatches get their own encoder + submit, separate from the shadow/scene
+        // passes below. indirect_args_buffer/visible_instance_buffer are written here by
+        // compute and read by draw_indexed_indirect later - that indirect-buffer read
+        // isn't a regular bind-group usage, so it doesn't go through the same hazard
+        // tracking as everything else. a submission boundary forces the (much more
+        // heavily exercised) cross-submission ordering guarantee instead of relying on
+        // same-encoder cross-pass tracking for this specific case
+        {
+            let mut cull_encoder = self.device.create_command_encoder(&Default::default());
+            self.culling
+                .record_cull_dispatches(&mut cull_encoder, &cull_info_and_args);
+
+            let readback_slot_count = cull_entries.len() as u32;
+            self.culling
+                .record_readback_copy(&mut cull_encoder, readback_slot_count);
+
+            self.queue.submit([cull_encoder.finish()]);
+
+            // mapping has to wait until after the copy above is actually submitted, see
+            // `CullingResources::start_readback_map`
+            if !self.culling.readback_pending() {
+                self.culling.start_readback_map(readback_slot_count);
+                self.pending_mesh_stats = cull_entries
+                    .iter()
+                    .map(|(mesh_id, info, _)| (*mesh_id, info.instance_count as usize))
+                    .collect();
+            }
+        }
+        self.profiler
+            .record_duration("render/cull", cull_start.elapsed());
 
         self.text_viewport.update(
             &self.queue,
-            Resolution { width: self.size.width, height: self.size.height },
+            Resolution {
+                width: self.size.width,
+                height: self.size.height,
+            },
         );
 
-        if self.show_profiler_hud {
-            let hud_text = self.build_hud_text();
-            self.hud_text_buffer.set_text(
-                &mut self.text_font_system,
-                &hud_text,
-                &Attrs::new(),
-                Shaping::Advanced,
-                None,
-            );
+        if self.show_profiler_hud || self.show_mesh_stats_hud {
+            if self.show_profiler_hud {
+                let hud_text = self.build_hud_text();
+                self.hud_text_buffer.set_text(
+                    &mut self.text_font_system,
+                    &hud_text,
+                    &Attrs::new(),
+                    Shaping::Advanced,
+                    None,
+                );
+            }
+            if self.show_mesh_stats_hud {
+                let mesh_stats_text = self.build_mesh_stats_text(&draw_calls);
+                self.mesh_stats_text_buffer.set_text(
+                    &mut self.text_font_system,
+                    &mesh_stats_text,
+                    &Attrs::new(),
+                    Shaping::Advanced,
+                    None,
+                );
+            }
 
-            let text_area = TextArea {
-                buffer: &self.hud_text_buffer,
-                left: 10.0,
-                top: 10.0,
-                scale: 1.0,
-                bounds: TextBounds::default(),
-                default_color: TextColor::rgb(51, 255, 102),
-                custom_glyphs: &[],
-            };
+            let mut text_areas = Vec::with_capacity(2);
+            if self.show_profiler_hud {
+                text_areas.push(TextArea {
+                    buffer: &self.hud_text_buffer,
+                    left: 10.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds::default(),
+                    default_color: TextColor::rgb(51, 255, 102),
+                    custom_glyphs: &[],
+                });
+            }
+            // to the right of the profiler hud so both can be up at once without overlap
+            if self.show_mesh_stats_hud {
+                text_areas.push(TextArea {
+                    buffer: &self.mesh_stats_text_buffer,
+                    left: 420.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds::default(),
+                    default_color: TextColor::rgb(102, 204, 255),
+                    custom_glyphs: &[],
+                });
+            }
 
             self.text_renderer
                 .prepare(
@@ -1078,7 +1419,7 @@ impl AppState {
                     &mut self.text_font_system,
                     &mut self.text_atlas,
                     &self.text_viewport,
-                    [text_area],
+                    text_areas,
                     &mut self.text_swash_cache,
                 )
                 .unwrap();
@@ -1087,7 +1428,6 @@ impl AppState {
         // current frame's (unjittered) view_proj, paired with last frame's for the
         // shader's motion-vector math, plus this frame's sub-pixel jitter offset
         let jitter = taa_jitter(self.taa_frame_index, self.size.width, self.size.height);
-        let current_view_proj = self.camera.view_proj_mat4(self.size.width, self.size.height);
         let camera_uniform = CameraUniform {
             view_proj: current_view_proj.to_cols_array_2d(),
             prev_view_proj: self.prev_view_proj.to_cols_array_2d(),
@@ -1095,8 +1435,11 @@ impl AppState {
             jitter,
             _pad: [0.0, 0.0],
         };
-        self.queue
-            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_uniform]));
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[camera_uniform]),
+        );
         self.prev_view_proj = current_view_proj;
         self.taa_frame_index = self.taa_frame_index.wrapping_add(1);
 
@@ -1104,7 +1447,13 @@ impl AppState {
         // both the camera's frustum slices and the stabilizing texel-snap depend on it
         let aspect = self.size.width as f32 / self.size.height as f32;
         let light_dir_to_light = Vec3::from(SUN_DIRECTION_TO_LIGHT).normalize();
-        let cascades = compute_cascades(&self.camera, aspect, light_dir_to_light, SHADOW_MAX_DISTANCE, SHADOW_MAP_SIZE);
+        let cascades = compute_cascades(
+            &self.camera,
+            aspect,
+            light_dir_to_light,
+            SHADOW_MAX_DISTANCE,
+            SHADOW_MAP_SIZE,
+        );
 
         for (i, cascade) in cascades.iter().enumerate() {
             self.queue.write_buffer(
@@ -1120,8 +1469,11 @@ impl AppState {
             light_dir: light_dir_to_light.to_array(),
             _pad: 0.0,
         };
-        self.queue
-            .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[light_uniform]));
+        self.queue.write_buffer(
+            &self.light_buffer,
+            0,
+            bytemuck::cast_slice(&[light_uniform]),
+        );
 
         let draw_start = std::time::Instant::now();
 
@@ -1158,7 +1510,8 @@ impl AppState {
                     1,
                     self.instance_buffer.slice(*offset..(*offset + *byte_size)),
                 );
-                shadow_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                shadow_pass
+                    .set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 shadow_pass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
             }
         }
@@ -1195,7 +1548,16 @@ impl AppState {
                     }),
                     stencil_ops: None,
                 }),
-                timestamp_writes: None,
+                // only meaningful while a previous readback isn't still in flight -
+                // writing fresh timestamps into a query set whose last resolve hasn't
+                // been copied out yet would just get overwritten before it's read
+                timestamp_writes: (!self.scene_timestamp_pending).then_some(
+                    wgpu::RenderPassTimestampWrites {
+                        query_set: &self.scene_timestamp_query_set,
+                        beginning_of_pass_write_index: Some(0),
+                        end_of_pass_write_index: Some(1),
+                    },
+                ),
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
@@ -1205,19 +1567,46 @@ impl AppState {
             scene_pass.set_bind_group(1, &self.light_bind_group, &[]);
             scene_pass.set_bind_group(2, &self.shadow_bind_group, &[]);
 
-            for (mesh_id, instance_count, offset, byte_size) in &draw_calls {
+            // gpu-culled: instance counts live in indirect_args_buffer (written by
+            // cull.wgsl), not read back to the cpu. visible_instance_buffer is bound
+            // whole every time since each mesh's surviving instances are already
+            // compacted into its own segment (first_instance carries the offset)
+            for (slot, (mesh_id, _, _)) in cull_entries.iter().enumerate() {
                 let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else {
                     continue;
                 };
 
                 scene_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-                scene_pass.set_vertex_buffer(
-                    1,
-                    self.instance_buffer.slice(*offset..(*offset + *byte_size)),
-                );
-                scene_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                scene_pass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
+                scene_pass.set_vertex_buffer(1, self.culling.visible_instance_buffer.slice(..));
+                scene_pass
+                    .set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+
+                let indirect_offset = slot as u64 * self.culling.indirect_args_stride() as u64;
+                scene_pass
+                    .draw_indexed_indirect(self.culling.indirect_args_buffer(), indirect_offset);
             }
+        }
+
+        // scene pass gpu timer: resolve this frame's timestamps (if any were written
+        // above) into the mappable readback buffer. the async map itself has to wait
+        // until after `encoder` is submitted at the end of this function - mapping a
+        // buffer a not-yet-submitted encoder still writes to is a validation error, see
+        // culling::CullingResources::start_readback_map for the same issue
+        let scene_timestamps_recorded = !self.scene_timestamp_pending;
+        if scene_timestamps_recorded {
+            encoder.resolve_query_set(
+                &self.scene_timestamp_query_set,
+                0..2,
+                &self.scene_timestamp_resolve_buffer,
+                0,
+            );
+            encoder.copy_buffer_to_buffer(
+                &self.scene_timestamp_resolve_buffer,
+                0,
+                &self.scene_timestamp_readback_buffer,
+                0,
+                2 * 8,
+            );
         }
 
         // pass b: taa resolve. reads this frame's scene_color/velocity plus last
@@ -1287,7 +1676,7 @@ impl AppState {
 
         // pass c: hud text, straight onto the swapchain and unjittered, so taa never
         // blurs it
-        if self.show_profiler_hud {
+        if self.show_profiler_hud || self.show_mesh_stats_hud {
             let mut text_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("hud text pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -1310,10 +1699,34 @@ impl AppState {
                 .unwrap();
         }
 
-        self.profiler.record_duration("render/draw", draw_start.elapsed());
-        self.profiler.record_value("render/draw", "draw_calls", draw_calls.len() as f64);
+        self.profiler
+            .record_duration("render/draw", draw_start.elapsed());
+        self.profiler
+            .record_value("render/draw", "draw_calls", draw_calls.len() as f64);
 
         self.queue.submit([encoder.finish()]);
+
+        // now that the resolve+copy above is actually submitted, it's safe to map the
+        // readback buffer - see the comment where scene_timestamps_recorded is set
+        if scene_timestamps_recorded {
+            self.scene_timestamp_pending = true;
+            let buffer = self.scene_timestamp_readback_buffer.clone();
+            let result = self.scene_timestamp_result.clone();
+            self.scene_timestamp_readback_buffer
+                .slice(..)
+                .map_async(wgpu::MapMode::Read, move |map_result| {
+                    if map_result.is_err() {
+                        return;
+                    }
+                    let data = buffer.slice(..).get_mapped_range();
+                    let begin = bytemuck::pod_read_unaligned::<u64>(&data[0..8]);
+                    let end = bytemuck::pod_read_unaligned::<u64>(&data[8..16]);
+                    drop(data);
+                    buffer.unmap();
+                    *result.lock().unwrap() = Some([begin, end]);
+                });
+        }
+
         self.window.pre_present_notify();
         surface_texture.present();
 

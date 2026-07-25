@@ -61,7 +61,11 @@ impl AssetReader {
                     [0.0, 1.0, 0.0]
                 };
 
-                all_vertices.push(VertexRaw { position, tex_coords, normals });
+                all_vertices.push(VertexRaw {
+                    position,
+                    tex_coords,
+                    normals,
+                });
             }
 
             for &idx in &mesh.indices {

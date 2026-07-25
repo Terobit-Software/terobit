@@ -22,5 +22,8 @@ pub use instance::*;
 mod gpu_mesh;
 pub use gpu_mesh::*;
 
+mod culling;
+pub(crate) use culling::*;
+
 mod shadow;
 pub(crate) use shadow::*;

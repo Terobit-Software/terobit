@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use winit::{
-    event::KeyEvent, event_loop::{ControlFlow, EventLoop}, keyboard::KeyCode
+    event::KeyEvent,
+    event_loop::{ControlFlow, EventLoop},
+    keyboard::KeyCode,
 };
 
 use crate::{

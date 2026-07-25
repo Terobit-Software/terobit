@@ -3,7 +3,10 @@ use std::{collections::HashMap, fmt::Debug};
 use bevy_ecs::{entity::Entity, world::World};
 use glam::Mat4;
 
-use crate::{ecs::{Material, Mesh, Transform}, rendering::MeshSourceId};
+use crate::{
+    ecs::{Material, Mesh, Transform},
+    rendering::MeshSourceId,
+};
 
 pub(crate) struct RenderMeshContainer {
     pub id: MeshSourceId,
@@ -45,12 +48,15 @@ pub(crate) fn accumulate_meshes(
             container.prev_models.push(prev_model);
             container.colors.push(color);
         } else {
-            containers.insert(source_id, RenderMeshContainer {
-                id: source_id,
-                models: vec![model],
-                prev_models: vec![prev_model],
-                colors: vec![color],
-            });
+            containers.insert(
+                source_id,
+                RenderMeshContainer {
+                    id: source_id,
+                    models: vec![model],
+                    prev_models: vec![prev_model],
+                    colors: vec![color],
+                },
+            );
         }
     }
 
@@ -66,8 +72,11 @@ impl Debug for RenderMeshContainer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        ecs::{Mesh, Transform},
+        rendering::MeshSourceId,
+    };
     use glam::Vec3;
-    use crate::{ecs::{Mesh, Transform}, rendering::MeshSourceId};
 
     #[test]
     fn empty_world_gives_empty_map() {
@@ -112,7 +121,7 @@ mod tests {
         let container = &containers[&MeshSourceId::CUBE];
         assert_eq!(container.colors.len(), 2);
         // both colors present (order not guaranteed)
-        let has_red  = container.colors.iter().any(|&c| c == [1.0, 0.0, 0.0, 1.0]);
+        let has_red = container.colors.iter().any(|&c| c == [1.0, 0.0, 0.0, 1.0]);
         let has_blue = container.colors.iter().any(|&c| c == [0.0, 0.0, 1.0, 1.0]);
         assert!(has_red && has_blue);
     }
@@ -122,13 +131,19 @@ mod tests {
         let mut world = World::new();
         world.spawn((Transform::new(), Mesh::cube()));
         let containers = accumulate_meshes(&mut world, &mut HashMap::new());
-        assert_eq!(containers[&MeshSourceId::CUBE].colors[0], [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(
+            containers[&MeshSourceId::CUBE].colors[0],
+            [1.0, 1.0, 1.0, 1.0]
+        );
     }
 
     #[test]
     fn new_entity_has_zero_velocity_prev_equals_current() {
         let mut world = World::new();
-        world.spawn((Transform::new().with_pos(Vec3::new(5.0, 0.0, 0.0)), Mesh::cube()));
+        world.spawn((
+            Transform::new().with_pos(Vec3::new(5.0, 0.0, 0.0)),
+            Mesh::cube(),
+        ));
         let containers = accumulate_meshes(&mut world, &mut HashMap::new());
         let container = &containers[&MeshSourceId::CUBE];
         assert_eq!(container.models[0], container.prev_models[0]);

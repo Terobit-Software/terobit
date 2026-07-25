@@ -67,7 +67,9 @@ impl Collider {
 
     /// box matching the built-in unit cube mesh (0.5 half-extent on every axis)
     pub fn cube() -> Self {
-        Self::Box { half_extents: Vec3::splat(0.5) }
+        Self::Box {
+            half_extents: Vec3::splat(0.5),
+        }
     }
 
     /// derives the collision shape (a convex hull) from this entity's `Mesh` component
