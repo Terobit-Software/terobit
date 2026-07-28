@@ -27,8 +27,8 @@ use crate::{
     rendering::{
         CameraUniform, CullGlobals, CullingResources, DrawIndexedIndirectArgs, GpuMesh,
         InstanceRaw, LightUniform, MeshCullInfo, MeshSourceHandler, MeshSourceId, RenderCamera,
-        Vertex, VertexRaw, VertexTrait, accumulate_meshes, compute_bounding_sphere,
-        compute_cascades, extract_frustum_planes, taa_jitter,
+        ShadowCullSlot, Vertex, VertexRaw, VertexTrait, accumulate_meshes,
+        compute_bounding_sphere, compute_cascades, extract_frustum_planes, taa_jitter,
     },
 };
 use bevy_ecs::prelude::*;
@@ -102,6 +102,10 @@ pub(crate) struct AppState {
     /// swapchain and next frame's history slot
     resolve_pipeline: wgpu::RenderPipeline,
     resolve_bind_group_layout: wgpu::BindGroupLayout,
+    /// precomputed pair of resolve bind groups, indexed by `history_index` (the "read"
+    /// slot for this frame) - rebuilt only on resize instead of every frame, since the
+    /// views they reference only change then
+    resolve_bind_groups: [wgpu::BindGroup; 2],
     /// unjittered view_proj from last frame, paired with this frame's in the camera
     /// uniform so the shader can reconstruct motion vectors
     prev_view_proj: Mat4,
@@ -109,9 +113,16 @@ pub(crate) struct AppState {
     /// (which resets every second for the fps counter)
     taa_frame_index: u32,
     /// each entity's model matrix as of last frame, used to compute per-instance motion
-    /// vectors. rebuilt fresh every frame in `accumulate_meshes` so despawned entities
-    /// drop out on their own
+    /// vectors. persists frame to frame (see `accumulate_meshes`), so despawned
+    /// entities leave a stale entry instead of being pruned automatically
     prev_transforms: HashMap<Entity, Mat4>,
+    /// this frame's instances grouped by mesh id, reused frame to frame - `accumulate_meshes`
+    /// clears each vec in place (keeping its allocation) instead of rebuilding the map
+    mesh_instance_containers: HashMap<MeshSourceId, Vec<InstanceRaw>>,
+    /// scratch buffer instance data is packed into (one mesh's instances contiguously
+    /// after another) before a single `write_buffer` call uploads all of it at once,
+    /// instead of one `write_buffer` call per mesh. reused frame to frame like the above
+    instance_upload_scratch: Vec<InstanceRaw>,
 
     /// depth-only pipeline that renders one cascade's shadow map. no fragment stage
     shadow_pipeline: wgpu::RenderPipeline,
@@ -152,6 +163,11 @@ pub(crate) struct AppState {
     /// buffers `cull.wgsl` reads/writes. main scene pass draws from
     /// `culling.visible_instance_buffer` instead of `instance_buffer` directly
     culling: CullingResources,
+    /// one per shadow cascade: frustum-only gpu culling (no hi-z) against that
+    /// cascade's light-space frustum instead of the main camera's, so the shadow pass
+    /// can draw_indexed_indirect from a compacted buffer instead of looping the full
+    /// unculled draw_calls list per cascade
+    shadow_cull_slots: [ShadowCullSlot; SHADOW_CASCADE_COUNT],
     /// counter for assigning unique ids to custom meshes. starts at 1 (0 and 1 are
     /// reserved for the built-in cube and plane), so the first custom mesh gets id 2
     mesh_id_counter: usize,
@@ -614,6 +630,9 @@ impl AppState {
             visible_instance_buffer,
         );
 
+        let shadow_cull_slots: [ShadowCullSlot; SHADOW_CASCADE_COUNT] =
+            std::array::from_fn(|_| ShadowCullSlot::new(&device, &culling, &instance_buffer));
+
         // scene pass gpu timer (see scene_timestamp_query_set): 2 timestamps (begin, end),
         // each 8 bytes, resolved into a plain buffer then copied into a mappable one
         let scene_timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
@@ -754,6 +773,16 @@ impl AppState {
             multiview_mask: None,
         });
 
+        let resolve_bind_groups = Self::build_resolve_bind_groups(
+            &device,
+            &resolve_bind_group_layout,
+            &scene_color_view,
+            &history_a_view,
+            &history_b_view,
+            &velocity_view,
+            &taa_sampler,
+        );
+
         let text = Self::init_text_rendering(&device, &queue, surface_format);
 
         let mut state = Self {
@@ -779,9 +808,12 @@ impl AppState {
             taa_sampler,
             resolve_pipeline,
             resolve_bind_group_layout,
+            resolve_bind_groups,
             prev_view_proj: initial_view_proj,
             taa_frame_index: 0,
             prev_transforms: HashMap::new(),
+            mesh_instance_containers: HashMap::new(),
+            instance_upload_scratch: Vec::new(),
             shadow_pipeline,
             shadow_map_texture,
             shadow_map_layer_views,
@@ -798,6 +830,7 @@ impl AppState {
             current_scene: None,
             instance_buffer,
             culling,
+            shadow_cull_slots,
             mesh_registry: HashMap::new(),
             mesh_id_counter: 1,
             mesh_path_cache: HashMap::new(),
@@ -1052,6 +1085,46 @@ impl AppState {
         (texture, view)
     }
 
+    /// builds both taa resolve bind groups up front - one per `history_index` parity -
+    /// instead of recreating one every frame. only needs rebuilding when the views it
+    /// references change, i.e. on resize; the ping-pong itself just picks one of the two
+    #[allow(clippy::too_many_arguments)]
+    fn build_resolve_bind_groups(
+        device: &wgpu::Device,
+        layout: &wgpu::BindGroupLayout,
+        scene_color_view: &TextureView,
+        history_view_a: &TextureView,
+        history_view_b: &TextureView,
+        velocity_view: &TextureView,
+        sampler: &wgpu::Sampler,
+    ) -> [wgpu::BindGroup; 2] {
+        let history_views = [history_view_a, history_view_b];
+        std::array::from_fn(|read_history| {
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("taa resolve bind group"),
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(scene_color_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(history_views[read_history]),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::TextureView(velocity_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: wgpu::BindingResource::Sampler(sampler),
+                    },
+                ],
+            })
+        })
+    }
+
     /// handles window resize: updates size, reconfigures surface, recreates every
     /// size-dependent texture (depth, scene color, velocity, taa history)
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -1079,12 +1152,31 @@ impl AppState {
             );
         }
 
+        // scene_color_view/velocity_view/history_views all just got recreated above -
+        // rebuild the cached resolve bind groups that reference them
+        self.resolve_bind_groups = Self::build_resolve_bind_groups(
+            &self.device,
+            &self.resolve_bind_group_layout,
+            &self.scene_color_view,
+            &self.history_views[0],
+            &self.history_views[1],
+            &self.velocity_view,
+            &self.taa_sampler,
+        );
+
         self.culling.resize(
             &self.device,
             new_size,
             &self.depth_view,
             &self.instance_buffer,
         );
+
+        // culling's hi-z view changed above; each shadow cull slot's bind group
+        // references it too (unused - occlusion is disabled - but still has to point at
+        // a live view instead of leaking the old one)
+        for slot in &mut self.shadow_cull_slots {
+            slot.rebuild_bind_group(&self.device, &self.culling, &self.instance_buffer);
+        }
     }
 
     /// builds the f7+p profiler hud text: one line per profiled label with its last/avg
@@ -1128,8 +1220,8 @@ impl AppState {
             post_cull_total,
         );
 
-        // draw_calls' order comes from a HashMap rebuilt fresh every frame, so it
-        // shuffles frame to frame - sort by id so the rows hold still
+        // draw_calls' order comes from a HashMap, not guaranteed stable frame to frame -
+        // sort by id so the rows hold still
         let mut rows: Vec<&(MeshSourceId, usize, u64, u64)> = draw_calls.iter().collect();
         rows.sort_by_key(|(mesh_id, ..)| mesh_id.0);
 
@@ -1153,6 +1245,10 @@ impl AppState {
     /// and next frame's history slot), then the hud text draws straight onto the
     /// swapchain, unjittered, so it stays crisp instead of getting blurred by taa
     pub fn render(&mut self) {
+        // isolates surface acquisition (can stall on vsync/present queue depth) from
+        // the rest of "render", so the profiler hud can tell actual cpu/gpu work apart
+        // from time spent waiting on the display
+        let acquire_start = std::time::Instant::now();
         let surface_texture = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(texture) => texture,
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
@@ -1178,6 +1274,8 @@ impl AppState {
             }
             wgpu::CurrentSurfaceTexture::Validation => unreachable!(),
         };
+        self.profiler
+            .record_duration("render/acquire", acquire_start.elapsed());
 
         let texture_view = surface_texture
             .texture
@@ -1198,39 +1296,48 @@ impl AppState {
             .camera
             .view_proj_mat4(self.size.width, self.size.height);
 
-        // draw calls and instance uploads happen before the renderpass starts.
+        // draw calls and instance uploads happen before the renderpass starts. both
         // taken out of self for the duration of the scene borrow below (accumulate_meshes
-        // updates it in place), and put back once that borrow ends
+        // updates them in place), and put back once that borrow ends
         let mut prev_transforms = std::mem::take(&mut self.prev_transforms);
+        let mut mesh_instances = std::mem::take(&mut self.mesh_instance_containers);
 
         let accumulate_start = std::time::Instant::now();
         let draw_calls: Vec<(MeshSourceId, usize, u64, u64)> =
             if let Some(scene_name) = self.current_scene.clone() {
                 if let Some(scene) = self.get_scene_mut(scene_name) {
-                    let containers = accumulate_meshes(scene, &mut prev_transforms);
+                    accumulate_meshes(scene, &mut prev_transforms, &mut mesh_instances);
 
-                    let mut current_offset: u64 = 0;
-                    let mut calls = vec![];
+                    // pack every mesh's instances contiguously into one scratch buffer,
+                    // then upload it in a single write_buffer call instead of one per
+                    // mesh - each mesh's instances are already contiguous within their
+                    // own Vec<InstanceRaw>, this just concatenates them in order
+                    let mut upload_scratch = std::mem::take(&mut self.instance_upload_scratch);
+                    upload_scratch.clear();
 
-                    for (mesh_id, container) in &containers {
-                        let instances: Vec<InstanceRaw> = container
-                            .models
-                            .iter()
-                            .zip(container.prev_models.iter())
-                            .zip(container.colors.iter())
-                            .map(|((&model, &prev_model), &color)| {
-                                InstanceRaw::new(model, prev_model, color)
-                            })
-                            .collect();
-                        let data: &[u8] = bytemuck::cast_slice(&instances);
+                    let mut calls = Vec::with_capacity(mesh_instances.len());
+                    for (mesh_id, instances) in &mesh_instances {
+                        if instances.is_empty() {
+                            continue;
+                        }
 
-                        self.queue
-                            .write_buffer(&self.instance_buffer, current_offset, data);
-
-                        let byte_size = data.len() as u64;
-                        calls.push((*mesh_id, instances.len(), current_offset, byte_size));
-                        current_offset += byte_size;
+                        let offset = (upload_scratch.len() * std::mem::size_of::<InstanceRaw>())
+                            as u64;
+                        let byte_size =
+                            (instances.len() * std::mem::size_of::<InstanceRaw>()) as u64;
+                        upload_scratch.extend_from_slice(instances);
+                        calls.push((*mesh_id, instances.len(), offset, byte_size));
                     }
+
+                    if !upload_scratch.is_empty() {
+                        self.queue.write_buffer(
+                            &self.instance_buffer,
+                            0,
+                            bytemuck::cast_slice(&upload_scratch),
+                        );
+                    }
+
+                    self.instance_upload_scratch = upload_scratch;
                     calls
                 } else {
                     vec![]
@@ -1239,6 +1346,7 @@ impl AppState {
                 vec![]
             };
         self.prev_transforms = prev_transforms;
+        self.mesh_instance_containers = mesh_instances;
         self.profiler
             .record_duration("render/accumulate", accumulate_start.elapsed());
         let total_instances: usize = draw_calls.iter().map(|(_, count, ..)| count).sum();
@@ -1269,12 +1377,26 @@ impl AppState {
                 .record_duration("render/scene_gpu", std::time::Duration::from_secs_f64(ms / 1000.0));
         }
 
+        // shadow cascades: recomputed every frame from the current camera pose, since
+        // both the camera's frustum slices and the stabilizing texel-snap depend on it.
+        // computed here (rather than closer to where the cascade buffers get written,
+        // further down) since the cull dispatches below need each cascade's frustum too
+        let aspect = self.size.width as f32 / self.size.height as f32;
+        let light_dir_to_light = Vec3::from(SUN_DIRECTION_TO_LIGHT).normalize();
+        let cascades = compute_cascades(
+            &self.camera,
+            aspect,
+            light_dir_to_light,
+            SHADOW_MAX_DISTANCE,
+            SHADOW_MAP_SIZE,
+        );
+
         // gpu culling: one (mesh id, cull info, indirect args) entry per mesh drawn this
         // frame, in draw_calls order - that order becomes both buffers' dynamic/indirect
-        // slot index, shared by write_frame_data/record_hiz_build/record_cull_dispatches
-        // below and the main scene pass's indirect draw loop further down. shadow passes
-        // don't participate: they still draw the full unculled draw_calls list, since the
-        // shadow frustum differs from the camera frustum this culls against
+        // slot index, shared by write_frame_data/record_cull_dispatches below and the
+        // main scene pass's indirect draw loop further down. the same mesh/instance
+        // list (cull_info_and_args) is reused for each shadow cascade's own cull pass
+        // below too - only the frustum being tested against differs per cascade
         let cull_start = std::time::Instant::now();
         let cull_entries: Vec<(MeshSourceId, MeshCullInfo, DrawIndexedIndirectArgs)> = draw_calls
             .iter()
@@ -1326,17 +1448,50 @@ impl AppState {
         // hi-z build skipped: occlusion culling (the only consumer) is disabled, see
         // cull.wgsl. no point paying for the pyramid rebuild while nothing reads it
 
+        // each cascade's frustum-cull output needs the same worst-case headroom as the
+        // main pass's (see ShadowCullSlot) - grow now, before this frame's cull/draw
+        // dispatches below reference these buffers
+        for slot in &mut self.shadow_cull_slots {
+            slot.ensure_capacity(
+                &self.device,
+                &self.culling,
+                &self.instance_buffer,
+                total_instances as u32,
+            );
+        }
+
+        // per-cascade cull globals: same mesh/instance list as the main pass
+        // (cull_info_and_args), just tested against that cascade's light-space frustum
+        // instead of the camera's
+        let shadow_cull_globals: [CullGlobals; SHADOW_CASCADE_COUNT] =
+            std::array::from_fn(|i| CullGlobals {
+                frustum_planes: extract_frustum_planes(cascades[i].view_proj),
+                ..cull_globals
+            });
+
         // cull dispatches get their own encoder + submit, separate from the shadow/scene
         // passes below. indirect_args_buffer/visible_instance_buffer are written here by
         // compute and read by draw_indexed_indirect later - that indirect-buffer read
         // isn't a regular bind-group usage, so it doesn't go through the same hazard
         // tracking as everything else. a submission boundary forces the (much more
         // heavily exercised) cross-submission ordering guarantee instead of relying on
-        // same-encoder cross-pass tracking for this specific case
+        // same-encoder cross-pass tracking for this specific case. all 4 cascades'
+        // cull dispatches ride along in this same submission boundary
         {
             let mut cull_encoder = self.device.create_command_encoder(&Default::default());
             self.culling
                 .record_cull_dispatches(&mut cull_encoder, &cull_info_and_args);
+
+            for (i, slot) in self.shadow_cull_slots.iter().enumerate() {
+                self.culling.write_shadow_frame_data(
+                    &self.queue,
+                    &cull_info_and_args,
+                    &shadow_cull_globals[i],
+                    slot,
+                );
+                self.culling
+                    .record_shadow_cull_dispatches(&mut cull_encoder, &cull_info_and_args, slot);
+            }
 
             let readback_slot_count = cull_entries.len() as u32;
             self.culling
@@ -1443,18 +1598,6 @@ impl AppState {
         self.prev_view_proj = current_view_proj;
         self.taa_frame_index = self.taa_frame_index.wrapping_add(1);
 
-        // shadow cascades: recomputed every frame from the current camera pose, since
-        // both the camera's frustum slices and the stabilizing texel-snap depend on it
-        let aspect = self.size.width as f32 / self.size.height as f32;
-        let light_dir_to_light = Vec3::from(SUN_DIRECTION_TO_LIGHT).normalize();
-        let cascades = compute_cascades(
-            &self.camera,
-            aspect,
-            light_dir_to_light,
-            SHADOW_MAX_DISTANCE,
-            SHADOW_MAP_SIZE,
-        );
-
         for (i, cascade) in cascades.iter().enumerate() {
             self.queue.write_buffer(
                 &self.shadow_cascade_buffers[i],
@@ -1477,9 +1620,11 @@ impl AppState {
 
         let draw_start = std::time::Instant::now();
 
-        // shadow passes: one depth-only render per cascade, reusing the same draw_calls
-        // (and the instance buffer they point into) as the main scene pass below, since
-        // both need the exact same set of this frame's model matrices
+        // shadow passes: one depth-only render per cascade, gpu-culled against that
+        // cascade's own light-space frustum (see shadow_cull_slots above) instead of
+        // looping the full unculled draw_calls list - same draw_indexed_indirect
+        // pattern as the main scene pass below, just against that cascade's compacted
+        // buffers instead of the main camera's
         for (i, layer_view) in self.shadow_map_layer_views.iter().enumerate() {
             let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shadow cascade pass"),
@@ -1500,19 +1645,21 @@ impl AppState {
             shadow_pass.set_pipeline(&self.shadow_pipeline);
             shadow_pass.set_bind_group(0, &self.shadow_cascade_bind_groups[i], &[]);
 
-            for (mesh_id, instance_count, offset, byte_size) in &draw_calls {
+            let cull_slot = &self.shadow_cull_slots[i];
+            for (draw_slot, (mesh_id, _, _)) in cull_entries.iter().enumerate() {
                 let Some(gpu_mesh) = self.mesh_registry.get(mesh_id) else {
                     continue;
                 };
 
                 shadow_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-                shadow_pass.set_vertex_buffer(
-                    1,
-                    self.instance_buffer.slice(*offset..(*offset + *byte_size)),
-                );
+                shadow_pass.set_vertex_buffer(1, cull_slot.visible_instance_buffer.slice(..));
                 shadow_pass
                     .set_index_buffer(gpu_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                shadow_pass.draw_indexed(0..gpu_mesh.index_count, 0, 0..*instance_count as u32);
+
+                let indirect_offset =
+                    draw_slot as u64 * self.culling.indirect_args_stride() as u64;
+                shadow_pass
+                    .draw_indexed_indirect(&cull_slot.indirect_args_buffer, indirect_offset);
             }
         }
 
@@ -1615,28 +1762,10 @@ impl AppState {
         let read_history = self.history_index;
         let write_history = 1 - self.history_index;
 
-        let resolve_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("taa resolve bind group"),
-            layout: &self.resolve_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&self.scene_color_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&self.history_views[read_history]),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&self.velocity_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&self.taa_sampler),
-                },
-            ],
-        });
+        // precomputed at init/resize (see build_resolve_bind_groups) instead of
+        // recreated here every frame - only the views it references change, and those
+        // only change on resize
+        let resolve_bind_group = &self.resolve_bind_groups[read_history];
 
         {
             let mut resolve_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -1668,7 +1797,7 @@ impl AppState {
             });
 
             resolve_pass.set_pipeline(&self.resolve_pipeline);
-            resolve_pass.set_bind_group(0, &resolve_bind_group, &[]);
+            resolve_pass.set_bind_group(0, resolve_bind_group, &[]);
             resolve_pass.draw(0..3, 0..1);
         }
 
@@ -1727,8 +1856,11 @@ impl AppState {
                 });
         }
 
+        let present_start = std::time::Instant::now();
         self.window.pre_present_notify();
         surface_texture.present();
+        self.profiler
+            .record_duration("render/present", present_start.elapsed());
 
         self.frame_count += 1;
         if self.last_time + 1000 < Utc::now().timestamp_millis() {

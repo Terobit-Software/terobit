@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use glam::Vec3;
 use winit::dpi::PhysicalSize;
 
-use crate::consts::MAX_CULL_MESH_SLOTS;
+use crate::{consts::MAX_CULL_MESH_SLOTS, rendering::InstanceRaw};
 
 /// bounding sphere (local space) that conservatively wraps every point in a mesh.
 /// center comes from the AABB midpoint, radius is the farthest point from that center,
@@ -167,6 +167,9 @@ pub(crate) struct CullingResources {
     cull_globals_buffer: wgpu::Buffer,
 
     hiz_mip_views: Vec<wgpu::TextureView>,
+    /// full mip chain view, kept around (not just used once in `init`) so shadow-cascade
+    /// cull bind groups can be built after the fact via `build_extra_cull_bind_group`
+    hiz_full_view: wgpu::TextureView,
     hiz_sampler: wgpu::Sampler,
 
     hiz_copy_pipeline: wgpu::ComputePipeline,
@@ -476,6 +479,7 @@ impl CullingResources {
             mesh_cull_info_stride,
             cull_globals_buffer,
             hiz_mip_views,
+            hiz_full_view,
             hiz_sampler,
             hiz_copy_pipeline,
             hiz_copy_bind_group_layout,
@@ -635,6 +639,34 @@ impl CullingResources {
         );
 
         self.hiz_mip_views = hiz_mip_views;
+        self.hiz_full_view = hiz_full_view;
+    }
+
+    /// builds a cull bind group against caller-supplied buffers instead of `self`'s own
+    /// (`self.cull_pipeline`/`cull_bind_group_layout` are shared - the shader and layout
+    /// are identical, only the output buffers differ). used to give each shadow cascade
+    /// its own frustum-culled instance/indirect-args buffers, see `ShadowCullSlot`
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn build_extra_cull_bind_group(
+        &self,
+        device: &wgpu::Device,
+        instance_buffer: &wgpu::Buffer,
+        visible_instance_buffer: &wgpu::Buffer,
+        indirect_args_buffer: &wgpu::Buffer,
+        mesh_cull_info_buffer: &wgpu::Buffer,
+        cull_globals_buffer: &wgpu::Buffer,
+    ) -> wgpu::BindGroup {
+        Self::build_cull_bind_group(
+            device,
+            &self.cull_bind_group_layout,
+            instance_buffer,
+            visible_instance_buffer,
+            indirect_args_buffer,
+            mesh_cull_info_buffer,
+            cull_globals_buffer,
+            &self.hiz_full_view,
+            &self.hiz_sampler,
+        )
     }
 
     /// rewrites this frame's per-mesh cull info + resets each mesh's indirect draw
@@ -647,27 +679,72 @@ impl CullingResources {
         meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
         globals: &CullGlobals,
     ) {
+        Self::write_frame_data_into(
+            queue,
+            meshes,
+            globals,
+            &self.indirect_args_buffer,
+            &self.mesh_cull_info_buffer,
+            &self.cull_globals_buffer,
+            self.indirect_args_stride,
+            self.mesh_cull_info_stride,
+        );
+    }
+
+    /// same as `write_frame_data`, but targeting a `ShadowCullSlot`'s own buffers
+    /// instead of `self`'s. strides are shared (same layout, `self.cull_pipeline`
+    /// dictates them) even though the target buffers differ
+    pub(crate) fn write_shadow_frame_data(
+        &self,
+        queue: &wgpu::Queue,
+        meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
+        globals: &CullGlobals,
+        slot: &ShadowCullSlot,
+    ) {
+        Self::write_frame_data_into(
+            queue,
+            meshes,
+            globals,
+            &slot.indirect_args_buffer,
+            &slot.mesh_cull_info_buffer,
+            &slot.cull_globals_buffer,
+            self.indirect_args_stride,
+            self.mesh_cull_info_stride,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn write_frame_data_into(
+        queue: &wgpu::Queue,
+        meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
+        globals: &CullGlobals,
+        indirect_args_buffer: &wgpu::Buffer,
+        mesh_cull_info_buffer: &wgpu::Buffer,
+        cull_globals_buffer: &wgpu::Buffer,
+        indirect_args_stride: u32,
+        mesh_cull_info_stride: u32,
+    ) {
         if !meshes.is_empty() {
-            let mut indirect_bytes = vec![0u8; self.indirect_args_stride as usize * meshes.len()];
-            let mut mesh_info_bytes = vec![0u8; self.mesh_cull_info_stride as usize * meshes.len()];
+            let mut indirect_bytes = vec![0u8; indirect_args_stride as usize * meshes.len()];
+            let mut mesh_info_bytes = vec![0u8; mesh_cull_info_stride as usize * meshes.len()];
 
             for (slot, (info, args)) in meshes.iter().enumerate() {
-                let indirect_offset = slot * self.indirect_args_stride as usize;
+                let indirect_offset = slot * indirect_args_stride as usize;
                 let indirect_size = std::mem::size_of::<DrawIndexedIndirectArgs>();
                 indirect_bytes[indirect_offset..indirect_offset + indirect_size]
                     .copy_from_slice(bytemuck::bytes_of(args));
 
-                let info_offset = slot * self.mesh_cull_info_stride as usize;
+                let info_offset = slot * mesh_cull_info_stride as usize;
                 let info_size = std::mem::size_of::<MeshCullInfo>();
                 mesh_info_bytes[info_offset..info_offset + info_size]
                     .copy_from_slice(bytemuck::bytes_of(info));
             }
 
-            queue.write_buffer(&self.indirect_args_buffer, 0, &indirect_bytes);
-            queue.write_buffer(&self.mesh_cull_info_buffer, 0, &mesh_info_bytes);
+            queue.write_buffer(indirect_args_buffer, 0, &indirect_bytes);
+            queue.write_buffer(mesh_cull_info_buffer, 0, &mesh_info_bytes);
         }
 
-        queue.write_buffer(&self.cull_globals_buffer, 0, bytemuck::bytes_of(globals));
+        queue.write_buffer(cull_globals_buffer, 0, bytemuck::bytes_of(globals));
     }
 
     /// rebuilds the hi-z pyramid from whatever `depth_view` currently holds (at this
@@ -719,12 +796,44 @@ impl CullingResources {
         encoder: &mut wgpu::CommandEncoder,
         meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
     ) {
+        self.record_cull_dispatches_with(
+            encoder,
+            meshes,
+            &self.cull_bind_group,
+            "cull pass",
+        );
+    }
+
+    /// same as `record_cull_dispatches`, but against a `ShadowCullSlot`'s bind group -
+    /// same frustum-cull shader, just tested against that cascade's frustum and
+    /// compacted into that cascade's own buffers instead of the main camera's
+    pub(crate) fn record_shadow_cull_dispatches(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
+        slot: &ShadowCullSlot,
+    ) {
+        self.record_cull_dispatches_with(
+            encoder,
+            meshes,
+            &slot.bind_group,
+            "shadow cull pass",
+        );
+    }
+
+    fn record_cull_dispatches_with(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        meshes: &[(MeshCullInfo, DrawIndexedIndirectArgs)],
+        bind_group: &wgpu::BindGroup,
+        label: &str,
+    ) {
         if meshes.is_empty() {
             return;
         }
 
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("cull pass"),
+            label: Some(label),
             timestamp_writes: None,
         });
         pass.set_pipeline(&self.cull_pipeline);
@@ -737,7 +846,7 @@ impl CullingResources {
 
             let indirect_offset = slot as u32 * self.indirect_args_stride;
             let info_offset = slot as u32 * self.mesh_cull_info_stride;
-            pass.set_bind_group(0, &self.cull_bind_group, &[indirect_offset, info_offset]);
+            pass.set_bind_group(0, bind_group, &[indirect_offset, info_offset]);
             pass.dispatch_workgroups(workgroups, 1, 1);
         }
     }
@@ -816,8 +925,136 @@ impl CullingResources {
         self.indirect_args_stride
     }
 
+    pub(crate) fn mesh_cull_info_stride(&self) -> u32 {
+        self.mesh_cull_info_stride
+    }
+
     pub(crate) fn hiz_mip_count(&self) -> u32 {
         self.hiz_mip_views.len() as u32
+    }
+}
+
+/// one cascade's frustum-cull output: same shader/pipeline as `CullingResources`'
+/// main-camera cull (`cull.wgsl`), just tested against that cascade's light-space
+/// frustum and compacted into its own buffers instead of the main pass's. no hi-z -
+/// shadows don't do occlusion culling, only frustum
+///
+/// `visible_instance_buffer` uses the same base_offset addressing as the main pass's
+/// buffers (see cull.wgsl), so in the worst case (every instance survives this
+/// cascade's frustum) it needs the same headroom as the main buffer. rather than
+/// preallocate that worst case four times over, it grows on demand like a `Vec`,
+/// starting small since most scenes never get close to it
+pub(crate) struct ShadowCullSlot {
+    pub(crate) visible_instance_buffer: wgpu::Buffer,
+    pub(crate) indirect_args_buffer: wgpu::Buffer,
+    mesh_cull_info_buffer: wgpu::Buffer,
+    cull_globals_buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    capacity: u32,
+}
+
+impl ShadowCullSlot {
+    const INITIAL_CAPACITY: u32 = 65536;
+
+    pub(crate) fn new(
+        device: &wgpu::Device,
+        culling: &CullingResources,
+        instance_buffer: &wgpu::Buffer,
+    ) -> Self {
+        let capacity = Self::INITIAL_CAPACITY;
+        let visible_instance_buffer = Self::create_visible_instance_buffer(device, capacity);
+
+        let indirect_args_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("shadow cull indirect draw args"),
+            size: culling.indirect_args_stride() as u64 * MAX_CULL_MESH_SLOTS as u64,
+            usage: wgpu::BufferUsages::INDIRECT
+                | wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let mesh_cull_info_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("shadow cull mesh info"),
+            size: culling.mesh_cull_info_stride() as u64 * MAX_CULL_MESH_SLOTS as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let cull_globals_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("shadow cull globals"),
+            size: std::mem::size_of::<CullGlobals>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let bind_group = culling.build_extra_cull_bind_group(
+            device,
+            instance_buffer,
+            &visible_instance_buffer,
+            &indirect_args_buffer,
+            &mesh_cull_info_buffer,
+            &cull_globals_buffer,
+        );
+
+        Self {
+            visible_instance_buffer,
+            indirect_args_buffer,
+            mesh_cull_info_buffer,
+            cull_globals_buffer,
+            bind_group,
+            capacity,
+        }
+    }
+
+    fn create_visible_instance_buffer(device: &wgpu::Device, capacity: u32) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("shadow cascade visible instance buffer"),
+            size: std::mem::size_of::<InstanceRaw>() as u64 * capacity as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        })
+    }
+
+    /// grows `visible_instance_buffer` (and rebuilds the bind group pointing at it) if
+    /// this frame needs more room than it currently has
+    pub(crate) fn ensure_capacity(
+        &mut self,
+        device: &wgpu::Device,
+        culling: &CullingResources,
+        instance_buffer: &wgpu::Buffer,
+        needed: u32,
+    ) {
+        if needed <= self.capacity {
+            return;
+        }
+
+        self.capacity = needed.next_power_of_two().max(Self::INITIAL_CAPACITY);
+        self.visible_instance_buffer = Self::create_visible_instance_buffer(device, self.capacity);
+        self.bind_group = culling.build_extra_cull_bind_group(
+            device,
+            instance_buffer,
+            &self.visible_instance_buffer,
+            &self.indirect_args_buffer,
+            &self.mesh_cull_info_buffer,
+            &self.cull_globals_buffer,
+        );
+    }
+
+    /// rebuilds the bind group after `culling`'s hi-z view changes (window resize) -
+    /// needed only because the shared bind group layout includes an (unused, occlusion
+    /// is disabled) hi-z binding; this slot's own buffers are untouched by resize
+    pub(crate) fn rebuild_bind_group(
+        &mut self,
+        device: &wgpu::Device,
+        culling: &CullingResources,
+        instance_buffer: &wgpu::Buffer,
+    ) {
+        self.bind_group = culling.build_extra_cull_bind_group(
+            device,
+            instance_buffer,
+            &self.visible_instance_buffer,
+            &self.indirect_args_buffer,
+            &self.mesh_cull_info_buffer,
+            &self.cull_globals_buffer,
+        );
     }
 }
 

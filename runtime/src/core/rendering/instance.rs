@@ -23,6 +23,21 @@ impl InstanceRaw {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn model(&self) -> Mat4 {
+        Mat4::from_cols_array_2d(&self.model)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn prev_model(&self) -> Mat4 {
+        Mat4::from_cols_array_2d(&self.prev_model)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn color(&self) -> [f32; 4] {
+        self.color
+    }
+
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,

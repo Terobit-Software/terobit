@@ -10,7 +10,7 @@ You, the agent, should NEVER under ANY circumstances edit or interact with:
 - Validation code, referring to anything that takes currently unsanitized input from the user, other users, the server, or external files.
 - Critical logic, such as, but not limited to, trading of items handling or sorting users into groups for safety and security reasons.
 - Anything handling personal or sensitive data from the user, the environment, or the instances.
-- Anything security or performance critical.
+- Anything security or performance critical that isn't boilerplate or generic code.
 
 ## Core Philosophy & Safety
 

@@ -59,7 +59,7 @@ fn main() {
             Collider::cube(),
         ));
 
-        for _ in 0..5000 {
+        for _ in 0..25000 {
             scene.spawn((
                 Transform::new()
                     .with_pos(Vec3::new(
@@ -74,12 +74,12 @@ fn main() {
                     )),
                 chair.clone(),
                 Material::red(),
-                RigidBody::new(2.0).with_restitution(0.0),
-                Collider::inherit(),
+                // RigidBody::new(2.0).with_restitution(0.0),
+                // Collider::inherit(),
             ));
         }
 
-        for _ in 0..5000 {
+        for _ in 0..25000 {
             scene.spawn((
                 Transform::new().with_pos(Vec3::new(
                     rand::random_range(-150..150) as f32,
@@ -88,8 +88,8 @@ fn main() {
                 )),
                 Mesh::cube(),
                 Material::blue(),
-                RigidBody::new(1.0).with_restitution(0.5),
-                Collider::inherit(),
+                // RigidBody::new(1.0).with_restitution(0.5),
+                // Collider::inherit(),
             ));
         }
 
