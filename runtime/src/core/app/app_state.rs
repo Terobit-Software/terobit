@@ -17,7 +17,7 @@ use wgpu::{
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
 use crate::{
-    assets::AssetReader,
+    assets::{AssetReader, MeshLoadOptions, mesh_simplify::simplify_mesh},
     consts::{
         MSAA_SAMPLE_COUNT, SHADOW_CASCADE_COUNT, SHADOW_MAP_SIZE, SHADOW_MAX_DISTANCE,
         SUN_DIRECTION_TO_LIGHT,
@@ -172,7 +172,9 @@ pub(crate) struct AppState {
     /// reserved for the built-in cube and plane), so the first custom mesh gets id 2
     mesh_id_counter: usize,
     /// cache mapping file path to its registered MeshSourceId so we don't re-upload the same file
-    mesh_path_cache: HashMap<PathBuf, MeshSourceId>,
+    // keyed on (path, load option bits) so the same file can live at several
+    // detail levels at once
+    mesh_path_cache: HashMap<(PathBuf, Option<(u32, u32)>), MeshSourceId>,
     /// cpu-side vertex positions per mesh, kept around so `Collider::inherit()` can
     /// build a physics shape from any mesh (built-in or asset-loaded)
     mesh_points: HashMap<MeshSourceId, Vec<Vec3>>,
@@ -1871,21 +1873,39 @@ impl AppState {
     }
 
     /// loads an obj file, uploads it to the gpu, and returns its MeshSourceId.
-    /// calling with the same path twice returns the cached id without re-uploading.
-    pub(crate) fn load_mesh_from_path(&mut self, path: &Path) -> anyhow::Result<MeshSourceId> {
-        let owned = path.to_path_buf();
+    /// calling with the same path and options twice returns the cached id without
+    /// re-uploading. simplification (if requested in `options`) happens here on the
+    /// parsed vertex data, before upload, so the full-detail mesh never hits the gpu
+    pub(crate) fn load_mesh_from_path(
+        &mut self,
+        path: &Path,
+        options: MeshLoadOptions,
+    ) -> anyhow::Result<MeshSourceId> {
+        let key = (path.to_path_buf(), options.cache_key_bits());
 
-        if let Some(&id) = self.mesh_path_cache.get(&owned) {
+        if let Some(&id) = self.mesh_path_cache.get(&key) {
             return Ok(id);
         }
 
-        let (vertices, indices) = AssetReader::load_obj(path)?;
+        let (mut vertices, mut indices) = AssetReader::load_obj(path)?;
+
+        if let Some(ratio) = options.simplify_ratio {
+            let before = indices.len() / 3;
+            (vertices, indices) =
+                simplify_mesh(&vertices, &indices, ratio, options.simplify_target_error)?;
+            println!(
+                "simplified {:?}: {} -> {} tris",
+                path,
+                before,
+                indices.len() / 3
+            );
+        }
 
         self.mesh_id_counter += 1;
         let id = MeshSourceId(self.mesh_id_counter);
 
         self.upload_mesh(id, &vertices, &indices);
-        self.mesh_path_cache.insert(owned, id);
+        self.mesh_path_cache.insert(key, id);
 
         Ok(id)
     }

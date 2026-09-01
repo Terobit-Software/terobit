@@ -8,6 +8,7 @@ use winit::{
 
 use crate::{
     app::{App, AppState, KeyInput, OnFrameHandler},
+    assets::MeshLoadOptions,
     ecs::{Mesh, SceneHandle},
     profiling::ProfilerScope,
 };
@@ -106,7 +107,16 @@ impl<'a> RuntimeContext<'a> {
     /// loads a mesh from an obj file, uploads it to the gpu, and returns a `Mesh` component
     /// ready to spawn. calling with the same path twice reuses the cached gpu data
     pub fn load_mesh(&mut self, path: &str) -> anyhow::Result<Mesh> {
-        let id = self.state.load_mesh_from_path(std::path::Path::new(path))?;
+        self.load_mesh_with(path, MeshLoadOptions::default())
+    }
+
+    /// same as `load_mesh` but with explicit load options, e.g. meshopt simplification
+    /// for meshes way denser than they need to be. the cache keys on (path, options)
+    /// so one file can be loaded at several detail levels
+    pub fn load_mesh_with(&mut self, path: &str, options: MeshLoadOptions) -> anyhow::Result<Mesh> {
+        let id = self
+            .state
+            .load_mesh_from_path(std::path::Path::new(path), options)?;
         Ok(Mesh::with_source_id(id))
     }
 

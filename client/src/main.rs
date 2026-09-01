@@ -7,11 +7,9 @@ use glam::{Quat, Vec3};
 use runtime::{
     Runtime, RuntimeContext,
     app::{KeyCode, PhysicalKey},
+    assets::MeshLoadOptions,
     ecs::{Camera, Collider, Material, Mesh, RigidBody, Transform},
 };
-
-#[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
 
 struct CameraState {
     yaw: f32,
@@ -37,9 +35,18 @@ fn main() {
 
     runtime.on_start(|mut ctx: RuntimeContext| {
         // load before creating scene so the scene borrow doesn't block ctx
+        // ~217k tris in the source file, way more than a handful of pixels needs.
+        // loose error cap so the simplifier can actually reach the ratio instead
+        // of stalling at ~13% like it does with the default 0.01
         let chair = ctx
-            .load_mesh(r"D:\bluffchair.obj")
-            .expect("failed to load bluffchair.obj");
+            .load_mesh_with(
+                r"/Users/cmoo8675/Downloads/IronMan.obj",
+                MeshLoadOptions {
+                    simplify_ratio: Some(0.02),
+                    simplify_target_error: 0.3,
+                },
+            )
+            .expect("failed to load IronMan.obj");
 
         let mut scene = ctx.create_scene("main");
 
@@ -59,7 +66,7 @@ fn main() {
             Collider::cube(),
         ));
 
-        for _ in 0..25000 {
+        for _ in 0..2500 {
             scene.spawn((
                 Transform::new()
                     .with_pos(Vec3::new(
@@ -68,9 +75,9 @@ fn main() {
                         rand::random_range(-150..150) as f32,
                     ))
                     .with_scale(Vec3::new(
-                        rand::random_range(1..2) as f32,
-                        rand::random_range(1..2) as f32,
-                        rand::random_range(1..2) as f32,
+                        rand::random_range(0.01..0.02) as f32,
+                        rand::random_range(0.01..0.02) as f32,
+                        rand::random_range(0.01..0.02) as f32,
                     )),
                 chair.clone(),
                 Material::red(),
@@ -79,7 +86,7 @@ fn main() {
             ));
         }
 
-        for _ in 0..25000 {
+        for _ in 0..2500 {
             scene.spawn((
                 Transform::new().with_pos(Vec3::new(
                     rand::random_range(-150..150) as f32,
