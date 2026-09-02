@@ -3,3 +3,5 @@ target
 !.gitignore
 _*
 *dhat*
+build
+out
