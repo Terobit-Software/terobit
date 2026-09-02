@@ -4,25 +4,3 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tobj = "4"
-anyhow = "1"
-wgpu = "29.0.3"
-winit = "0.30.13"
-pollster = "0.4.0"
-rand = "0.10.1"
-bytemuck = "1.25.0"
-glam = "0.33.2"
-nalgebra-glm = "0.21.0"
-chrono = "0.4.44"
-bevy_ecs = "0.19.0"
-env_logger = "0.11.10"
-joltc-sys = "0.3.1"
-rolt = "0.3.1"
-glyphon = "0.11.0"
-meshopt = "0.6.2"
-
-[profile.dev.package.joltc-sys]
-opt-level = 3
- 
-[profile.release]
-codegen-units = 1
