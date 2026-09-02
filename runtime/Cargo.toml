@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tracing = "0.1"
+thiserror = "2"
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-lc++"]
