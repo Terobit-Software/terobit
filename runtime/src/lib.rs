@@ -1,4 +1,2 @@
-mod core;
-pub use core::*;
-
-pub(crate) mod consts;
+mod runtime;
+pub use runtime::Runtime;

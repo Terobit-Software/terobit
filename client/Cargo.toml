@@ -3,21 +3,10 @@ name = "client"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "terobit"
-path = "src/main.rs"
-
 [dependencies]
 runtime = { path = "../runtime" }
-rand = "0.10.1"
-bevy_ecs = "0.19.0"
-glam = "0.33.2"
-env_logger = "0.11.10"
-chrono = "0.4.44"
-rayon = "1.12.0"
-
-[build-dependencies]
-embed-resource = "3.0.9"
+tracing = "0.1"
+tracing-subscriber = "0.3.0"
 
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-lc++"]
