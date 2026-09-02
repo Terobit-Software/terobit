@@ -1,9 +1,9 @@
 # This script runs the client after building it and copying assets to the build directory.
 
 import os
+import shutil
 import subprocess
 import sys
-import shutil
 
 # Constants
 CWD = os.getcwd() # Current Working Directory
