@@ -9,6 +9,3 @@ thiserror = "2"
 winit = {version = "0.29", features = ["rwh_06"]}
 wgpu = "30.0"
 pollster = "0.4"
-
-[target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-lc++"]

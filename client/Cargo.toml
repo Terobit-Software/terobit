@@ -7,6 +7,3 @@ edition = "2024"
 runtime = { path = "../runtime" }
 tracing = "0.1"
 tracing-subscriber = "0.3.0"
-
-[target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-lc++"]
