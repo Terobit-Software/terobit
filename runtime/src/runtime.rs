@@ -1,9 +1,14 @@
 use thiserror::Error;
+use winit::event_loop::{self, EventLoop};
 
 #[derive(Error, Debug)]
 pub enum RuntimeInitError {
     #[error("failed to initialize")]
-    InitFailed,
+    UnknownInitFail,
+    #[error("wgpu failed")]
+    WgpuFailed,
+    #[error("winit event loop failed")]
+    WinitEventLoopFailed,
 }
 
 pub struct Runtime {}
@@ -13,7 +18,14 @@ impl Runtime {
         Self {}
     }
 
-    pub fn init(&self) -> Result<(), RuntimeInitError> {
+    pub fn start(&self) -> Result<(), RuntimeInitError> {
+        let event_loop = EventLoop::new();
+
+        if let Ok(event) = event_loop {
+        } else {
+            return Err(RuntimeInitError::WinitEventLoopFailed);
+        }
+
         Ok(())
     }
 }
