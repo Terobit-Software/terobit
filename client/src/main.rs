@@ -9,10 +9,13 @@ fn main() {
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
+    info!("Initializing runtime");
+
     // Initialize the runtime
     let ref runtime = Runtime::new();
 
-    // Check if the runtime initialized successfully
+    // Start the runtime
+    info!("Starting runtime");
     if let Err(e) = runtime.start() {
         error!("Failed to initialize runtime: {}", e);
         std::process::exit(1);

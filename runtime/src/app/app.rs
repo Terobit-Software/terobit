@@ -1,18 +1,19 @@
 use crate::app::state::AppState;
 
 /// The main application struct.
-pub struct App {
-    state: AppState,
+pub(crate) struct RuntimeApp {
+    // none until we can build AppState with a real event loop
+    state: Option<AppState>,
 }
 
-impl App {
+impl RuntimeApp {
     pub fn new() -> Self {
-        Self {
-            state: AppState::new(),
-        }
+        Self { state: None }
     }
 
     pub fn run(&self) {
-        self.state.run();
+        if let Some(state) = &self.state {
+            state.run();
+        }
     }
 }

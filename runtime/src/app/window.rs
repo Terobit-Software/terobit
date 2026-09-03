@@ -7,7 +7,7 @@ pub(crate) struct Window {
 }
 
 #[derive(Error, Debug)]
-pub enum WindowError {
+pub(crate) enum WindowError {
     #[error("failed to create window")]
     CreateWindowError(#[from] OsError),
 }
