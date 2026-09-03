@@ -1,6 +1,6 @@
 use crate::app::RuntimeApp;
 use thiserror::Error;
-use winit::event_loop::{self, EventLoop};
+use winit::event_loop::{ControlFlow, EventLoop};
 
 #[derive(Error, Debug)]
 /// Errors that can occur during runtime initialization.
@@ -24,24 +24,15 @@ impl Runtime {
 
     /// Starts the runtime event loop.
     pub fn start(&self) -> Result<(), RuntimeInitError> {
-        // create the event loop
-        let event_loop = EventLoop::new();
+        let event_loop =
+            EventLoop::new().map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
 
-        // check it
-        if let Ok(event) = event_loop {
-            // set the control flow to poll
-            event.set_control_flow(event_loop::ControlFlow::Poll);
+        event_loop.set_control_flow(ControlFlow::Poll);
 
-            let app = RuntimeApp::new();
-            event
-                .run(move |_event, _target| {
-                    app.run();
-                })
-                .map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
-        } else {
-            // return an error if event loop fails for some reason
-            return Err(RuntimeInitError::WinitEventLoopFailed);
-        }
+        let mut app = RuntimeApp::new();
+        event_loop
+            .run_app(&mut app)
+            .map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
 
         Ok(())
     }

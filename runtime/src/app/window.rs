@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use thiserror::Error;
-use winit::{error::OsError, window};
+use winit::error::OsError;
+use winit::event_loop::ActiveEventLoop;
 
 pub(crate) struct Window {
     window: Arc<winit::window::Window>,
@@ -13,9 +14,11 @@ pub(crate) enum WindowError {
 }
 
 impl Window {
-    pub fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Result<Self, WindowError> {
+    pub fn new(event_loop: &ActiveEventLoop) -> Result<Self, WindowError> {
+        let window = event_loop.create_window(winit::window::Window::default_attributes())?;
+
         Ok(Self {
-            window: Arc::new(winit::window::Window::new(event_loop)?),
+            window: Arc::new(window),
         })
     }
 

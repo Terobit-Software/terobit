@@ -7,6 +7,8 @@ fn main() {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
+    // this should be the ONLY unwrap in the entire project
+    // except where err or none is fatal as a result
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
     info!("Initializing runtime");
