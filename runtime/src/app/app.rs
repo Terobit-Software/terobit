@@ -21,7 +21,7 @@ impl RuntimeApp {
 impl ApplicationHandler for RuntimeApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.state.is_none() {
-            self.state = match AppState::new(event_loop) {
+            self.state = match pollster::block_on(AppState::new(event_loop)) {
                 Ok(state) => Some(state),
                 Err(err) => {
                     error!("failed to create app state: {}", err);

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use thiserror::Error;
+use tracing::info;
 use winit::error::OsError;
 use winit::event_loop::ActiveEventLoop;
 
@@ -16,6 +17,8 @@ pub(crate) enum WindowError {
 impl Window {
     pub fn new(event_loop: &ActiveEventLoop) -> Result<Self, WindowError> {
         let window = event_loop.create_window(winit::window::Window::default_attributes())?;
+
+        info!("New window successfully created with id {:?}", window.id());
 
         Ok(Self {
             window: Arc::new(window),
