@@ -84,7 +84,9 @@ impl AppState {
         Ok(state)
     }
 
-    pub(crate) fn run(&self) {}
+    pub(crate) fn run(&mut self) {
+        self.render();
+    }
 
     pub(crate) fn get_window(&self) -> &Window {
         &self.window
@@ -106,7 +108,7 @@ impl AppState {
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::AutoVsync,
         };
         self.surface.configure(&self.device, &surface_config);
     }

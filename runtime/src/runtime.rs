@@ -24,8 +24,7 @@ impl Runtime {
 
     /// Starts the runtime event loop.
     pub fn start(&self) -> Result<(), RuntimeInitError> {
-        let event_loop =
-            EventLoop::new().map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
+        let event_loop = EventLoop::new().map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
 
         event_loop.set_control_flow(ControlFlow::Poll);
 

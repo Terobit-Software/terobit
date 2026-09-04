@@ -43,11 +43,19 @@ impl ApplicationHandler for RuntimeApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(state) = &self.state {
+                if let Some(state) = &mut self.state {
                     state.run();
                 }
             }
             _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        // continuously request redraws to drive the render loop; Fifo (vsync)
+        // presentation paces us to the display's refresh rate
+        if let Some(state) = &self.state {
+            state.get_window().get_window().request_redraw();
         }
     }
 }
