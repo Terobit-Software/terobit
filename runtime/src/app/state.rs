@@ -47,6 +47,10 @@ impl AppState {
             .await?;
         info!("New wgpu device and queue successfully created");
 
+        // print device info
+        let info = device.adapter_info();
+        info!("Device info: {:?}", info);
+
         Ok(Self {
             instance,
             window,
