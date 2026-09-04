@@ -1,6 +1,6 @@
 use crate::app::window::Window;
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, warn};
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Error, Debug)]
@@ -68,7 +68,7 @@ impl AppState {
         let format = capabilities.formats[0];
         info!("Surface format: {:?}", format);
 
-        let state = Self {
+        let mut state = Self {
             instance,
             window,
             adapter,
@@ -86,19 +86,92 @@ impl AppState {
 
     pub(crate) fn run(&self) {}
 
-    pub(crate) fn configure_surface(&self) {
+    pub(crate) fn get_window(&self) -> &Window {
+        &self.window
+    }
+
+    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.size = new_size;
+        self.configure_surface();
+    }
+
+    fn configure_surface(&mut self) {
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.format,
             color_space: wgpu::SurfaceColorSpace::Auto,
-            // Request compatibility with the sRGB-format texture view we‘re going to create later.
+            // Request compatibility with the sRGB-format texture view we're going to create later
             view_formats: vec![self.format.add_srgb_suffix()],
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Fifo,
         };
         self.surface.configure(&self.device, &surface_config);
+    }
+
+    fn render(&mut self) {
+        let surface_texture = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(texture) => texture,
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
+            wgpu::CurrentSurfaceTexture::Suboptimal(texture) => {
+                drop(texture);
+                self.configure_surface();
+                return;
+            }
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.configure_surface();
+                return;
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                unreachable!("No error scope registered, so validation errors will panic")
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                self.surface = self
+                    .instance
+                    .create_surface(self.window.get_window_arc().clone())
+                    .unwrap();
+                self.configure_surface();
+                warn!("Surface texture was lost, but is now reconfigured");
+                return;
+            }
+        };
+
+        let texture_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor {
+                // Without add_srgb_suffix() the image we will be working with
+                // might not be "gamma correct".
+                format: Some(self.format.add_srgb_suffix()),
+                ..Default::default()
+            });
+
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        // Create the renderpass which will clear the screen.
+        let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &texture_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+
+        // End the renderpass.
+        drop(renderpass);
+
+        // Submit the command in the queue to execute
+        self.queue.submit([encoder.finish()]);
+        self.window.get_window().pre_present_notify();
+        self.queue.present(surface_texture);
     }
 }
