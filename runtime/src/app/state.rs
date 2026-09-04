@@ -11,6 +11,8 @@ pub(crate) enum AppStateError {
     WgpuAdapterError(#[from] wgpu::RequestAdapterError),
     #[error("failed to create wgpu device")]
     WgpuDeviceError(#[from] wgpu::RequestDeviceError),
+    #[error("failed to create wgpu surface")]
+    WgpuSurfaceError(#[from] wgpu::CreateSurfaceError),
 }
 
 /// The main application state.
@@ -20,6 +22,9 @@ pub(crate) struct AppState {
     adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    surface: wgpu::Surface<'static>,
+    format: wgpu::TextureFormat,
+    size: winit::dpi::PhysicalSize<u32>,
 }
 
 impl AppState {
@@ -51,14 +56,49 @@ impl AppState {
         let info = device.adapter_info();
         info!("Device info: {:?}", info);
 
-        Ok(Self {
+        let size = window.get_window().inner_size();
+        info!("Window size: {:?}", size);
+
+        let surface = instance.create_surface(window.get_window_arc())?;
+        info!("New wgpu surface successfully created");
+
+        let capabilities = surface.get_capabilities(&adapter);
+        info!("Surface capabilities: {:?}", capabilities);
+
+        let format = capabilities.formats[0];
+        info!("Surface format: {:?}", format);
+
+        let state = Self {
             instance,
             window,
             adapter,
             device,
             queue,
-        })
+            surface,
+            format,
+            size,
+        };
+
+        state.configure_surface();
+
+        Ok(state)
     }
 
     pub(crate) fn run(&self) {}
+
+    pub(crate) fn configure_surface(&self) {
+        let surface_config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: self.format,
+            color_space: wgpu::SurfaceColorSpace::Auto,
+            // Request compatibility with the sRGB-format texture view we‘re going to create later.
+            view_formats: vec![self.format.add_srgb_suffix()],
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            width: self.size.width,
+            height: self.size.height,
+            desired_maximum_frame_latency: 2,
+            present_mode: wgpu::PresentMode::AutoVsync,
+        };
+        self.surface.configure(&self.device, &surface_config);
+    }
 }
