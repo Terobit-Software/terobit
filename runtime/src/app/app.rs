@@ -1,6 +1,6 @@
 use crate::app::state::AppState;
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, info};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
@@ -38,7 +38,10 @@ impl ApplicationHandler for RuntimeApp {
         event: WindowEvent,
     ) {
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                info!("Window close requested");
+                event_loop.exit();
+            }
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &self.state {
                     state.run();

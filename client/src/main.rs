@@ -1,17 +1,45 @@
 use runtime::Runtime;
 use std::fs::File;
+use std::path::{Path, PathBuf};
 use tracing::{error, info};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{Layer, fmt};
 
+#[inline]
+/// Returns the directory where log files should be stored
+fn get_log_directory() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        return Path::new(&format!(
+            "/Users/{}/Library/Logs/TerobitClient/",
+            std::env::var("USER").unwrap_or_default()
+        ))
+        .to_path_buf();
+    }
+    // these are placeholders
+    #[cfg(target_os = "linux")]
+    {
+        return Path::new("~/.local/share/terobit/logs/").to_path_buf();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return Path::new("C:\\Users\\").to_path_buf();
+    }
+}
+
+/// The entrypoint of the client
 fn main() {
-    // create a file for logging
-    let log_file = File::create(format!(
+    let log_dir = get_log_directory();
+    std::fs::create_dir_all(&log_dir).unwrap();
+
+    let log_file = File::create_new(log_dir.join(format!(
         "terobit-client-{}.log",
         uuid::Uuid::new_v7(uuid::Timestamp::now(uuid::NoContext))
-    ))
+    )))
     .unwrap();
+
+    println!("{:?}", log_file);
 
     // init subscriber
     let subscriber = tracing_subscriber::registry()
@@ -37,9 +65,9 @@ fn main() {
     // Start the runtime
     info!("Starting runtime");
     if let Err(e) = runtime.start() {
-        error!("Failed to initialize runtime: {}", e);
+        error!("Failed to start runtime: {}", e);
         std::process::exit(1);
     } else {
-        info!("Runtime initialized successfully");
+        info!("Runtime exited successfully");
     }
 }
