@@ -1,4 +1,5 @@
 use crate::app::window::Window;
+use crate::runtime::routines::RuntimeRoutine;
 use rand::{Rng, RngExt};
 use thiserror::Error;
 use tracing::{info, warn};
@@ -26,6 +27,7 @@ pub(crate) struct AppState {
     surface: wgpu::Surface<'static>,
     format: wgpu::TextureFormat,
     size: winit::dpi::PhysicalSize<u32>,
+    routines: Vec<Box<dyn RuntimeRoutine>>,
 }
 
 impl AppState {
@@ -78,6 +80,7 @@ impl AppState {
             surface,
             format,
             size,
+            routines: Vec::new(),
         };
 
         state.configure_surface();
@@ -85,8 +88,25 @@ impl AppState {
         Ok(state)
     }
 
+    pub(crate) fn add_routine(&mut self, routine: Box<dyn RuntimeRoutine>) {
+        self.routines.push(routine);
+        self.routines.sort_by_key(|r| r.priority());
+    }
+
+    fn run_routines(&mut self) {
+        for routine in &mut self.routines {
+            if !routine.is_enabled() {
+                continue;
+            }
+
+            routine.frame();
+        }
+    }
+
     pub(crate) fn run(&mut self) {
         self.render();
+
+        self.run_routines();
     }
 
     pub(crate) fn get_window(&self) -> &Window {
@@ -109,7 +129,7 @@ impl AppState {
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: wgpu::PresentMode::AutoVsync,
         };
         self.surface.configure(&self.device, &surface_config);
     }
@@ -164,9 +184,9 @@ impl AppState {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(if my_bool {
-                        wgpu::Color::WHITE
+                        wgpu::Color::RED
                     } else {
-                        wgpu::Color::BLACK
+                        wgpu::Color::BLUE
                     }),
                     store: wgpu::StoreOp::Store,
                 },

@@ -6,6 +6,9 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{Layer, fmt};
 
+mod routine;
+use routine::*;
+
 #[inline]
 /// Returns the directory where log files should be stored
 fn get_log_directory() -> PathBuf {
@@ -65,7 +68,10 @@ fn main() {
     info!("Initializing runtime");
 
     // Initialize the runtime
-    let ref runtime = Runtime::new();
+    let mut runtime = Runtime::new();
+
+    // Register frame routines
+    runtime.add_routine(Routine {});
 
     // Start the runtime
     info!("Starting runtime");
