@@ -1,4 +1,5 @@
 use crate::app::window::Window;
+use rand::{Rng, RngExt};
 use thiserror::Error;
 use tracing::{info, warn};
 use winit::event_loop::ActiveEventLoop;
@@ -108,7 +109,7 @@ impl AppState {
             width: self.size.width,
             height: self.size.height,
             desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Immediate,
         };
         self.surface.configure(&self.device, &surface_config);
     }
@@ -150,6 +151,10 @@ impl AppState {
             });
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
+
+        let mut rng = rand::rng();
+        let my_bool: bool = rng.random();
+
         // Create the renderpass which will clear the screen.
         let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -158,7 +163,11 @@ impl AppState {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                    load: wgpu::LoadOp::Clear(if my_bool {
+                        wgpu::Color::WHITE
+                    } else {
+                        wgpu::Color::BLACK
+                    }),
                     store: wgpu::StoreOp::Store,
                 },
             })],
