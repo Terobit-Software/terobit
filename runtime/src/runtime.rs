@@ -33,10 +33,6 @@ impl Runtime {
         }
     }
 
-    pub fn bind_frame_fn(&mut self, frame_fn: impl Fn()) {
-        self.app.get_state_mut();
-    }
-
     /// Starts the runtime event loop.
     pub fn start(&mut self) -> Result<(), RuntimeInitError> {
         let event_loop = EventLoop::new().map_err(|_| RuntimeInitError::WinitEventLoopFailed)?;
