@@ -3,3 +3,5 @@ pub use runtime::*;
 
 mod app;
 pub use app::*;
+
+pub mod consts;

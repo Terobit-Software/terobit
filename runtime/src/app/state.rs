@@ -1,4 +1,5 @@
 use crate::app::window::Window;
+use crate::consts::app_consts::{DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, WINDOW_TITLE};
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
 use rand::{Rng, RngExt};
@@ -36,7 +37,7 @@ impl AppState {
     pub(crate) async fn new(event_loop: &ActiveEventLoop) -> Result<Self, AppStateError> {
         // create the window
         let window = Window::new(event_loop)?;
-        window.get_window().set_title("Terobit Client");
+        window.get_window().set_title(WINDOW_TITLE);
 
         // create the wgpu instance
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(
@@ -134,8 +135,8 @@ impl AppState {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             width: self.size.width,
             height: self.size.height,
-            desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            desired_maximum_frame_latency: DESIRED_MAXIMUM_FRAME_LATENCY,
+            present_mode: PRESENT_MODE,
         };
         self.surface.configure(&self.device, &surface_config);
     }
