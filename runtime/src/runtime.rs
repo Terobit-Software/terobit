@@ -5,6 +5,8 @@ use winit::event_loop::{ControlFlow, EventLoop};
 pub mod routines;
 use routines::RuntimeRoutine;
 
+pub mod handle;
+
 #[derive(Error, Debug)]
 /// Errors that can occur during runtime initialization.
 pub enum RuntimeInitError {
@@ -53,5 +55,3 @@ impl Runtime {
         self.app.queue_routine(Box::new(routine));
     }
 }
-
-pub struct RuntimeHandle {}

@@ -1,3 +1,4 @@
+use runtime::handle::RuntimeHandle;
 use runtime::routines::RuntimeRoutine;
 
 pub struct Routine {}
@@ -7,7 +8,9 @@ impl RuntimeRoutine for Routine {
         0
     }
 
-    fn frame(&self) {}
+    fn frame(&self, _handle: &RuntimeHandle) {
+        _handle.terminate();
+    }
 
     fn name(&self) -> &str {
         "test"

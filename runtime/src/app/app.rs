@@ -1,4 +1,5 @@
 use crate::app::state::AppState;
+use crate::runtime::handle::RuntimeCommand;
 use crate::runtime::routines::RuntimeRoutine;
 use thiserror::Error;
 use tracing::{error, info};
@@ -63,7 +64,14 @@ impl ApplicationHandler for RuntimeApp {
             }
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
-                    state.run();
+                    for command in state.run() {
+                        match command {
+                            RuntimeCommand::Terminate => {
+                                info!("Terminate command received, exiting event loop");
+                                event_loop.exit();
+                            }
+                        }
+                    }
                 }
             }
             _ => {}
@@ -73,7 +81,9 @@ impl ApplicationHandler for RuntimeApp {
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         // continuously request redraws to drive the render loop; Fifo (vsync)
         // presentation paces us to the display's refresh rate
-        if let Some(state) = &self.state {
+        if let Some(state) = &self.state
+            && !_event_loop.exiting()
+        {
             state.get_window().get_window().request_redraw();
         }
     }

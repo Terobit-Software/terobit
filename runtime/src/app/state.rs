@@ -1,4 +1,5 @@
 use crate::app::window::Window;
+use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
 use rand::{Rng, RngExt};
 use thiserror::Error;
@@ -93,20 +94,25 @@ impl AppState {
         self.routines.sort_by_key(|r| r.priority());
     }
 
-    fn run_routines(&mut self) {
+    /// Runs all enabled routines, returning the commands they issued this frame.
+    fn run_routines(&mut self) -> Vec<RuntimeCommand> {
+        let handle = RuntimeHandle::new();
+
         for routine in &mut self.routines {
             if !routine.is_enabled() {
                 continue;
             }
 
-            routine.frame();
+            routine.frame(&handle);
         }
+
+        handle.take_commands()
     }
 
-    pub(crate) fn run(&mut self) {
+    pub(crate) fn run(&mut self) -> Vec<RuntimeCommand> {
         self.render();
 
-        self.run_routines();
+        self.run_routines()
     }
 
     pub(crate) fn get_window(&self) -> &Window {
