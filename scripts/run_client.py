@@ -34,7 +34,10 @@ else:
     os.makedirs(OUT_DIR)
 
 # Copy the assets to the output directory
-shutil.copytree(CLIENT_ASSETS_DIR, os.path.join(OUT_DIR, "assets"))
+if not os.path.exists(CLIENT_ASSETS_DIR):
+    print("Assets folder", CLIENT_ASSETS_DIR, "does not exist, skipping...")
+else:
+    shutil.copytree(CLIENT_ASSETS_DIR, os.path.join(OUT_DIR, "assets"))
 
 # Get the binary name
 bin = "client"
