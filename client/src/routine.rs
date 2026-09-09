@@ -1,3 +1,4 @@
+use rand::RngExt;
 use runtime::handle::RuntimeHandle;
 use runtime::routines::RuntimeRoutine;
 
@@ -9,7 +10,12 @@ impl RuntimeRoutine for Routine {
     }
 
     fn frame(&self, _handle: &RuntimeHandle) {
-        _handle.terminate();
+        let mut rng = rand::rng();
+        let num: u16 = rng.random();
+        println!("{}", num);
+        if num == 0 {
+            _handle.terminate();
+        }
     }
 
     fn name(&self) -> &str {
