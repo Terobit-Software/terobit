@@ -7,9 +7,7 @@ impl RuntimeRoutine for Routine {
         0
     }
 
-    fn frame(&self) {
-        println!("Test")
-    }
+    fn frame(&self) {}
 
     fn name(&self) -> &str {
         "test"
