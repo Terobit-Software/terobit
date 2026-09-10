@@ -5,3 +5,6 @@ mod app;
 pub use app::*;
 
 pub mod consts;
+
+mod assets;
+pub use assets::*;

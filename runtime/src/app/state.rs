@@ -179,9 +179,6 @@ impl AppState {
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
-        let mut rng = rand::rng();
-        let my_bool: bool = rng.random();
-
         // Create the renderpass which will clear the screen.
         let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -190,11 +187,7 @@ impl AppState {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(if my_bool {
-                        wgpu::Color::RED
-                    } else {
-                        wgpu::Color::BLUE
-                    }),
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                     store: wgpu::StoreOp::Store,
                 },
             })],
