@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::app::window::Window;
-use crate::consts::app::{DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, WINDOW_TITLE};
+use crate::consts::app::{
+    DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
+};
 use crate::consts::shader::ROOT_SHADER_PATH;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
@@ -189,7 +191,12 @@ impl AppState {
         &self.window
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        // a zero-sized surface is invalid to configure (e.g. mid-transition or minimized)
+        if new_size.width == 0 || new_size.height == 0 {
+            return;
+        }
+
         self.size = new_size;
         self.configure_surface();
     }
@@ -212,16 +219,16 @@ impl AppState {
 
     fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(texture) => texture,
-            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
+            wgpu::CurrentSurfaceTexture::Success(texture) => Some(texture),
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => None,
             wgpu::CurrentSurfaceTexture::Suboptimal(texture) => {
                 drop(texture);
                 self.configure_surface();
-                return;
+                None
             }
             wgpu::CurrentSurfaceTexture::Outdated => {
                 self.configure_surface();
-                return;
+                None
             }
             wgpu::CurrentSurfaceTexture::Validation => {
                 unreachable!("No error scope registered, so validation errors will panic")
@@ -233,8 +240,15 @@ impl AppState {
                     .unwrap();
                 self.configure_surface();
                 warn!("Surface texture was lost, but is now reconfigured");
-                return;
+                None
             }
+        };
+
+        let Some(surface_texture) = surface_texture else {
+            // vsync only paces frames that present; without this, skipped frames
+            // (occluded/outdated surface) spin the redraw loop at 100% CPU
+            std::thread::sleep(SKIPPED_FRAME_DELAY);
+            return;
         };
 
         let texture_view = surface_texture

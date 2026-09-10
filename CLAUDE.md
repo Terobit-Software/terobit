@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-Early but working skeleton: the workspace compiles (`cargo check` passes, with a number of dead-code warnings for not-yet-used fields/methods), opens a window, clears it to a random red/blue color each frame, and runs registered frame routines. The bundled test routine prints a random `u16` every frame and terminates the runtime when it hits 0.
+Early but working skeleton: the workspace compiles (`cargo check` passes, with a number of dead-code warnings for not-yet-used fields/methods), opens a window, clears it to black, draws a red triangle via the root shader/pipeline (embedded with `include_str!` from `runtime/assets/shaders/root.wgsl`), and runs registered frame routines. The bundled test routine rolls a random `u16` every frame and terminates the runtime when it hits 0.
 
-Known quirk: frame pacing comes entirely from vsync in `render()`. When the window is occluded (covered/minimized), `get_current_texture()` returns early without presenting, so the `ControlFlow::Poll` + `request_redraw` loop spins unthrottled at 100% CPU — which is also why the test routine's 1-in-65536 terminate fires almost instantly once the window is hidden.
+Frame pacing: presented frames are paced by vsync in `render()`; frames skipped without presenting (occluded, outdated, or lost surface) sleep for `SKIPPED_FRAME_DELAY` instead, so the `ControlFlow::Poll` + `request_redraw` loop doesn't spin unthrottled while the window is hidden or mid-resize. Note the test routine's 1-in-65536 random terminate still ends the run eventually (~18 min average at 60 fps). The `ERROR winit ... no handler was set` lines sometimes logged at shutdown are harmless: macOS delivers leftover window callbacks after the event loop has exited.
 
 ## Commands
 
@@ -48,7 +48,7 @@ Cargo workspace with two crates:
 
 Inside `runtime/src/app/`:
 
-- `RuntimeApp` (`app.rs`) holds `Option<AppState>`, built lazily in `resumed()` (blocking on the async wgpu setup with `pollster`). Routines registered before then are queued in `pending_routines` and drained into the state on creation. `window_event` handles `CloseRequested` (exit) and `RedrawRequested` (runs `AppState::run()` and applies any returned `RuntimeCommand`s); `about_to_wait` requests the next redraw to keep the loop going.
+- `RuntimeApp` (`app.rs`) holds `Option<AppState>`, built lazily in `resumed()` (blocking on the async wgpu setup with `pollster`). Routines registered before then are queued in `pending_routines` and drained into the state on creation. `window_event` handles `CloseRequested` (exit), `Resized` (reconfigures the surface via `AppState::resize`, ignoring zero sizes), and `RedrawRequested` (runs `AppState::run()` and applies any returned `RuntimeCommand`s); `about_to_wait` requests the next redraw to keep the loop going.
 - `AppState` (`state.rs`) owns the full wgpu stack (instance, adapter, device, queue, surface, format) plus the `Window` and the routine list. `run()` renders a clear pass, then runs routines. Surface config values live in `consts`.
 - `Window` (`window.rs`) wraps `Arc<winit::window::Window>`.
 

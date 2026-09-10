@@ -62,6 +62,11 @@ impl ApplicationHandler for RuntimeApp {
                 info!("Window close requested");
                 event_loop.exit();
             }
+            WindowEvent::Resized(new_size) => {
+                if let Some(state) = &mut self.state {
+                    state.resize(new_size);
+                }
+            }
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
                     for command in state.run() {
