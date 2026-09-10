@@ -1,5 +1,4 @@
 in order of importance:
-- get a triangle on the screen
 - get a cube on the screen
 - get multiple cubes on the screen
 - get the camera to move

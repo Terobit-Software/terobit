@@ -29,11 +29,13 @@ impl Window {
     }
 
     /// Returns a reference to the window
+    #[inline]
     pub fn get_window(&self) -> &winit::window::Window {
         &self.window
     }
 
     /// Returns an owned handle to the window
+    #[inline]
     pub fn get_window_arc(&self) -> Arc<winit::window::Window> {
         Arc::clone(&self.window)
     }

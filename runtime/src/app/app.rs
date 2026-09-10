@@ -90,10 +90,12 @@ impl ApplicationHandler for RuntimeApp {
 }
 
 impl RuntimeApp {
+    #[inline]
     pub(crate) fn get_state(&self) -> Option<&AppState> {
         self.state.as_ref()
     }
 
+    #[inline]
     pub(crate) fn get_state_mut(&mut self) -> Option<&mut AppState> {
         self.state.as_mut()
     }

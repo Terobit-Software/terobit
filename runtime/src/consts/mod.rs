@@ -1,1 +1,2 @@
-pub mod app_consts;
+pub mod app;
+pub mod shader;

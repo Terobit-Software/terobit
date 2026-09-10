@@ -1,10 +1,14 @@
+use std::path::{Path, PathBuf};
+
 use crate::app::window::Window;
-use crate::consts::app_consts::{DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, WINDOW_TITLE};
+use crate::consts::app::{DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, WINDOW_TITLE};
+use crate::consts::shader::ROOT_SHADER_PATH;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
 use rand::{Rng, RngExt};
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
+use wgpu::naga::error::ShaderError;
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Error, Debug)]
@@ -17,6 +21,8 @@ pub(crate) enum AppStateError {
     WgpuDeviceError(#[from] wgpu::RequestDeviceError),
     #[error("failed to create wgpu surface")]
     WgpuSurfaceError(#[from] wgpu::CreateSurfaceError),
+    #[error("failed to load shader")]
+    ShaderError,
 }
 
 /// The main application state.
@@ -30,6 +36,8 @@ pub(crate) struct AppState {
     format: wgpu::TextureFormat,
     size: winit::dpi::PhysicalSize<u32>,
     routines: Vec<Box<dyn RuntimeRoutine>>,
+    shader_modules: Vec<wgpu::ShaderModule>,
+    render_pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl AppState {
@@ -83,16 +91,76 @@ impl AppState {
             format,
             size,
             routines: Vec::new(),
+            shader_modules: Vec::new(),
+            render_pipeline: None,
         };
 
         state.configure_surface();
+
+        let root_source = include_str!("../../../runtime/assets/shaders/root.wgsl");
+        state.compile_shader_str(root_source, Some("rootshader"));
+        state.create_root_pipeline();
 
         Ok(state)
     }
 
     pub(crate) fn add_routine(&mut self, routine: Box<dyn RuntimeRoutine>) {
+        info!("Adding new routine with name '{}'", routine.name());
+
         self.routines.push(routine);
         self.routines.sort_by_key(|r| r.priority());
+    }
+
+    pub(crate) fn compile_shader_str(&mut self, shader_source: &str, name: Option<&str>) {
+        let shader = self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: name,
+                source: wgpu::ShaderSource::Wgsl(shader_source.into()),
+            });
+
+        self.shader_modules.push(shader);
+
+        info!("Compiled shader {:?}", name);
+    }
+
+    /// Builds the root render pipeline from the most recently compiled shader module.
+    fn create_root_pipeline(&mut self) {
+        let module = match self.shader_modules.last() {
+            Some(module) => module,
+            None => {
+                error!("No shader module compiled");
+                std::process::exit(1);
+            }
+        };
+
+        let pipeline = self
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("root pipeline"),
+                layout: None,
+                vertex: wgpu::VertexState {
+                    module,
+                    entry_point: Some("vs_main"),
+                    compilation_options: Default::default(),
+                    buffers: &[],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module,
+                    entry_point: Some("fs_main"),
+                    compilation_options: Default::default(),
+                    // must match the sRGB view format used in render()
+                    targets: &[Some(self.format.add_srgb_suffix().into())],
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            });
+
+        self.render_pipeline = Some(pipeline);
+        info!("Root render pipeline successfully created");
     }
 
     /// Runs all enabled routines, returning the commands they issued this frame.
@@ -116,6 +184,7 @@ impl AppState {
         self.run_routines()
     }
 
+    #[inline]
     pub(crate) fn get_window(&self) -> &Window {
         &self.window
     }
@@ -180,7 +249,7 @@ impl AppState {
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
         // Create the renderpass which will clear the screen.
-        let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &texture_view,
@@ -196,6 +265,12 @@ impl AppState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
+
+        // Draw with the root pipeline.
+        if let Some(pipeline) = &self.render_pipeline {
+            renderpass.set_pipeline(pipeline);
+            renderpass.draw(0..3, 0..1);
+        }
 
         // End the renderpass.
         drop(renderpass);

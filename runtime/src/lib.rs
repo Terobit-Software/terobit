@@ -6,5 +6,6 @@ pub use app::*;
 
 pub mod consts;
 
-mod assets;
-pub use assets::*;
+// currently unused
+// mod assets;
+// pub use assets::*;
