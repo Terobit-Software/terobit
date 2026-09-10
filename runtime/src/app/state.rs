@@ -99,7 +99,7 @@ impl AppState {
 
         state.configure_surface();
 
-        let root_source = include_str!("../../../runtime/assets/shaders/root.wgsl");
+        let root_source = include_str!("shaders/root.wgsl");
         state.compile_shader_str(root_source, Some("rootshader"));
         state.create_root_pipeline();
 
