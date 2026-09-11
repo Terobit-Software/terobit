@@ -1,15 +1,31 @@
 version: 2
 updates:
-  # 1. Rust Dependencies (Cargo)
+  # Rust dependencies (Cargo, workspace root)
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly" # Options: daily, weekly, monthly
-    # Group updates to avoid PR fatigue
-    groups:
-      rust-dependencies:
-        patterns:
-          - "*"
+    commit-message:
+      prefix: "deps"
     labels:
       - "dependencies"
       - "rust"
+    # Group minor/patch bumps into one PR to avoid PR fatigue; breaking
+    # majors (wgpu, winit, ...) arrive as individual PRs instead.
+    groups:
+      rust-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep the actions used in CI workflows up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"

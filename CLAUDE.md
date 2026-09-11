@@ -33,7 +33,7 @@ python3 scripts/run_client.py
 
 The client writes daily-rotated log files (via `tracing-appender`) to `~/Library/Logs/TerobitClient/` on macOS; the Linux/Windows paths in `get_log_directory()` are placeholders.
 
-There are no tests yet.
+There are no tests yet. CI (`.github/workflows/ci.yml`) runs `cargo clippy --workspace --all-targets` on pushes to main and on PRs; Dependabot (`.github/dependabot.yml`) groups minor/patch cargo bumps weekly and leaves majors as individual PRs.
 
 ## Architecture
 
