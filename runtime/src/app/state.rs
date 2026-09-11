@@ -50,9 +50,7 @@ impl AppState {
         window.get_window().set_title(WINDOW_TITLE);
 
         // create the wgpu instance
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(
-            Box::new(event_loop.owned_display_handle()),
-        ));
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         info!("New wgpu instance successfully created");
 
         // create the wgpu adapter
@@ -68,7 +66,7 @@ impl AppState {
         info!("New wgpu device and queue successfully created");
 
         // print device info
-        let info = device.adapter_info();
+        let info = adapter.get_info();
         info!("Device info: {:?}", info);
 
         let size = window.get_window().inner_size();
@@ -157,7 +155,7 @@ impl AppState {
                 primitive: wgpu::PrimitiveState::default(),
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
-                multiview_mask: None,
+                multiview: None,
                 cache: None,
             });
 
@@ -205,7 +203,6 @@ impl AppState {
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.format,
-            color_space: wgpu::SurfaceColorSpace::Auto,
             // Request compatibility with the sRGB-format texture view we're going to create later
             view_formats: vec![self.format.add_srgb_suffix()],
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
@@ -219,27 +216,32 @@ impl AppState {
 
     fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(texture) => Some(texture),
-            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => None,
-            wgpu::CurrentSurfaceTexture::Suboptimal(texture) => {
+            Ok(texture) if texture.suboptimal => {
                 drop(texture);
                 self.configure_surface();
                 None
             }
-            wgpu::CurrentSurfaceTexture::Outdated => {
+            Ok(texture) => Some(texture),
+            Err(wgpu::SurfaceError::Timeout) => None,
+            Err(wgpu::SurfaceError::Outdated) => {
                 self.configure_surface();
                 None
             }
-            wgpu::CurrentSurfaceTexture::Validation => {
-                unreachable!("No error scope registered, so validation errors will panic")
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
+            Err(wgpu::SurfaceError::Lost) => {
                 self.surface = self
                     .instance
                     .create_surface(self.window.get_window_arc().clone())
                     .unwrap();
                 self.configure_surface();
                 warn!("Surface texture was lost, but is now reconfigured");
+                None
+            }
+            Err(wgpu::SurfaceError::OutOfMemory) => {
+                error!("Out of memory while acquiring surface texture");
+                std::process::exit(1);
+            }
+            Err(wgpu::SurfaceError::Other) => {
+                warn!("Failed to acquire surface texture with a generic error");
                 None
             }
         };
@@ -277,7 +279,6 @@ impl AppState {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
-            multiview_mask: None,
         });
 
         // Draw with the root pipeline.
@@ -292,6 +293,6 @@ impl AppState {
         // Submit the command in the queue to execute
         self.queue.submit([encoder.finish()]);
         self.window.get_window().pre_present_notify();
-        self.queue.present(surface_texture);
+        surface_texture.present();
     }
 }

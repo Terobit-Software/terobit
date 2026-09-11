@@ -64,4 +64,4 @@ Tunable engine values live in `runtime/src/consts/` (`app_consts.rs`): `WINDOW_T
 
 ### Dependencies
 
-winit 0.30 (with `rwh_06`), wgpu 30, pollster, rand 0.10, tracing, thiserror 2. The client additionally uses tracing-appender, tracing-subscriber, and uuid.
+winit 0.30 (with `rwh_06`), wgpu 27, pollster, rand 0.10, bytemuck, glam, tracing, thiserror 2. `iced_wgpu` and `iced_winit` 0.14 are also pulled in (for a planned UI overlay on top of the render stack) but not yet wired into any code — wgpu is pinned to 27 because that's the newest version iced 0.14 supports; bumping wgpu without bumping iced (or vice versa) will break the build. The client additionally uses tracing-appender, tracing-subscriber, and uuid.
