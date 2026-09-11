@@ -10,3 +10,6 @@ tracing-appender = "0.2"
 tracing-subscriber = "0.3.23"
 uuid = { version = "1.26", features = ["v4", "v7", "serde"] }
 rand = "0.10.2"
+
+[features]
+dist = []

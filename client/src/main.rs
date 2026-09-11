@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "dist", windows_subsystem = "windows")]
+
 use runtime::Runtime;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};
