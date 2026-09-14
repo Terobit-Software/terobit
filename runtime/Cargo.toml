@@ -10,7 +10,7 @@ winit = {version = "0.30", features = ["rwh_06"]}
 wgpu = "27.0"
 pollster = "1.0.1"
 rand = "0.10.2"
-bytemuck = "1.25.2"
+bytemuck = { version = "1.25.2", features = ["derive"] }
 glam = "0.33.7"
 iced_wgpu = "0.14"
 iced_winit = "0.14"

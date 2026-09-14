@@ -1,16 +1,25 @@
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
+use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
 use crate::app::window::Window;
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
+use crate::consts::render::{
+    CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
+    DEPTH_FORMAT,
+};
 use crate::consts::shader::ROOT_SHADER_PATH;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
+use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
+use glam::{Mat4, Vec3};
 use rand::{Rng, RngExt};
 use thiserror::Error;
 use tracing::{error, info, warn};
 use wgpu::naga::error::ShaderError;
+use wgpu::util::DeviceExt;
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Error, Debug)]
@@ -37,9 +46,16 @@ pub(crate) struct AppState {
     surface: wgpu::Surface<'static>,
     format: wgpu::TextureFormat,
     size: winit::dpi::PhysicalSize<u32>,
+    depth_view: wgpu::TextureView,
     routines: Vec<Box<dyn RuntimeRoutine>>,
     shader_modules: Vec<wgpu::ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
+    uniform_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
+    start_time: Instant,
 }
 
 impl AppState {
@@ -81,6 +97,50 @@ impl AppState {
         let format = capabilities.formats[0];
         info!("Surface format: {:?}", format);
 
+        let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("cube vertex buffer"),
+            contents: bytemuck::cast_slice(&CUBE_VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("cube index buffer"),
+            contents: bytemuck::cast_slice(&CUBE_INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("mvp uniform buffer"),
+            contents: bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("mvp uniform bind group layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("mvp uniform bind group"),
+            layout: &uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+        });
+
         let mut state = Self {
             instance,
             window,
@@ -90,16 +150,23 @@ impl AppState {
             surface,
             format,
             size,
+            depth_view,
             routines: Vec::new(),
             shader_modules: Vec::new(),
             render_pipeline: None,
+            vertex_buffer,
+            index_buffer,
+            index_count: CUBE_INDICES.len() as u32,
+            uniform_buffer,
+            uniform_bind_group,
+            start_time: Instant::now(),
         };
 
         state.configure_surface();
 
         let root_source = include_str!("shaders/root.wgsl");
         state.compile_shader_str(root_source, Some("rootshader"));
-        state.create_root_pipeline();
+        state.create_root_pipeline(&uniform_bind_group_layout);
 
         Ok(state)
     }
@@ -124,8 +191,28 @@ impl AppState {
         info!("Compiled shader {:?}", name);
     }
 
+    /// Creates a depth texture view sized to match the surface.
+    fn create_depth_view(device: &wgpu::Device, width: u32, height: u32) -> wgpu::TextureView {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+
+        texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
     /// Builds the root render pipeline from the most recently compiled shader module.
-    fn create_root_pipeline(&mut self) {
+    fn create_root_pipeline(&mut self, uniform_bind_group_layout: &wgpu::BindGroupLayout) {
         let module = match self.shader_modules.last() {
             Some(module) => module,
             None => {
@@ -134,16 +221,41 @@ impl AppState {
             }
         };
 
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("root pipeline layout"),
+                bind_group_layouts: &[uniform_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let vertex_buffer_layout = wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                },
+            ],
+        };
+
         let pipeline = self
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("root pipeline"),
-                layout: None,
+                layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module,
                     entry_point: Some("vs_main"),
                     compilation_options: Default::default(),
-                    buffers: &[],
+                    buffers: &[vertex_buffer_layout],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module,
@@ -153,7 +265,13 @@ impl AppState {
                     targets: &[Some(self.format.add_srgb_suffix().into())],
                 }),
                 primitive: wgpu::PrimitiveState::default(),
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
                 cache: None,
@@ -197,6 +315,7 @@ impl AppState {
 
         self.size = new_size;
         self.configure_surface();
+        self.depth_view = Self::create_depth_view(&self.device, new_size.width, new_size.height);
     }
 
     fn configure_surface(&mut self) {
@@ -212,6 +331,25 @@ impl AppState {
             present_mode: PRESENT_MODE,
         };
         self.surface.configure(&self.device, &surface_config);
+    }
+
+    /// Recomputes the model-view-projection matrix for the demo cube and
+    /// uploads it to the uniform buffer.
+    fn update_uniforms(&mut self) {
+        let elapsed = self.start_time.elapsed().as_secs_f32();
+
+        let model = Mat4::from_rotation_y(elapsed * CUBE_SPIN_RADIANS_PER_SECOND)
+            * Mat4::from_rotation_x(elapsed * CUBE_SPIN_RADIANS_PER_SECOND * 0.6);
+        let view = look_at_mat4(CAMERA_POSITION, Vec3::ZERO, Vec3::Y);
+        let aspect = self.size.width.max(1) as f32 / self.size.height.max(1) as f32;
+        let projection = perspective(CAMERA_FOV_Y_RADIANS, aspect, CAMERA_NEAR, CAMERA_FAR);
+
+        let mvp = projection * view * model;
+        self.queue.write_buffer(
+            &self.uniform_buffer,
+            0,
+            bytemuck::cast_slice(&mvp.to_cols_array()),
+        );
     }
 
     fn render(&mut self) {
@@ -253,6 +391,8 @@ impl AppState {
             return;
         };
 
+        self.update_uniforms();
+
         let texture_view = surface_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor {
@@ -276,15 +416,25 @@ impl AppState {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Discard,
+                }),
+                stencil_ops: None,
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         });
 
-        // Draw with the root pipeline.
+        // Draw the cube with the root pipeline.
         if let Some(pipeline) = &self.render_pipeline {
             renderpass.set_pipeline(pipeline);
-            renderpass.draw(0..3, 0..1);
+            renderpass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            renderpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            renderpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            renderpass.draw_indexed(0..self.index_count, 0, 0..1);
         }
 
         // End the renderpass.
