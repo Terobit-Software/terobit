@@ -12,35 +12,107 @@ pub(crate) struct Vertex {
 /// so each face gets its own flat normal instead of smoothed corner normals.
 pub(crate) const CUBE_VERTICES: [Vertex; 24] = [
     // +X
-    Vertex { position: [0.5, -0.5, -0.5], normal: [1.0, 0.0, 0.0] },
-    Vertex { position: [0.5, 0.5, -0.5], normal: [1.0, 0.0, 0.0] },
-    Vertex { position: [0.5, 0.5, 0.5], normal: [1.0, 0.0, 0.0] },
-    Vertex { position: [0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        normal: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        normal: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        normal: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        normal: [1.0, 0.0, 0.0],
+    },
     // -X
-    Vertex { position: [-0.5, -0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
-    Vertex { position: [-0.5, 0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
-    Vertex { position: [-0.5, 0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        normal: [-1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        normal: [-1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        normal: [-1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        normal: [-1.0, 0.0, 0.0],
+    },
     // +Y
-    Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
-    Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
-    Vertex { position: [0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
-    Vertex { position: [0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        normal: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        normal: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        normal: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        normal: [0.0, 1.0, 0.0],
+    },
     // -Y
-    Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
-    Vertex { position: [0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
-    Vertex { position: [0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        normal: [0.0, -1.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        normal: [0.0, -1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        normal: [0.0, -1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        normal: [0.0, -1.0, 0.0],
+    },
     // +Z
-    Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
-    Vertex { position: [0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
-    Vertex { position: [0.5, 0.5, 0.5], normal: [0.0, 0.0, 1.0] },
-    Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        normal: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        normal: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        normal: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        normal: [0.0, 0.0, 1.0],
+    },
     // -Z
-    Vertex { position: [0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
-    Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 0.0, -1.0] },
-    Vertex { position: [0.5, 0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        normal: [0.0, 0.0, -1.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        normal: [0.0, 0.0, -1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        normal: [0.0, 0.0, -1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        normal: [0.0, 0.0, -1.0],
+    },
 ];
 
 /// Two CCW-wound triangles per face, indexing into [`CUBE_VERTICES`].
