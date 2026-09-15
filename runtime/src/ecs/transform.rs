@@ -1,18 +1,8 @@
-#[derive(bevy_ecs::component::Component)]
+#[derive(bevy_ecs::component::Component, Default)]
 pub struct Transform {
     pub position: glam::Vec3,
     pub rotation: glam::Quat,
     pub scale: glam::Vec3,
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self {
-            position: glam::Vec3::default(),
-            rotation: glam::Quat::default(),
-            scale: glam::Vec3::default(),
-        }
-    }
 }
 
 impl Transform {
