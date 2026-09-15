@@ -8,6 +8,5 @@ pub mod consts;
 
 pub mod ecs;
 
-// currently unused
-// mod assets;
-// pub use assets::*;
+mod assets;
+pub use assets::*;

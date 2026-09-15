@@ -11,7 +11,7 @@ pub(crate) struct RawAsset {
 
 impl RawAsset {
     pub(crate) fn from_path(path: PathBuf) -> Result<Self, AssetError> {
-        match std::fs::read() {
+        match std::fs::read(path.clone()) {
             Ok(v) => {
                 info!("Read file at {} successfully.", path.to_string_lossy());
                 Ok(Self {
