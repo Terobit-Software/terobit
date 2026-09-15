@@ -9,3 +9,6 @@ pub(crate) use asset_error::AssetError;
 
 mod mesh_asset;
 pub(crate) use mesh_asset::MeshAsset;
+
+mod registry;
+pub(crate) use registry::AssetRegistry;
