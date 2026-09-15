@@ -14,10 +14,15 @@ The main client binary, uses the runtime library. Extends the runtime with clien
 - Rust 1.98+ reccommended ([installation instructions](https://www.rust-lang.org/tools/install))
 
 ## Building and Running 
-To run the client, run
+Running:
 ```
-python3 scripts/run_client.py
+python scripts/run_client.py
 ```
+Test:
+```
+cargo test -p runtime
+```
+
 
 ## Platform Support
 | Platform | Status  |
