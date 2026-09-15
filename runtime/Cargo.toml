@@ -14,4 +14,5 @@ bytemuck = { version = "1.25.2", features = ["derive"] }
 glam = "0.33.7"
 iced_wgpu = "0.14"
 iced_winit = "0.14"
-"diesel" = "2.3.13"
+diesel = "2.3.13"
+bevy_ecs = "0.19.1"
