@@ -23,7 +23,6 @@ Test:
 cargo test -p runtime
 ```
 
-
 ## Platform Support
 | Platform | Status  |
 |----------|---------|
