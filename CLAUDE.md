@@ -24,6 +24,9 @@ cargo check
 # lint
 cargo clippy
 
+# run the tests
+cargo test -p runtime
+
 # run the client directly
 cargo run -p client
 
@@ -35,7 +38,7 @@ python3 scripts/run_client.py
 
 The client writes daily-rotated log files (via `tracing-appender`) to `~/Library/Logs/TerobitClient/` on macOS; the Linux/Windows paths in `get_log_directory()` are placeholders.
 
-There are no tests yet. CI (`.github/workflows/ci.yml`) runs `cargo clippy --workspace --all-targets` on pushes to main and on PRs; Dependabot (`.github/dependabot.yml`) groups minor/patch cargo bumps weekly and leaves majors as individual PRs.
+Tests live under `runtime/tests/`, one file per `runtime` source module, mirroring `runtime/src/`'s tree (e.g. `runtime/tests/consts/render.rs` tests `runtime/src/consts/render.rs`). Since each top-level file under `runtime/tests/` is compiled as its own separate test crate, a top-level file that needs sibling test files for submodules (`runtime.rs`, `app.rs`, `consts.rs`, `ecs.rs`) pulls them in with `#[path = "..."] mod ...;` pointing into a same-named subdirectory — plain `mod foo;` would look for `foo.rs`/`foo/mod.rs` next to it, not inside that subdirectory. Everything under `runtime/src/app/` and `runtime/src/assets/` is `pub(crate)`, so those modules have nothing an external test crate can name or construct; their test files are placeholders kept for parity with the rest of the tree. CI (`.github/workflows/ci.yml`) runs `cargo clippy --workspace --all-targets` then `cargo test -p runtime` on pushes to main and on PRs; Dependabot (`.github/dependabot.yml`) groups minor/patch cargo bumps weekly and leaves majors as individual PRs.
 
 ## Architecture
 
