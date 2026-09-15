@@ -5,6 +5,7 @@ use runtime::routines::RuntimeRoutine;
 pub struct Routine {}
 
 impl RuntimeRoutine for Routine {
+    #[inline]
     fn priority(&self) -> u8 {
         0
     }
@@ -18,10 +19,12 @@ impl RuntimeRoutine for Routine {
         }
     }
 
+    #[inline]
     fn name(&self) -> &str {
         "test"
     }
 
+    #[inline]
     fn is_enabled(&self) -> bool {
         true
     }
