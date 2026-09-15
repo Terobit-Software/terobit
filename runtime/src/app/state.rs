@@ -14,6 +14,7 @@ use crate::consts::render::{
 use crate::consts::shader::ROOT_SHADER_PATH;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
+use bevy_ecs::world::World;
 use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
 use glam::{Mat4, Vec3};
 use rand::{Rng, RngExt};
@@ -59,6 +60,8 @@ pub(crate) struct AppState {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     start_time: Instant,
+    worlds: Vec<World>,
+    current_world: usize,
 }
 
 impl AppState {
@@ -173,6 +176,8 @@ impl AppState {
             camera_buffer,
             camera_bind_group,
             start_time: Instant::now(),
+            worlds: Vec::from([World::new()]),
+            current_world: 0,
         };
 
         state.configure_surface();
@@ -373,6 +378,26 @@ impl AppState {
             present_mode: PRESENT_MODE,
         };
         self.surface.configure(&self.device, &surface_config);
+    }
+
+    #[inline]
+    pub(crate) fn get_world(&self) -> &World {
+        &self.worlds[self.current_world]
+    }
+
+    #[inline]
+    pub(crate) fn get_world_mut(&mut self) -> &mut World {
+        &mut self.worlds[self.current_world]
+    }
+
+    #[inline]
+    pub(crate) fn get_current_world(&self) -> usize {
+        self.current_world
+    }
+
+    #[inline]
+    pub(crate) fn set_current_world(&mut self, world: usize) {
+        self.current_world = world;
     }
 
     /// Recomputes the camera's view-projection matrix and each instance's
