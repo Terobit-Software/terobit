@@ -330,7 +330,8 @@ impl AppState {
 
     /// Runs all enabled routines, returning the commands they issued this frame.
     fn run_routines(&mut self) -> Vec<RuntimeCommand> {
-        let handle = RuntimeHandle::new();
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
 
         for routine in &mut self.routines {
             if !routine.is_enabled() {
