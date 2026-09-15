@@ -1,6 +1,8 @@
 mod app;
 pub use app::*;
 
+mod instance;
+
 mod mesh;
 
 mod state;
