@@ -7,6 +7,9 @@ use crate::app::window::Window;
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
+use crate::consts::overlay::{
+    OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_LINE_SPACING, OVERLAY_MARGIN,
+};
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
     DEPTH_FORMAT,
@@ -17,6 +20,10 @@ use crate::runtime::routines::RuntimeRoutine;
 use bevy_ecs::world::World;
 use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
 use glam::{Mat4, Vec3};
+use iced_wgpu::core::Renderer as _;
+use iced_wgpu::core::text::Renderer as _;
+use iced_wgpu::core::{Color, Font, Pixels, Point, Rectangle, Size, Text, alignment, text};
+use iced_wgpu::graphics::{Shell, Viewport};
 use rand::{Rng, RngExt};
 use thiserror::Error;
 use tracing::{error, info, warn};
@@ -62,6 +69,10 @@ pub(crate) struct AppState {
     start_time: Instant,
     worlds: Vec<World>,
     current_world: usize,
+    iced_renderer: iced_wgpu::Renderer,
+    frame_count: u64,
+    last_frame_time: Instant,
+    fps: f32,
 }
 
 impl AppState {
@@ -155,6 +166,20 @@ impl AppState {
             }],
         });
 
+        // the overlay draws to the same sRGB-suffixed view the cube pipeline
+        // targets, so the iced engine's pipelines must be built for that format
+        let iced_engine = iced_wgpu::Engine::new(
+            &adapter,
+            device.clone(),
+            queue.clone(),
+            format.add_srgb_suffix(),
+            None,
+            Shell::headless(),
+        );
+        let iced_renderer =
+            iced_wgpu::Renderer::new(iced_engine, Font::DEFAULT, Pixels(OVERLAY_FONT_SIZE));
+        info!("iced overlay renderer successfully created");
+
         let mut state = Self {
             instance,
             window,
@@ -178,6 +203,10 @@ impl AppState {
             start_time: Instant::now(),
             worlds: Vec::from([World::new()]),
             current_world: 0,
+            iced_renderer,
+            frame_count: 0,
+            last_frame_time: Instant::now(),
+            fps: 0.0,
         };
 
         state.configure_surface();
@@ -423,6 +452,86 @@ impl AppState {
             .write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances));
     }
 
+    /// Updates the smoothed FPS estimate from the time elapsed since the
+    /// previous frame.
+    fn update_fps(&mut self) {
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_frame_time).as_secs_f32();
+        self.last_frame_time = now;
+
+        if dt <= 0.0 {
+            return;
+        }
+
+        let instantaneous = 1.0 / dt;
+        self.fps = if self.frame_count <= 1 {
+            instantaneous
+        } else {
+            self.fps + OVERLAY_FPS_SMOOTHING * (instantaneous - self.fps)
+        };
+    }
+
+    /// Draws a single line of overlay text at the given logical position.
+    fn draw_overlay_line(&mut self, content: String, position: Point, bounds: Size) {
+        self.iced_renderer.fill_text(
+            Text {
+                content,
+                bounds,
+                size: Pixels(OVERLAY_FONT_SIZE),
+                line_height: text::LineHeight::default(),
+                font: Font::MONOSPACE,
+                align_x: text::Alignment::default(),
+                align_y: alignment::Vertical::Top,
+                shaping: text::Shaping::Basic,
+                wrapping: text::Wrapping::None,
+            },
+            position,
+            Color::WHITE,
+            Rectangle::new(position, bounds),
+        );
+    }
+
+    /// Draws the debug overlay (frame counter + FPS) on top of whatever is
+    /// already in `texture_view`, via its own iced_wgpu submission.
+    fn draw_overlay(&mut self, texture_view: &wgpu::TextureView) {
+        self.update_fps();
+
+        let scale_factor = self.window.get_window().scale_factor() as f32;
+        let viewport = Viewport::with_physical_size(
+            Size::new(self.size.width.max(1), self.size.height.max(1)),
+            scale_factor,
+        );
+
+        let logical_size = viewport.logical_size();
+        self.iced_renderer.reset(Rectangle::with_size(logical_size));
+
+        // the text's own `bounds` is the box cosmic-text lays it out within
+        // (not just a clip rect) — an infinite bound breaks that layout math
+        // and only the first glyph ends up drawn, so give it the actual
+        // available space instead.
+        let text_bounds = Size::new(
+            (logical_size.width - 2.0 * OVERLAY_MARGIN).max(0.0),
+            (logical_size.height - 2.0 * OVERLAY_MARGIN).max(0.0),
+        );
+
+        self.draw_overlay_line(
+            format!("frame {}", self.frame_count),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN),
+            text_bounds,
+        );
+        self.draw_overlay_line(
+            format!("{:.0} fps", self.fps),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING),
+            text_bounds,
+        );
+
+        // clear_color: None so this submission loads (rather than clears) the
+        // cube pass's output; present() submits its own encoder to the same
+        // wgpu::Queue, so it's guaranteed to execute after the cube's submit below.
+        self.iced_renderer
+            .present(None, self.format.add_srgb_suffix(), texture_view, &viewport);
+    }
+
     fn render(&mut self) {
         let surface_texture = match self.surface.get_current_texture() {
             Ok(texture) if texture.suboptimal => {
@@ -514,6 +623,10 @@ impl AppState {
 
         // Submit the command in the queue to execute
         self.queue.submit([encoder.finish()]);
+
+        self.frame_count += 1;
+        self.draw_overlay(&texture_view);
+
         self.window.get_window().pre_present_notify();
         surface_texture.present();
     }
