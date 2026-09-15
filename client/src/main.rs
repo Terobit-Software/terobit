@@ -16,24 +16,24 @@ use routine::*;
 fn get_log_directory() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        return Path::new(&format!(
+        Path::new(&format!(
             "/Users/{}/Library/Logs/TerobitClient/",
             std::env::var("USER").unwrap_or_default()
         ))
-        .to_path_buf();
+        .to_path_buf()
     }
     // these are placeholders
     #[cfg(target_os = "linux")]
     {
-        return Path::new("~/.local/share/terobit/logs/").to_path_buf();
+        Path::new("~/.local/share/terobit/logs/").to_path_buf()
     }
     #[cfg(target_os = "windows")]
     {
         let base = std::env::var("LOCALAPPDATA").expect("LOCALAPPDATA not set");
-        return PathBuf::from(base)
+        PathBuf::from(base)
             .join("terobit")
             .join("client")
-            .join("logs");
+            .join("logs")
     }
 }
 
