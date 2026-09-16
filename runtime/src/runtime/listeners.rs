@@ -1,16 +1,21 @@
 mod window_listener;
 pub use window_listener::WindowListener;
 
+mod input_listener;
+pub use input_listener::InputListener;
+
 use crate::handle::RuntimeHandle;
 
 pub(crate) struct ListenerManager {
     window_listeners: Vec<Box<dyn WindowListener>>,
+    input_listeners: Vec<Box<dyn InputListener>>,
 }
 
 impl ListenerManager {
     pub(crate) fn new() -> Self {
         Self {
             window_listeners: Vec::new(),
+            input_listeners: Vec::new(),
         }
     }
 
