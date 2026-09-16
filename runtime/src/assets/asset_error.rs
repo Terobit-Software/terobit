@@ -4,4 +4,6 @@ use thiserror::Error;
 pub(crate) enum AssetError {
     #[error("failed to read file")]
     FailedToReadFile(#[from] std::io::Error),
+    #[error("invalid mesh data: {0}")]
+    InvalidMeshData(String),
 }

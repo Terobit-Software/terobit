@@ -3,6 +3,9 @@ use tracing::{info, warn};
 
 use crate::AssetError;
 
+/// Path used to request the built-in cube mesh instead of reading a file from disk.
+pub(crate) const BUILTIN_CUBE_PATH: &str = "bi.cubeobj";
+
 pub(crate) struct RawAssetData {
     /// if the file is builtin, its data will be its id, not its content
     is_builtin: bool,
@@ -18,11 +21,11 @@ pub(crate) struct RawAsset {
 
 impl RawAsset {
     pub(crate) fn from_path(path: PathBuf) -> Result<Self, AssetError> {
-        if path == PathBuf::from("bi.cubeobj") {
+        if path == PathBuf::from(BUILTIN_CUBE_PATH) {
             return Ok(Self {
                 data: RawAssetData {
                     is_builtin: true,
-                    data: Vec::from("bi.cubeobj"),
+                    data: Vec::from(BUILTIN_CUBE_PATH),
                 },
                 path: PathBuf::new().into_boxed_path(),
             });
