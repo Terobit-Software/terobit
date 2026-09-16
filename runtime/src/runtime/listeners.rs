@@ -12,8 +12,24 @@ impl ListenerManager {
         }
     }
 
-    pub(crate) fn add_window_listener(&mut self, listener: Box<dyn WindowListener>) {
+    #[inline]
+    pub(crate) fn add_window_listener(&mut self, listener: Box<dyn WindowListener + Listener>) {
         self.window_listeners.push(listener);
         self.window_listeners.sort_by_key(|l| l.priority());
     }
+
+    pub(crate) fn add_listener(&mut self, listener: ListenerValue) {
+        match listener {
+            ListenerValue::Window(window_listener) => self.add_window_listener(window_listener),
+        }
+    }
+}
+
+pub trait Listener {
+    fn name(&self) -> &str;
+    fn priority(&self) -> u8;
+}
+
+pub enum ListenerValue {
+    Window(Box<dyn Listener>),
 }

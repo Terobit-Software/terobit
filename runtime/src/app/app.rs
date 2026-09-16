@@ -1,5 +1,6 @@
 use crate::app::state::AppState;
 use crate::runtime::handle::RuntimeCommand;
+use crate::runtime::listeners::ListenerValue;
 use crate::runtime::routines::RuntimeRoutine;
 use thiserror::Error;
 use tracing::{error, info};
@@ -14,6 +15,8 @@ pub(crate) struct RuntimeApp {
     state: Option<AppState>,
     // routines registered before the state exists, drained into it on resume
     pending_routines: Vec<Box<dyn RuntimeRoutine>>,
+    // listeners registered before the state exists, drained into it on resume
+    pending_listeners: Vec<Box<ListenerValue>>,
 }
 
 impl RuntimeApp {
@@ -21,6 +24,7 @@ impl RuntimeApp {
         Self {
             state: None,
             pending_routines: Vec::new(),
+            pending_listeners: Vec::new(),
         }
     }
 
@@ -29,6 +33,13 @@ impl RuntimeApp {
         match &mut self.state {
             Some(state) => state.add_routine(routine),
             None => self.pending_routines.push(routine),
+        }
+    }
+
+    pub(crate) fn queue_listener(&mut self, listener: ListenerValue) {
+        match &mut self.state {
+            Some(state) => state.add_listener(listener),
+            None => self.pending_listeners.push(Box::new(listener)),
         }
     }
 }

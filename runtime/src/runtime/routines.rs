@@ -26,6 +26,7 @@ impl RoutineManager {
         }
     }
 
+    #[inline]
     pub fn add(&mut self, routine: Box<dyn RuntimeRoutine>) {
         self.routines.push(routine);
         self.routines.sort_by_key(|r| r.priority());

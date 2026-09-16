@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::listeners::ListenerManager;
-use crate::routines::RoutineManager;
-
 use crate::app::instance::InstanceRaw;
 use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
 use crate::app::window::Window;
@@ -19,6 +16,11 @@ use crate::consts::render::{
     DEPTH_FORMAT,
 };
 use crate::consts::shader::ROOT_SHADER_PATH;
+use crate::listeners::ListenerManager;
+use crate::listeners::ListenerValue;
+use crate::listeners::WindowListener;
+
+use crate::routines::RoutineManager;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
 use crate::runtime::routines::RuntimeRoutine;
 use bevy_ecs::world::World;
@@ -232,6 +234,12 @@ impl AppState {
         info!("Adding new routine with name '{}'", routine.name());
 
         self.routine_manager.add(routine);
+    }
+
+    pub(crate) fn add_listener(&mut self, listener: ListenerValue) {
+        info!("Adding new listener with name '{}'", listener.name());
+
+        self.listener_manager.add_listener(listener);
     }
 
     pub(crate) fn compile_shader_str(&mut self, shader_source: &str, name: Option<&str>) {
