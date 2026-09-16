@@ -1,6 +1,7 @@
 use runtime::ecs::Mesh;
 use runtime::handle::RuntimeHandle;
-use runtime::listeners::{Listener, WindowListener};
+use runtime::listeners::{InputListener, Listener, WindowListener};
+use runtime::listeners::{KeyInput, MouseInput};
 
 pub struct ClientWindowListener {}
 
@@ -16,5 +17,25 @@ impl Listener for ClientWindowListener {
     }
     fn priority(&self) -> u8 {
         0
+    }
+}
+
+pub struct ClientInputListener {}
+
+impl Listener for ClientInputListener {
+    fn name(&self) -> &str {
+        "client_input_listener"
+    }
+    fn priority(&self) -> u8 {
+        0
+    }
+}
+
+impl InputListener for ClientInputListener {
+    fn on_key_input(&mut self, input: KeyInput) {
+        println!("{:?}", input)
+    }
+    fn on_mouse_input(&mut self, input: MouseInput) {
+        println!("{:?}", input)
     }
 }

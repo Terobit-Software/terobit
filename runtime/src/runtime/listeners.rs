@@ -1,8 +1,8 @@
 mod window_listener;
-pub use window_listener::WindowListener;
+pub use window_listener::*;
 
 mod input_listener;
-pub use input_listener::InputListener;
+pub use input_listener::*;
 
 use crate::handle::RuntimeHandle;
 
