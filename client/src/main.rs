@@ -11,6 +11,9 @@ use tracing_subscriber::{Layer, fmt};
 mod routine;
 use routine::*;
 
+mod listeners;
+use listeners::*;
+
 #[inline]
 /// Returns the directory where log files should be stored
 fn get_log_directory() -> PathBuf {

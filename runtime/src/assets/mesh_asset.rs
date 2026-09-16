@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::assets::asset_error::AssetError;
 use crate::assets::raw_asset::RawAsset;
+use crate::consts::mesh::CUBE_FACES;
 
 /// A single mesh vertex: position and face normal, both in model space.
 #[derive(Clone, Copy, Debug)]
@@ -42,67 +43,10 @@ impl MeshAsset {
     /// face so each face gets its own flat normal instead of smoothed corner
     /// normals. Mirrors `app::mesh::CUBE_VERTICES`/`CUBE_INDICES`.
     fn builtin_cube() -> Self {
-        const FACES: [([f32; 3], [[f32; 3]; 4]); 6] = [
-            (
-                [1.0, 0.0, 0.0],
-                [
-                    [0.5, -0.5, -0.5],
-                    [0.5, 0.5, -0.5],
-                    [0.5, 0.5, 0.5],
-                    [0.5, -0.5, 0.5],
-                ],
-            ),
-            (
-                [-1.0, 0.0, 0.0],
-                [
-                    [-0.5, -0.5, 0.5],
-                    [-0.5, 0.5, 0.5],
-                    [-0.5, 0.5, -0.5],
-                    [-0.5, -0.5, -0.5],
-                ],
-            ),
-            (
-                [0.0, 1.0, 0.0],
-                [
-                    [-0.5, 0.5, -0.5],
-                    [-0.5, 0.5, 0.5],
-                    [0.5, 0.5, 0.5],
-                    [0.5, 0.5, -0.5],
-                ],
-            ),
-            (
-                [0.0, -1.0, 0.0],
-                [
-                    [-0.5, -0.5, 0.5],
-                    [-0.5, -0.5, -0.5],
-                    [0.5, -0.5, -0.5],
-                    [0.5, -0.5, 0.5],
-                ],
-            ),
-            (
-                [0.0, 0.0, 1.0],
-                [
-                    [-0.5, -0.5, 0.5],
-                    [0.5, -0.5, 0.5],
-                    [0.5, 0.5, 0.5],
-                    [-0.5, 0.5, 0.5],
-                ],
-            ),
-            (
-                [0.0, 0.0, -1.0],
-                [
-                    [0.5, -0.5, -0.5],
-                    [-0.5, -0.5, -0.5],
-                    [-0.5, 0.5, -0.5],
-                    [0.5, 0.5, -0.5],
-                ],
-            ),
-        ];
-
         let mut verts = Vec::with_capacity(24);
         let mut indices = Vec::with_capacity(36);
 
-        for (normal, corners) in FACES {
+        for (normal, corners) in CUBE_FACES {
             let base = verts.len() as u16;
             for corner in corners {
                 verts.push(Vertex {
@@ -110,14 +54,7 @@ impl MeshAsset {
                     normal,
                 });
             }
-            indices.extend_from_slice(&[
-                base,
-                base + 1,
-                base + 2,
-                base,
-                base + 2,
-                base + 3,
-            ]);
+            indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
         }
 
         Self { verts, indices }
@@ -130,11 +67,10 @@ impl MeshAsset {
     fn parse_obj(data: &[u8]) -> Result<Self, AssetError> {
         let mut reader = std::io::BufReader::new(data);
 
-        let (models, _) =
-            tobj::load_obj_buf(&mut reader, &tobj::GPU_LOAD_OPTIONS, |_| {
-                Err(tobj::LoadError::OpenFileFailed)
-            })
-            .map_err(|e| AssetError::InvalidMeshData(e.to_string()))?;
+        let (models, _) = tobj::load_obj_buf(&mut reader, &tobj::GPU_LOAD_OPTIONS, |_| {
+            Err(tobj::LoadError::OpenFileFailed)
+        })
+        .map_err(|e| AssetError::InvalidMeshData(e.to_string()))?;
 
         let Some(model) = models.into_iter().next() else {
             return Err(AssetError::InvalidMeshData(
