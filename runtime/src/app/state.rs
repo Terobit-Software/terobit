@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use crate::routines::RoutineManager;
+
 use crate::app::instance::InstanceRaw;
 use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
 use crate::app::window::Window;
@@ -59,7 +61,7 @@ pub(crate) struct AppState {
     format: wgpu::TextureFormat,
     size: winit::dpi::PhysicalSize<u32>,
     depth_view: wgpu::TextureView,
-    routines: Vec<Box<dyn RuntimeRoutine>>,
+    routine_manager: RoutineManager,
     shader_modules: Vec<wgpu::ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     vertex_buffer: wgpu::Buffer,
@@ -194,7 +196,7 @@ impl AppState {
             format,
             size,
             depth_view,
-            routines: Vec::new(),
+            routine_manager: RoutineManager::new(),
             shader_modules: Vec::new(),
             render_pipeline: None,
             vertex_buffer,
@@ -226,8 +228,7 @@ impl AppState {
     pub(crate) fn add_routine(&mut self, routine: Box<dyn RuntimeRoutine>) {
         info!("Adding new routine with name '{}'", routine.name());
 
-        self.routines.push(routine);
-        self.routines.sort_by_key(|r| r.priority());
+        self.routine_manager.add(routine);
     }
 
     pub(crate) fn compile_shader_str(&mut self, shader_source: &str, name: Option<&str>) {
@@ -367,13 +368,7 @@ impl AppState {
         let world = &mut self.worlds[self.current_world];
         let handle = RuntimeHandle::new(world);
 
-        for routine in &mut self.routines {
-            if !routine.is_enabled() {
-                continue;
-            }
-
-            routine.frame(&handle);
-        }
+        self.routine_manager.run(&handle);
 
         handle.take_commands()
     }

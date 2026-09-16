@@ -14,3 +14,28 @@ pub trait RuntimeRoutine {
         true
     }
 }
+
+pub(crate) struct RoutineManager {
+    routines: Vec<Box<dyn RuntimeRoutine>>,
+}
+
+impl RoutineManager {
+    pub fn new() -> Self {
+        Self {
+            routines: Vec::new(),
+        }
+    }
+
+    pub fn add(&mut self, routine: Box<dyn RuntimeRoutine>) {
+        self.routines.push(routine);
+        self.routines.sort_by_key(|r| r.priority());
+    }
+
+    pub fn run(&self, handle: &RuntimeHandle) {
+        for routine in &self.routines {
+            if routine.is_enabled() {
+                routine.frame(handle);
+            }
+        }
+    }
+}
