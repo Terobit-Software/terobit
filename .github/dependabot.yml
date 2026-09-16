@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly" # Options: daily, weekly, monthly
+      interval: "daily" # Options: daily, weekly, monthly
     commit-message:
       prefix: "deps"
     labels:
