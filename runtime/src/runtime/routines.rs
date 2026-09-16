@@ -10,5 +10,7 @@ pub trait RuntimeRoutine {
     /// The name of the routine.
     fn name(&self) -> &str;
     /// Returns whether the routine is enabled and should be run.
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> bool {
+        true
+    }
 }
