@@ -31,6 +31,6 @@ pub struct MouseInput {
 }
 
 pub trait InputListener: Listener {
-    fn on_key_input(&mut self, input: KeyInput);
-    fn on_mouse_input(&mut self, input: MouseInput);
+    fn on_key_input(&mut self, input: KeyInput, _handle: &RuntimeHandle);
+    fn on_mouse_input(&mut self, input: MouseInput, _handle: &RuntimeHandle);
 }
