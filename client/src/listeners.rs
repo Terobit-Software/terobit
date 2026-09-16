@@ -8,4 +8,7 @@ impl WindowListener for ClientWindowListener {
     fn on_window_create(&self, _handle: &RuntimeHandle) {
         _handle.world().spawn(Mesh::new(0));
     }
+    fn priority(&self) -> u32 {
+        0
+    }
 }

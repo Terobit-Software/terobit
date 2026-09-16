@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use crate::listeners::ListenerManager;
 use crate::routines::RoutineManager;
 
 use crate::app::instance::InstanceRaw;
@@ -79,6 +80,7 @@ pub(crate) struct AppState {
     last_frame_time: Instant,
     fps: f32,
     asset_registry: AssetRegistry,
+    listener_manager: ListenerManager,
 }
 
 impl AppState {
@@ -214,6 +216,7 @@ impl AppState {
             last_frame_time: Instant::now(),
             fps: 0.0,
             asset_registry: AssetRegistry::new()?,
+            listener_manager: ListenerManager::new(),
         };
 
         state.configure_surface();

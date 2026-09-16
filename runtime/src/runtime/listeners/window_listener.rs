@@ -7,4 +7,5 @@ pub trait WindowListener {
     fn on_window_create(&self, handle: &RuntimeHandle) {}
     fn on_window_minimize(&self, handle: &RuntimeHandle) {}
     fn on_window_maximize(&self, handle: &RuntimeHandle) {}
+    fn priority(&self) -> u32;
 }
