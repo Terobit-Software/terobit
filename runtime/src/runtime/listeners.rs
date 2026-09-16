@@ -15,7 +15,7 @@ impl ListenerManager {
     }
 
     #[inline]
-    pub(crate) fn add_window_listener(&mut self, listener: Box<dyn WindowListener>) {
+    fn add_window_listener(&mut self, listener: Box<dyn WindowListener>) {
         self.window_listeners.push(listener);
         self.window_listeners.sort_by_key(|l| l.priority());
     }
