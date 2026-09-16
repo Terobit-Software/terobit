@@ -1,10 +1,11 @@
 use crate::handle::RuntimeHandle;
+use crate::listeners::Listener;
 
-pub trait WindowListener {
-    fn on_window_resize(&self, width: u32, height: u32, handle: &RuntimeHandle) {}
-    fn on_window_close(&self, handle: &RuntimeHandle) {}
-    fn on_window_focus(&self, handle: &RuntimeHandle) {}
-    fn on_window_create(&self, handle: &RuntimeHandle) {}
-    fn on_window_minimize(&self, handle: &RuntimeHandle) {}
-    fn on_window_maximize(&self, handle: &RuntimeHandle) {}
+pub trait WindowListener: Listener {
+    fn on_window_resize(&self, _width: u32, _height: u32, _handle: &RuntimeHandle) {}
+    fn on_window_close(&self, _handle: &RuntimeHandle) {}
+    fn on_window_focus(&self, _handle: &RuntimeHandle) {}
+    fn on_window_create(&self, _handle: &RuntimeHandle) {}
+    fn on_window_minimize(&self, _handle: &RuntimeHandle) {}
+    fn on_window_maximize(&self, _handle: &RuntimeHandle) {}
 }

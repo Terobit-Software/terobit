@@ -16,7 +16,7 @@ pub(crate) struct RuntimeApp {
     // routines registered before the state exists, drained into it on resume
     pending_routines: Vec<Box<dyn RuntimeRoutine>>,
     // listeners registered before the state exists, drained into it on resume
-    pending_listeners: Vec<Box<ListenerValue>>,
+    pending_listeners: Vec<ListenerValue>,
 }
 
 impl RuntimeApp {
@@ -36,10 +36,11 @@ impl RuntimeApp {
         }
     }
 
+    /// Queues a listener, installing it immediately if the state already exists.
     pub(crate) fn queue_listener(&mut self, listener: ListenerValue) {
         match &mut self.state {
             Some(state) => state.add_listener(listener),
-            None => self.pending_listeners.push(Box::new(listener)),
+            None => self.pending_listeners.push(listener),
         }
     }
 }
@@ -52,6 +53,10 @@ impl ApplicationHandler for RuntimeApp {
                     for routine in self.pending_routines.drain(..) {
                         state.add_routine(routine);
                     }
+                    for listener in self.pending_listeners.drain(..) {
+                        state.add_listener(listener);
+                    }
+                    state.notify_window_created();
                     Some(state)
                 }
                 Err(err) => {
@@ -71,11 +76,21 @@ impl ApplicationHandler for RuntimeApp {
         match event {
             WindowEvent::CloseRequested => {
                 info!("Window close requested");
+                if let Some(state) = &mut self.state {
+                    state.notify_window_close();
+                }
                 event_loop.exit();
             }
             WindowEvent::Resized(new_size) => {
                 if let Some(state) = &mut self.state {
                     state.resize(new_size);
+                }
+            }
+            WindowEvent::Focused(focused) => {
+                if let Some(state) = &mut self.state
+                    && focused
+                {
+                    state.notify_window_focus();
                 }
             }
             WindowEvent::RedrawRequested => {

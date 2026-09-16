@@ -1,5 +1,4 @@
 use crate::app::RuntimeApp;
-use crate::listeners::Listener;
 use crate::listeners::ListenerValue;
 use crate::listeners::WindowListener;
 use thiserror::Error;
@@ -56,7 +55,9 @@ impl Runtime {
         self.app.queue_routine(Box::new(routine));
     }
 
-    pub fn add_window_listener(&mut self, listener: impl Listener + WindowListener + 'static) {
+    /// Registers a window listener. Listeners added before [`Runtime::start`]
+    /// are queued and installed once the app state exists.
+    pub fn add_window_listener(&mut self, listener: impl WindowListener + 'static) {
         self.app
             .queue_listener(ListenerValue::Window(Box::new(listener)));
     }

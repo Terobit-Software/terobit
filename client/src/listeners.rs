@@ -14,7 +14,7 @@ impl Listener for ClientWindowListener {
     fn name(&self) -> &str {
         "main_window_listener"
     }
-    fn priority(&self) -> u32 {
+    fn priority(&self) -> u8 {
         0
     }
 }

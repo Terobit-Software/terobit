@@ -78,6 +78,9 @@ fn main() {
     // Register frame routines
     runtime.add_routine(Routine {});
 
+    // Register window listeners
+    runtime.add_window_listener(ClientWindowListener {});
+
     // Start the runtime
     info!("Starting runtime");
     if let Err(e) = runtime.start() {

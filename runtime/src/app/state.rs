@@ -242,6 +242,24 @@ impl AppState {
         self.listener_manager.add_listener(listener);
     }
 
+    pub(crate) fn notify_window_created(&mut self) {
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
+        self.listener_manager.on_window_create(&handle);
+    }
+
+    pub(crate) fn notify_window_close(&mut self) {
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
+        self.listener_manager.on_window_close(&handle);
+    }
+
+    pub(crate) fn notify_window_focus(&mut self) {
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
+        self.listener_manager.on_window_focus(&handle);
+    }
+
     pub(crate) fn compile_shader_str(&mut self, shader_source: &str, name: Option<&str>) {
         let shader = self
             .device
@@ -404,6 +422,11 @@ impl AppState {
         self.size = new_size;
         self.configure_surface();
         self.depth_view = Self::create_depth_view(&self.device, new_size.width, new_size.height);
+
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
+        self.listener_manager
+            .on_window_resize(new_size.width, new_size.height, &handle);
     }
 
     fn configure_surface(&mut self) {
