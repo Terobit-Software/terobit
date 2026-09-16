@@ -10,6 +10,8 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    ignore:
+      - dependency-name: "wgpu"
     # Group minor/patch bumps into one PR to avoid PR fatigue; breaking
     # majors (wgpu, winit, ...) arrive as individual PRs instead.
     groups:
