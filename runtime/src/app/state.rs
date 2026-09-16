@@ -4,6 +4,7 @@ use std::time::Instant;
 use crate::app::instance::InstanceRaw;
 use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
 use crate::app::window::Window;
+use crate::assets::AssetRegistry;
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
@@ -43,6 +44,8 @@ pub(crate) enum AppStateError {
     WgpuSurfaceError(#[from] wgpu::CreateSurfaceError),
     #[error("failed to load shader")]
     ShaderError,
+    #[error("failed to load asset")]
+    AssetError(#[from] crate::assets::AssetError),
 }
 
 /// The main application state.
@@ -73,6 +76,7 @@ pub(crate) struct AppState {
     frame_count: u64,
     last_frame_time: Instant,
     fps: f32,
+    asset_registry: AssetRegistry,
 }
 
 impl AppState {
@@ -207,6 +211,7 @@ impl AppState {
             frame_count: 0,
             last_frame_time: Instant::now(),
             fps: 0.0,
+            asset_registry: AssetRegistry::new()?,
         };
 
         state.configure_surface();

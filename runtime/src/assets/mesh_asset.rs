@@ -1,12 +1,14 @@
+use std::path::Path;
+
 use crate::assets::AssetId;
 
 pub(crate) struct MeshAsset {
-    id: AssetId,
+    verts: Vec<Vertex>,
 }
 
 impl MeshAsset {
     // TODO: impl this
-    pub fn from_path(path: &str) -> Self {
+    pub fn from_path(path: &Path) -> Self {
         Self { id: 0 }
     }
 }
