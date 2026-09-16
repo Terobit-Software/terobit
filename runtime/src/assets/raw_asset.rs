@@ -35,4 +35,8 @@ impl RawAsset {
     pub(crate) fn get_path(&self) -> &Path {
         &self.path
     }
+
+    pub(crate) fn get_path_boxed(&self) -> &Box<Path> {
+        &self.path
+    }
 }
