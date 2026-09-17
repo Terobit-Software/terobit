@@ -1,4 +1,5 @@
 use crate::app::RuntimeApp;
+use crate::listeners::InputListener;
 use crate::listeners::ListenerValue;
 use crate::listeners::WindowListener;
 use thiserror::Error;
@@ -60,5 +61,12 @@ impl Runtime {
     pub fn add_window_listener(&mut self, listener: impl WindowListener + 'static) {
         self.app
             .queue_listener(ListenerValue::Window(Box::new(listener)));
+    }
+
+    /// Registers an input listener. Listeners added before [`Runtime::start`]
+    /// are queued and installed once the app state exists.
+    pub fn add_input_listener(&mut self, listener: impl InputListener + 'static) {
+        self.app
+            .queue_listener(ListenerValue::Input(Box::new(listener)));
     }
 }

@@ -81,6 +81,9 @@ fn main() {
     // Register window listeners
     runtime.add_window_listener(ClientWindowListener {});
 
+    // Register input listeners
+    runtime.add_input_listener(ClientInputListener {});
+
     // Start the runtime
     info!("Starting runtime");
     if let Err(e) = runtime.start() {

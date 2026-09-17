@@ -16,8 +16,12 @@ use crate::consts::render::{
     DEPTH_FORMAT,
 };
 use crate::consts::shader::ROOT_SHADER_PATH;
+use crate::listeners::InputListener;
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
+use crate::listeners::MouseButton;
+use crate::listeners::MouseInput;
+use crate::listeners::MouseInputType;
 use crate::listeners::WindowListener;
 
 use crate::routines::RoutineManager;
@@ -258,6 +262,20 @@ impl AppState {
         let world = &mut self.worlds[self.current_world];
         let handle = RuntimeHandle::new(world);
         self.listener_manager.on_window_focus(&handle);
+    }
+
+    pub(crate) fn notify_cursor_moved(&mut self, x: u32, y: u32) {
+        let world = &mut self.worlds[self.current_world];
+        let handle = RuntimeHandle::new(world);
+        self.listener_manager.on_mouse_input(
+            MouseInput {
+                input_type: MouseInputType::Move,
+                x: x as f32,
+                y: y as f32,
+                button: MouseButton::None,
+            },
+            &handle,
+        );
     }
 
     pub(crate) fn compile_shader_str(&mut self, shader_source: &str, name: Option<&str>) {

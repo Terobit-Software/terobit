@@ -13,6 +13,7 @@ pub enum MouseInputType {
     Down,
     Up,
     Drag,
+    Move,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,6 +21,7 @@ pub enum MouseButton {
     Left,
     Right,
     Middle,
+    None,
 }
 
 #[derive(Debug, Clone, Copy)]

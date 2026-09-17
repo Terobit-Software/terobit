@@ -105,6 +105,14 @@ impl ApplicationHandler for RuntimeApp {
                     }
                 }
             }
+            WindowEvent::CursorMoved {
+                position,
+                device_id,
+            } => {
+                if let Some(state) = &mut self.state {
+                    state.notify_cursor_moved(position.x as u32, position.y as u32);
+                }
+            }
             _ => {}
         }
     }
