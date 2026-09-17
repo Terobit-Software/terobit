@@ -1,4 +1,5 @@
 use rand::RngExt;
+use runtime::ecs::{Mesh, Transform};
 use runtime::handle::RuntimeHandle;
 use runtime::routines::RuntimeRoutine;
 
@@ -12,10 +13,10 @@ impl RuntimeRoutine for Routine {
 
     fn frame(&self, _handle: &RuntimeHandle) {
         let mut rng = rand::rng();
-        let num: u16 = rng.random();
+        let num: u8 = rng.random();
         //_handle.set_title(&num.to_string());
         if num == 0 {
-            _handle.terminate();
+            _handle.world().spawn((Mesh::CUBE, Transform::default()));
         }
     }
 

@@ -15,6 +15,7 @@ use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
     DEPTH_FORMAT,
 };
+use crate::ecs::{Mesh, Transform};
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
@@ -581,6 +582,9 @@ impl AppState {
     }
 
     fn render(&mut self) {
+        let world = &mut self.worlds[self.current_world];
+        println!("{}", world.query::<(&Mesh, &Transform)>().iter(world).len());
+
         let surface_texture = match self.surface.get_current_texture() {
             Ok(texture) if texture.suboptimal => {
                 drop(texture);
