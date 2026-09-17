@@ -1,7 +1,6 @@
-use std::path::Path;
-
 use crate::assets::asset_error::AssetError;
-use crate::assets::raw_asset::RawAsset;
+use crate::assets::raw_asset::RawAssetData;
+use crate::assets::registry::{AssetId, AssetRegistry};
 use crate::consts::mesh::CUBE_FACES;
 
 /// A single mesh vertex: position and face normal, both in model space.
@@ -11,22 +10,20 @@ pub(crate) struct Vertex {
     pub normal: [f32; 3],
 }
 
-pub(crate) struct MeshAsset {
+/// Parsed mesh geometry. Owned exclusively by the [`AssetRegistry`]; nothing
+/// outside the registry holds this data directly.
+pub(crate) struct MeshData {
     verts: Vec<Vertex>,
     indices: Vec<u16>,
 }
 
-impl MeshAsset {
-    pub(crate) fn from_raw(raw: &RawAsset) -> Result<Self, AssetError> {
+impl MeshData {
+    pub(crate) fn from_raw(raw: &RawAssetData) -> Result<Self, AssetError> {
         if raw.is_builtin() {
             return Ok(Self::builtin_cube());
         }
 
-        Self::parse_obj(raw.get_data())
-    }
-
-    pub(crate) fn from_path(path: &Path) -> Result<Self, AssetError> {
-        Self::from_raw(&RawAsset::from_path(path.to_path_buf())?)
+        Self::parse_obj(raw.data())
     }
 
     #[inline]
@@ -119,6 +116,36 @@ impl MeshAsset {
         }
 
         Ok(Self { verts, indices })
+    }
+}
+
+/// A handle to mesh geometry stored in the [`AssetRegistry`]. Holds only an
+/// [`AssetId`] — every getter takes the registry and looks the data up
+/// there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct MeshAsset {
+    id: AssetId,
+}
+
+impl MeshAsset {
+    #[inline]
+    pub(crate) fn new(id: AssetId) -> Self {
+        Self { id }
+    }
+
+    #[inline]
+    pub(crate) fn id(&self) -> AssetId {
+        self.id
+    }
+
+    #[inline]
+    pub(crate) fn verts<'a>(&self, registry: &'a AssetRegistry) -> &'a [Vertex] {
+        registry.mesh_verts(self.id)
+    }
+
+    #[inline]
+    pub(crate) fn indices<'a>(&self, registry: &'a AssetRegistry) -> &'a [u16] {
+        registry.mesh_indices(self.id)
     }
 }
 

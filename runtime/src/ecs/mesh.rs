@@ -8,7 +8,9 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(asset_id: AssetId) -> Self {
+    pub const CUBE: Self = Self::new(0);
+
+    pub const fn new(asset_id: AssetId) -> Self {
         Self { asset_id }
     }
 

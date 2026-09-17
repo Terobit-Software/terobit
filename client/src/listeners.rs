@@ -1,4 +1,4 @@
-use runtime::ecs::Mesh;
+use runtime::ecs::{Mesh, Transform};
 use runtime::handle::RuntimeHandle;
 use runtime::listeners::{InputListener, Listener, WindowListener};
 use runtime::listeners::{KeyInput, MouseInput};
@@ -7,7 +7,10 @@ pub struct ClientWindowListener {}
 
 impl WindowListener for ClientWindowListener {
     fn on_window_create(&self, _handle: &RuntimeHandle) {
-        _handle.world().spawn(Mesh::new(0));
+        _handle.world().spawn((
+            Mesh::new(0),
+            Transform::new().with_pos(glam::vec3(0.0, 0.0, 0.0)),
+        ));
     }
 }
 

@@ -476,6 +476,7 @@ dependencies = [
 name = "client"
 version = "0.1.0"
 dependencies = [
+ "glam 0.33.7",
  "rand",
  "runtime",
  "tracing",
