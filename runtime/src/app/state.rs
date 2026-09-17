@@ -1,6 +1,3 @@
-use std::path::Path;
-use std::time::Instant;
-
 use crate::app::instance::InstanceRaw;
 use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
 use crate::app::window::Window;
@@ -19,7 +16,10 @@ use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
 use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
+use crate::misc::data::format_bytes;
 use crate::{BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
+use std::path::Path;
+use std::time::Instant;
 
 use crate::routines::RoutineManager;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
@@ -523,23 +523,6 @@ impl AppState {
 
     /// A single label/value row of the debug overlay's stat table.
     fn overlay_rows(&self) -> Vec<(&'static str, String)> {
-        fn format_bytes(bytes: usize) -> String {
-            const UNITS: [&str; 5] = ["bytes", "kb", "mb", "gb", "tb"];
-
-            let mut size = bytes as f64;
-            let mut unit = 0;
-            while size >= 1024.0 && unit < UNITS.len() - 1 {
-                size /= 1024.0;
-                unit += 1;
-            }
-
-            if unit == 0 {
-                format!("{bytes}{}", UNITS[unit])
-            } else {
-                format!("{size:.2}{}", UNITS[unit])
-            }
-        }
-
         vec![
             ("frame", self.frame_count.to_string()),
             ("fps", format!("{:.0}", self.fps)),
