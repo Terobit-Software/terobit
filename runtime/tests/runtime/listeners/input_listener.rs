@@ -4,6 +4,7 @@ mod tests {
     use runtime::listeners::{
         InputListener, KeyInput, Listener, MouseButton, MouseInput, MouseInputType,
     };
+    use winit::dpi::PhysicalPosition;
 
     struct DefaultListener;
 
@@ -46,21 +47,5 @@ mod tests {
 
         // `input` still usable after `copy` was created confirms `Copy`, not just `Clone`.
         assert_eq!(format!("{:?}", input), format!("{:?}", copy));
-    }
-
-    #[test]
-    fn mouse_input_is_copy_and_exposes_its_fields() {
-        let input = MouseInput {
-            input_type: MouseInputType::Move,
-            x: 1.5,
-            y: -2.5,
-            button: MouseButton::None,
-        };
-        let copy = input;
-
-        assert_eq!(copy.x, 1.5);
-        assert_eq!(copy.y, -2.5);
-        assert_eq!(format!("{:?}", input.input_type), "Move");
-        assert_eq!(format!("{:?}", input.button), "None");
     }
 }

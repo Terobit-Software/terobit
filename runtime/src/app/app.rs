@@ -110,7 +110,7 @@ impl ApplicationHandler for RuntimeApp {
                 device_id,
             } => {
                 if let Some(state) = &mut self.state {
-                    state.notify_cursor_moved(position.x as u32, position.y as u32);
+                    state.notify_cursor_moved(position);
                 }
             }
             _ => {}

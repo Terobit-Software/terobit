@@ -1,3 +1,5 @@
+use winit::dpi::PhysicalPosition;
+
 use crate::handle::RuntimeHandle;
 use crate::listeners::Listener;
 
@@ -24,12 +26,13 @@ pub enum MouseButton {
     None,
 }
 
+pub type ScreenPosition = PhysicalPosition<f64>;
 #[derive(Debug, Clone, Copy)]
-pub struct MouseInput {
-    pub input_type: MouseInputType,
-    pub x: f32,
-    pub y: f32,
-    pub button: MouseButton,
+pub enum MouseInput {
+    Move(ScreenPosition),
+    Down(ScreenPosition, MouseButton),
+    Up(ScreenPosition, MouseButton),
+    Drag(ScreenPosition, MouseButton),
 }
 
 pub trait InputListener: Listener {
