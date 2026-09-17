@@ -8,10 +8,10 @@ mod tests {
     }
 
     #[test]
-    fn terminate_command_is_copy() {
+    fn terminate_command_is_clone() {
         let original = RuntimeCommand::Terminate;
-        let copied = original;
-        assert_eq!(original, copied);
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
     }
 
     #[test]

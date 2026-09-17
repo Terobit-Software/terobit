@@ -3,10 +3,12 @@ use std::cell::{RefCell, RefMut};
 use bevy_ecs::world::World;
 
 /// Commands that routines can issue to the runtime through a [`RuntimeHandle`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeCommand {
     /// Shut the runtime down at the end of the current frame.
     Terminate,
+    /// Set the window title
+    SetWindowTitle(String),
 }
 
 /// A handle passed to routines each frame, used to issue commands back to the runtime.
@@ -30,6 +32,12 @@ impl<'a> RuntimeHandle<'a> {
     /// Requests that the runtime shut down at the end of the current frame.
     pub fn terminate(&self) {
         self.commands.borrow_mut().push(RuntimeCommand::Terminate);
+    }
+
+    pub fn set_title(&self, title: &str) {
+        self.commands
+            .borrow_mut()
+            .push(RuntimeCommand::SetWindowTitle(title.to_string()));
     }
 
     /// Consumes the handle, yielding the commands issued during the frame.

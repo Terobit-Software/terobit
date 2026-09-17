@@ -100,6 +100,10 @@ impl ApplicationHandler for RuntimeApp {
                                 info!("Terminate command received, exiting event loop");
                                 event_loop.exit();
                             }
+                            RuntimeCommand::SetWindowTitle(title) => {
+                                state.get_window().get_window().set_title(&title);
+                                info!("Set window title to {}", title);
+                            }
                         }
                     }
                 }
