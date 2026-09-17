@@ -8,9 +8,7 @@ use crate::assets::AssetRegistry;
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
-use crate::consts::overlay::{
-    OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_LINE_SPACING, OVERLAY_MARGIN,
-};
+use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_MARGIN};
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
     DEPTH_FORMAT,
@@ -29,10 +27,11 @@ use crate::runtime::routines::RuntimeRoutine;
 use bevy_ecs::world::World;
 use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
 use glam::{Mat4, Vec3};
-use iced_wgpu::core::Renderer as _;
-use iced_wgpu::core::text::Renderer as _;
-use iced_wgpu::core::{Color, Font, Pixels, Point, Rectangle, Size, Text, alignment, text};
+use iced_runtime::user_interface::{Cache, UserInterface};
+use iced_wgpu::core::renderer::Style as RendererStyle;
+use iced_wgpu::core::{Color, Element, Font, Pixels, Size, mouse};
 use iced_wgpu::graphics::{Shell, Viewport};
+use iced_widget::{container, table, text};
 use thiserror::Error;
 use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
@@ -522,28 +521,60 @@ impl AppState {
         };
     }
 
-    /// Draws a single line of overlay text at the given logical position.
-    fn draw_overlay_line(&mut self, content: String, position: Point, bounds: Size) {
-        self.iced_renderer.fill_text(
-            Text {
-                content,
-                bounds,
-                size: Pixels(OVERLAY_FONT_SIZE),
-                line_height: text::LineHeight::default(),
-                font: Font::MONOSPACE,
-                align_x: text::Alignment::default(),
-                align_y: alignment::Vertical::Top,
-                shaping: text::Shaping::Basic,
-                wrapping: text::Wrapping::None,
-            },
-            position,
-            Color::WHITE,
-            Rectangle::new(position, bounds),
-        );
+    /// A single label/value row of the debug overlay's stat table.
+    fn overlay_rows(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("frame", self.frame_count.to_string()),
+            ("fps", format!("{:.0}", self.fps)),
+            ("meshes", self.mesh_count.to_string()),
+            (
+                "raw asset id",
+                self.asset_registry.current_raw_asset_id().to_string(),
+            ),
+            (
+                "mesh asset id",
+                self.asset_registry.current_mesh_asset_id().to_string(),
+            ),
+            (
+                "shader asset id",
+                self.asset_registry.current_shader_asset_id().to_string(),
+            ),
+        ]
     }
 
-    /// Draws the debug overlay (frame counter + FPS) on top of whatever is
-    /// already in `texture_view`, via its own iced_wgpu submission.
+    /// Builds the debug overlay's widget tree: a two-column stat/value table
+    /// wrapped in a margin. Adding a new stat only means pushing a row in
+    /// [`Self::overlay_rows`] — iced's layout engine positions everything.
+    fn make_overlay_element<'a>(
+        rows: Vec<(&'static str, String)>,
+    ) -> Element<'a, (), iced_wgpu::core::Theme, iced_wgpu::Renderer> {
+        let cell_text = |content: String| {
+            text(content)
+                .font(Font::MONOSPACE)
+                .size(Pixels(OVERLAY_FONT_SIZE))
+                .color(Color::WHITE)
+        };
+
+        let stat_column = table::column(
+            cell_text("stat".to_string()),
+            move |(label, _): (&'static str, String)| cell_text(label.to_string()),
+        );
+        let value_column = table::column(
+            cell_text("value".to_string()),
+            move |(_, value): (&'static str, String)| cell_text(value),
+        );
+
+        let stat_table = table::table([stat_column, value_column], rows)
+            .padding_x(6.0)
+            .padding_y(2.0)
+            // removes table borders
+            .separator(0.0);
+
+        container(stat_table).padding(OVERLAY_MARGIN).into()
+    }
+
+    /// Draws the debug overlay (frame counter + FPS + asset ids) on top of
+    /// whatever is already in `texture_view`, via its own iced_wgpu submission.
     fn draw_overlay(&mut self, texture_view: &wgpu::TextureView) {
         self.update_fps();
 
@@ -553,63 +584,29 @@ impl AppState {
             scale_factor,
         );
 
-        let logical_size = viewport.logical_size();
-        self.iced_renderer.reset(Rectangle::with_size(logical_size));
-
-        // the text's own `bounds` is the box cosmic-text lays it out within
-        // (not just a clip rect) — an infinite bound breaks that layout math
-        // and only the first glyph ends up drawn, so give it the actual
-        // available space instead.
-        let text_bounds = Size::new(
-            (logical_size.width - 2.0 * OVERLAY_MARGIN).max(0.0),
-            (logical_size.height - 2.0 * OVERLAY_MARGIN).max(0.0),
+        let overlay_element = Self::make_overlay_element(self.overlay_rows());
+        let mut user_interface = UserInterface::build(
+            overlay_element,
+            viewport.logical_size(),
+            Cache::new(),
+            &mut self.iced_renderer,
         );
-
-        self.draw_overlay_line(
-            format!("frame {}", self.frame_count),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN),
-            text_bounds,
+        user_interface.draw(
+            &mut self.iced_renderer,
+            &iced_wgpu::core::Theme::Dark,
+            &RendererStyle::default(),
+            mouse::Cursor::Unavailable,
         );
-        self.draw_overlay_line(
-            format!("{:.0} fps", self.fps),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING),
-            text_bounds,
-        );
-        self.draw_overlay_line(
-            format!("{:.0} meshes", self.mesh_count),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 2.0),
-            text_bounds,
-        );
-        self.draw_overlay_line(
-            format!(
-                "current raw asset id {}",
-                self.asset_registry.current_raw_asset_id()
-            ),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 3.0),
-            text_bounds,
-        );
-        self.draw_overlay_line(
-            format!(
-                "current mesh asset id {}",
-                self.asset_registry.current_mesh_asset_id()
-            ),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 4.0),
-            text_bounds,
-        );
-        self.draw_overlay_line(
-            format!(
-                "current shader asset id {}",
-                self.asset_registry.current_shader_asset_id()
-            ),
-            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 5.0),
-            text_bounds,
-        );
-
         // clear_color: None so this submission loads (rather than clears) the
         // cube pass's output; present() submits its own encoder to the same
         // wgpu::Queue, so it's guaranteed to execute after the cube's submit below.
         self.iced_renderer
             .present(None, self.format.add_srgb_suffix(), texture_view, &viewport);
+
+        // present() only weak-references each Text widget's shaped paragraph, so
+        // user_interface (which holds the strong ref in its widget::Tree) must
+        // outlive it, or glyphs silently fail to upgrade and never draw.
+        drop(user_interface);
     }
 
     fn accumulate_meshes(&mut self) -> Vec<(&Mesh, &Transform)> {
