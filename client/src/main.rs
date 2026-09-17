@@ -24,6 +24,7 @@ fn get_log_directory() -> PathBuf {
             std::env::var("USER").unwrap_or_default()
         ))
         .to_path_buf()
+        .into() // add this to make it a `PathBuf` because its crying for some reason
     }
     // these are placeholders
     #[cfg(target_os = "linux")]
