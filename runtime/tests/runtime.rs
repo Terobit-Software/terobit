@@ -8,8 +8,40 @@ mod routines;
 #[cfg(test)]
 mod tests {
     use runtime::handle::RuntimeHandle;
+    use runtime::listeners::{InputListener, KeyInput, Listener, MouseInput, WindowListener};
     use runtime::routines::RuntimeRoutine;
     use runtime::{Runtime, RuntimeInitError};
+
+    struct NoOpWindowListener;
+
+    impl Listener for NoOpWindowListener {
+        fn name(&self) -> &str {
+            "no_op_window"
+        }
+
+        fn priority(&self) -> u8 {
+            0
+        }
+    }
+
+    impl WindowListener for NoOpWindowListener {}
+
+    struct NoOpInputListener;
+
+    impl Listener for NoOpInputListener {
+        fn name(&self) -> &str {
+            "no_op_input"
+        }
+
+        fn priority(&self) -> u8 {
+            0
+        }
+    }
+
+    impl InputListener for NoOpInputListener {
+        fn on_key_input(&mut self, _input: KeyInput, _handle: &RuntimeHandle) {}
+        fn on_mouse_input(&mut self, _input: MouseInput, _handle: &RuntimeHandle) {}
+    }
 
     struct NoOpRoutine;
 
@@ -39,6 +71,20 @@ mod tests {
         let mut runtime = Runtime::new();
         runtime.add_routine(NoOpRoutine);
         runtime.add_routine(NoOpRoutine);
+    }
+
+    #[test]
+    fn add_window_listener_before_start_does_not_panic() {
+        let mut runtime = Runtime::new();
+        runtime.add_window_listener(NoOpWindowListener);
+        runtime.add_window_listener(NoOpWindowListener);
+    }
+
+    #[test]
+    fn add_input_listener_before_start_does_not_panic() {
+        let mut runtime = Runtime::new();
+        runtime.add_input_listener(NoOpInputListener);
+        runtime.add_input_listener(NoOpInputListener);
     }
 
     #[test]
