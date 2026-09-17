@@ -13,7 +13,7 @@ impl RuntimeRoutine for Routine {
     fn frame(&self, _handle: &RuntimeHandle) {
         let mut rng = rand::rng();
         let num: u16 = rng.random();
-        _handle.set_title(&num.to_string());
+        //_handle.set_title(&num.to_string());
         if num == 0 {
             _handle.terminate();
         }

@@ -4,8 +4,9 @@ use tracing::{info, warn};
 use crate::AssetError;
 use crate::assets::registry::{AssetId, AssetRegistry};
 
-/// Path used to request the built-in cube mesh instead of reading a file from disk.
+/// built ins
 pub(crate) const BUILTIN_CUBE_PATH: &str = "bi.cubeobj";
+pub(crate) const BUILTIN_ROOT_SHADER_PATH: &str = "bi.rootshader";
 
 /// Raw bytes read from disk (or synthesized for a built-in asset). Owned
 /// exclusively by the [`AssetRegistry`]; nothing outside the registry holds
@@ -20,11 +21,19 @@ pub(crate) struct RawAssetData {
 }
 
 impl RawAssetData {
+    fn get_builtin_data(path: &Path) -> Option<&str> {
+        match path.to_str() {
+            Some(BUILTIN_CUBE_PATH) => Some(BUILTIN_CUBE_PATH),
+            Some(BUILTIN_ROOT_SHADER_PATH) => Some(BUILTIN_ROOT_SHADER_PATH),
+            _ => None,
+        }
+    }
+
     pub(crate) fn read(path: &Path) -> Result<Self, AssetError> {
-        if path == Path::new(BUILTIN_CUBE_PATH) {
+        if let Some(data) = Self::get_builtin_data(path) {
             return Ok(Self {
                 is_builtin: true,
-                data: Vec::from(BUILTIN_CUBE_PATH),
+                data: Vec::from(data),
                 path: PathBuf::new().into_boxed_path(),
             });
         }

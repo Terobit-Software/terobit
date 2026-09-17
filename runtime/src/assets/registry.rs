@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use tracing::info;
+
+use crate::BUILTIN_ROOT_SHADER_PATH;
 use crate::assets::asset_error::AssetError;
 use crate::assets::mesh_asset::{MeshAsset, MeshData, Vertex};
 use crate::assets::raw_asset::{BUILTIN_CUBE_PATH, RawAsset, RawAssetData};
@@ -42,14 +45,18 @@ impl AssetRegistry {
             next_shader_id: 0,
         };
 
-        // loaded first so the built-in cube always gets asset id 0
-        reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?;
+        // loaded first so the built-ins get the same ids
+        reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
+        reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?; // 0 - shader, 1 - raw
+
+        info!("Asset registry initialized");
 
         Ok(reg)
     }
 
     fn read_raw_from_path(&mut self, path: &Path) -> Result<RawAsset, AssetError> {
         if let Some(&id) = self.raw_ids.get(path) {
+            info!("Raw asset cache hit '{:?}' with id {}", path, id);
             return Ok(RawAsset::new(id));
         }
 
@@ -62,6 +69,8 @@ impl AssetRegistry {
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.raw_assets.insert(id, data);
 
+        info!("Raw asset loaded '{:?}' with id {}", path, id);
+
         Ok(RawAsset::new(id))
     }
 
@@ -71,6 +80,7 @@ impl AssetRegistry {
     /// without re-parsing.
     pub(crate) fn read_mesh_from_path(&mut self, path: &Path) -> Result<AssetId, AssetError> {
         if let Some(&id) = self.mesh_ids.get(path) {
+            info!("Mesh cache hit '{:?}' with id {}", path, id);
             return Ok(id);
         }
 
@@ -84,6 +94,8 @@ impl AssetRegistry {
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.meshes.insert(id, mesh);
 
+        info!("Mesh loaded '{:?}' with id {}", path, id);
+
         Ok(id)
     }
 
@@ -94,6 +106,7 @@ impl AssetRegistry {
     #[allow(dead_code)]
     pub(crate) fn read_shader_from_path(&mut self, path: &Path) -> Result<ShaderAsset, AssetError> {
         if let Some(&id) = self.shader_ids.get(path) {
+            info!("Shader cache hit '{:?}' with id {}", path, id);
             return Ok(ShaderAsset::new(id));
         }
 
@@ -106,6 +119,8 @@ impl AssetRegistry {
         self.shader_ids
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.shaders.insert(id, shader);
+
+        info!("Shader loaded '{:?}' with id {}", path, id);
 
         Ok(ShaderAsset::new(id))
     }
