@@ -1,4 +1,3 @@
-use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::app::instance::InstanceRaw;
@@ -15,12 +14,9 @@ use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
     DEPTH_FORMAT,
 };
-use crate::consts::shader::ROOT_SHADER_PATH;
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
-use crate::listeners::MouseButton;
 use crate::listeners::MouseInput;
-use crate::listeners::MouseInputType;
 use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
 
@@ -34,10 +30,8 @@ use iced_wgpu::core::Renderer as _;
 use iced_wgpu::core::text::Renderer as _;
 use iced_wgpu::core::{Color, Font, Pixels, Point, Rectangle, Size, Text, alignment, text};
 use iced_wgpu::graphics::{Shell, Viewport};
-use rand::{Rng, RngExt};
 use thiserror::Error;
 use tracing::{error, info, warn};
-use wgpu::naga::error::ShaderError;
 use wgpu::util::DeviceExt;
 use winit::event_loop::ActiveEventLoop;
 

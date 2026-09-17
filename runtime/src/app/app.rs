@@ -2,7 +2,6 @@ use crate::app::state::AppState;
 use crate::runtime::handle::RuntimeCommand;
 use crate::runtime::listeners::ListenerValue;
 use crate::runtime::routines::RuntimeRoutine;
-use thiserror::Error;
 use tracing::{error, info};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;

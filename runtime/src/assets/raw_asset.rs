@@ -21,7 +21,7 @@ pub(crate) struct RawAsset {
 
 impl RawAsset {
     pub(crate) fn from_path(path: PathBuf) -> Result<Self, AssetError> {
-        if path == PathBuf::from(BUILTIN_CUBE_PATH) {
+        if path == *BUILTIN_CUBE_PATH {
             return Ok(Self {
                 data: RawAssetData {
                     is_builtin: true,
