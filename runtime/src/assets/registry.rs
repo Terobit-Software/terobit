@@ -46,8 +46,8 @@ impl AssetRegistry {
         };
 
         // loaded first so the built-ins get the same ids
-        reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
-        reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?; // 0 - shader, 1 - raw
+        let _cube = reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
+        let _root_shader = reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?; // 0 - shader, 1 - raw
 
         info!("Asset registry initialized");
 

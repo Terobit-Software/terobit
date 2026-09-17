@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::assets::raw_asset::RawAssetData;
 use crate::assets::registry::{AssetId, AssetRegistry};
@@ -13,6 +13,13 @@ pub(crate) struct ShaderData {
 
 impl ShaderData {
     pub(crate) fn from_raw(raw: &RawAssetData) -> Self {
+        if raw.is_builtin() && raw.data() == "bi.rootshader".as_bytes() {
+            return Self {
+                data: String::from(include_str!("shaders/root.wgsl")),
+                path: raw.path().to_owned().into_boxed_path(),
+            };
+        }
+
         Self {
             data: String::from_utf8_lossy(raw.data()).into_owned(),
             path: raw.path().to_owned().into_boxed_path(),

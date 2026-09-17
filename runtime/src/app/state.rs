@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::time::Instant;
 
 use crate::app::instance::InstanceRaw;
@@ -19,6 +20,7 @@ use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
 use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
+use crate::{BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
 
 use crate::routines::RoutineManager;
 use crate::runtime::handle::{RuntimeCommand, RuntimeHandle};
@@ -221,8 +223,10 @@ impl AppState {
 
         state.configure_surface();
 
-        let root_source = include_str!("shaders/root.wgsl");
-        state.compile_shader_str(root_source, Some("rootshader"));
+        let root_shader = state
+            .asset_registry
+            .read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?;
+        state.compile_shader_asset(root_shader, Some("rootshader"));
         state.create_root_pipeline(&camera_bind_group_layout);
 
         Ok(state)
@@ -276,6 +280,11 @@ impl AppState {
         self.shader_modules.push(shader);
 
         info!("Compiled shader {:?}", name);
+    }
+
+    pub(crate) fn compile_shader_asset(&mut self, shader_asset: ShaderAsset, name: Option<&str>) {
+        let shader_source = shader_asset.get_data(&self.asset_registry).to_string();
+        self.compile_shader_str(&shader_source, name);
     }
 
     /// Creates a depth texture view sized to match the surface.
