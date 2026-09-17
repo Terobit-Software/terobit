@@ -6,6 +6,4 @@ pub trait WindowListener: Listener {
     fn on_window_close(&self, _handle: &RuntimeHandle) {}
     fn on_window_focus(&self, _handle: &RuntimeHandle) {}
     fn on_window_create(&self, _handle: &RuntimeHandle) {}
-    fn on_window_minimize(&self, _handle: &RuntimeHandle) {}
-    fn on_window_maximize(&self, _handle: &RuntimeHandle) {}
 }

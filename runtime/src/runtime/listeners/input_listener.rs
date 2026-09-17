@@ -1,28 +1,28 @@
 use crate::handle::RuntimeHandle;
 use crate::listeners::Listener;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum KeyInput {
     KeyPressed(char),
     KeyRepeat(char),
     KeyReleased(char),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MouseInputType {
     Down,
     Up,
     Drag,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MouseButton {
     Left,
     Right,
     Middle,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MouseInput {
     pub input_type: MouseInputType,
     pub x: f32,

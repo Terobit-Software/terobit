@@ -44,6 +44,7 @@ mod tests {
 
         match value {
             ListenerValue::Window(inner) => assert_eq!(inner.name(), "boxed"),
+            ListenerValue::Input(_) => panic!("expected window listener"),
         }
     }
 }
