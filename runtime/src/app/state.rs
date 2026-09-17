@@ -581,9 +581,18 @@ impl AppState {
             .present(None, self.format.add_srgb_suffix(), texture_view, &viewport);
     }
 
-    fn render(&mut self) {
+    fn accumulate_meshes(&mut self) -> Vec<(&Mesh, &Transform)> {
         let world = &mut self.worlds[self.current_world];
-        println!("{}", world.query::<(&Mesh, &Transform)>().iter(world).len());
+        let meshes = world
+            .query::<(&Mesh, &Transform)>()
+            .iter(world)
+            .collect::<Vec<_>>();
+        meshes
+    }
+
+    fn render(&mut self) {
+        let meshes = self.accumulate_meshes();
+        println!("{}", meshes.len());
 
         let surface_texture = match self.surface.get_current_texture() {
             Ok(texture) if texture.suboptimal => {
