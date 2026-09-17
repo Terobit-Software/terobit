@@ -130,6 +130,24 @@ impl AssetRegistry {
         self.meshes.contains_key(&id).then(|| MeshAsset::new(id))
     }
 
+    /// The id most recently handed out by [`Self::read_raw_from_path`].
+    #[inline]
+    pub(crate) fn current_raw_asset_id(&self) -> AssetId {
+        self.next_raw_id - 1
+    }
+
+    /// The id most recently handed out by [`Self::read_mesh_from_path`].
+    #[inline]
+    pub(crate) fn current_mesh_asset_id(&self) -> AssetId {
+        self.next_mesh_id - 1
+    }
+
+    /// The id most recently handed out by [`Self::read_shader_from_path`].
+    #[inline]
+    pub(crate) fn current_shader_asset_id(&self) -> AssetId {
+        self.next_shader_id - 1
+    }
+
     #[inline]
     #[allow(dead_code)]
     pub(crate) fn get_shader(&self, id: AssetId) -> Option<ShaderAsset> {

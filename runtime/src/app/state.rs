@@ -84,6 +84,7 @@ pub(crate) struct AppState {
     fps: f32,
     asset_registry: AssetRegistry,
     listener_manager: ListenerManager,
+    mesh_count: usize,
 }
 
 impl AppState {
@@ -220,6 +221,7 @@ impl AppState {
             fps: 0.0,
             asset_registry: AssetRegistry::new()?,
             listener_manager: ListenerManager::new(),
+            mesh_count: 0,
         };
 
         state.configure_surface();
@@ -573,6 +575,35 @@ impl AppState {
             Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING),
             text_bounds,
         );
+        self.draw_overlay_line(
+            format!("{:.0} meshes", self.mesh_count),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 2.0),
+            text_bounds,
+        );
+        self.draw_overlay_line(
+            format!(
+                "current raw asset id {}",
+                self.asset_registry.current_raw_asset_id()
+            ),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 3.0),
+            text_bounds,
+        );
+        self.draw_overlay_line(
+            format!(
+                "current mesh asset id {}",
+                self.asset_registry.current_mesh_asset_id()
+            ),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 4.0),
+            text_bounds,
+        );
+        self.draw_overlay_line(
+            format!(
+                "current shader asset id {}",
+                self.asset_registry.current_shader_asset_id()
+            ),
+            Point::new(OVERLAY_MARGIN, OVERLAY_MARGIN + OVERLAY_LINE_SPACING * 5.0),
+            text_bounds,
+        );
 
         // clear_color: None so this submission loads (rather than clears) the
         // cube pass's output; present() submits its own encoder to the same
@@ -591,8 +622,8 @@ impl AppState {
     }
 
     fn render(&mut self) {
-        let meshes = self.accumulate_meshes();
-        println!("{}", meshes.len());
+        let mesh_count = self.accumulate_meshes().len();
+        self.mesh_count = mesh_count;
 
         let surface_texture = match self.surface.get_current_texture() {
             Ok(texture) if texture.suboptimal => {
