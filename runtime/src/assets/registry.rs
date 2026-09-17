@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 use std::path::Path;
 
 use tracing::info;
@@ -152,6 +153,24 @@ impl AssetRegistry {
     #[allow(dead_code)]
     pub(crate) fn get_shader(&self, id: AssetId) -> Option<ShaderAsset> {
         self.shaders.contains_key(&id).then(|| ShaderAsset::new(id))
+    }
+
+    /// Total bytes currently held by loaded assets (raw bytes + parsed mesh
+    /// geometry + shader source). Sums lengths already sitting in memory, so
+    /// it's cheap to call every frame — no re-reading or re-parsing.
+    #[inline]
+    pub(crate) fn total_bytes(&self) -> usize {
+        let raw: usize = self.raw_assets.values().map(|d| d.data().len()).sum();
+        let meshes: usize = self
+            .meshes
+            .values()
+            .map(|m| {
+                m.verts().len() * size_of::<Vertex>() + m.indices().len() * size_of::<u16>()
+            })
+            .sum();
+        let shaders: usize = self.shaders.values().map(|s| s.data().len()).sum();
+
+        raw + meshes + shaders
     }
 
     // --- low-level data accessors backing the handle structs' getters ---

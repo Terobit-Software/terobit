@@ -523,21 +523,42 @@ impl AppState {
 
     /// A single label/value row of the debug overlay's stat table.
     fn overlay_rows(&self) -> Vec<(&'static str, String)> {
+        fn format_bytes(bytes: usize) -> String {
+            const UNITS: [&str; 5] = ["bytes", "kb", "mb", "gb", "tb"];
+
+            let mut size = bytes as f64;
+            let mut unit = 0;
+            while size >= 1024.0 && unit < UNITS.len() - 1 {
+                size /= 1024.0;
+                unit += 1;
+            }
+
+            if unit == 0 {
+                format!("{bytes}{}", UNITS[unit])
+            } else {
+                format!("{size:.2}{}", UNITS[unit])
+            }
+        }
+
         vec![
             ("frame", self.frame_count.to_string()),
             ("fps", format!("{:.0}", self.fps)),
             ("meshes", self.mesh_count.to_string()),
             (
-                "raw asset id",
+                "rw asst id",
                 self.asset_registry.current_raw_asset_id().to_string(),
             ),
             (
-                "mesh asset id",
+                "msh asst id",
                 self.asset_registry.current_mesh_asset_id().to_string(),
             ),
             (
-                "shader asset id",
+                "shdr asst id",
                 self.asset_registry.current_shader_asset_id().to_string(),
+            ),
+            (
+                "asst reg sz",
+                format_bytes(self.asset_registry.total_bytes()),
             ),
         ]
     }
