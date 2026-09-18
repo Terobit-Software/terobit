@@ -9,6 +9,7 @@ use crate::assets::asset_error::AssetError;
 use crate::assets::mesh_asset::{MeshAsset, MeshData, Vertex};
 use crate::assets::raw_asset::{BUILTIN_CUBE_PATH, RawAsset, RawAssetData};
 use crate::assets::shader_asset::{ShaderAsset, ShaderData};
+use crate::misc::data::format_bytes;
 
 pub(crate) type AssetId = usize;
 
@@ -62,6 +63,7 @@ impl AssetRegistry {
         }
 
         let data = RawAssetData::read(path)?;
+        let size = data.data().len();
 
         let id = self.next_raw_id;
         self.next_raw_id += 1;
@@ -70,7 +72,12 @@ impl AssetRegistry {
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.raw_assets.insert(id, data);
 
-        info!("Raw asset loaded '{:?}' with id {}", path, id);
+        info!(
+            "Raw asset loaded '{:?}' with id {} and size {}",
+            path,
+            id,
+            format_bytes(size)
+        );
 
         Ok(RawAsset::new(id))
     }
@@ -87,6 +94,8 @@ impl AssetRegistry {
 
         let raw = self.read_raw_from_path(path)?;
         let mesh = MeshData::from_raw(self.raw_assets.get(&raw.id()).unwrap())?;
+        let size =
+            mesh.verts().len() * size_of::<Vertex>() + mesh.indices().len() * size_of::<u16>();
 
         let id = self.next_mesh_id;
         self.next_mesh_id += 1;
@@ -95,7 +104,12 @@ impl AssetRegistry {
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.meshes.insert(id, mesh);
 
-        info!("Mesh loaded '{:?}' with id {}", path, id);
+        info!(
+            "Mesh loaded '{:?}' with id {} and size {}",
+            path,
+            id,
+            format_bytes(size)
+        );
 
         Ok(id)
     }
@@ -113,6 +127,7 @@ impl AssetRegistry {
 
         let raw = self.read_raw_from_path(path)?;
         let shader = ShaderData::from_raw(self.raw_assets.get(&raw.id()).unwrap());
+        let size = shader.data().len();
 
         let id = self.next_shader_id;
         self.next_shader_id += 1;
@@ -121,7 +136,12 @@ impl AssetRegistry {
             .insert(path.to_path_buf().into_boxed_path(), id);
         self.shaders.insert(id, shader);
 
-        info!("Shader loaded '{:?}' with id {}", path, id);
+        info!(
+            "Shader loaded '{:?}' with id {} and size {}",
+            path,
+            id,
+            format_bytes(size)
+        );
 
         Ok(ShaderAsset::new(id))
     }
@@ -164,9 +184,7 @@ impl AssetRegistry {
         let meshes: usize = self
             .meshes
             .values()
-            .map(|m| {
-                m.verts().len() * size_of::<Vertex>() + m.indices().len() * size_of::<u16>()
-            })
+            .map(|m| m.verts().len() * size_of::<Vertex>() + m.indices().len() * size_of::<u16>())
             .sum();
         let shaders: usize = self.shaders.values().map(|s| s.data().len()).sum();
 
