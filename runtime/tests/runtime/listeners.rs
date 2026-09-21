@@ -1,7 +1,7 @@
-#[path = "listeners/window_listener.rs"]
-mod window_listener;
 #[path = "listeners/input_listener.rs"]
 mod input_listener;
+#[path = "listeners/window_listener.rs"]
+mod window_listener;
 
 #[cfg(test)]
 mod tests {

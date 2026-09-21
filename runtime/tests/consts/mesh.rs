@@ -17,7 +17,8 @@ mod tests {
     #[test]
     fn every_face_normal_is_axis_aligned_and_unit_length() {
         for (normal, _) in CUBE_FACES {
-            let axis_aligned_components = normal.iter().filter(|component| **component == 0.0).count();
+            let axis_aligned_components =
+                normal.iter().filter(|component| **component == 0.0).count();
             assert_eq!(axis_aligned_components, 2);
 
             let length_squared: f32 = normal.iter().map(|component| component * component).sum();
