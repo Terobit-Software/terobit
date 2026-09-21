@@ -13,11 +13,12 @@ impl RuntimeRoutine for Routine {
 
     fn frame(&self, _handle: &RuntimeHandle) {
         let mut rng = rand::rng();
-        let num: u8 = rng.random();
+        // let num: u8 = rng.random();
         //_handle.set_title(&num.to_string());
-        if num == 0 {
-            // scatter cubes around the origin, each at a random orientation so
-            // they read as 3D
+        // if num == 0 {
+        // scatter cubes around the origin, each at a random orientation so
+        // they read as 3D
+        for _ in 0..100 {
             let transform = Transform::new()
                 .with_pos(glam::Vec3::new(
                     rng.random_range(-1.0..1.0),
