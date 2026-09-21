@@ -36,9 +36,9 @@ impl Listener for ClientInputListener {
 
 impl InputListener for ClientInputListener {
     fn on_key_input(&mut self, input: KeyInput, _handle: &RuntimeHandle) {
-        println!("{:?}", input)
+        // println!("{:?}", input)
     }
     fn on_mouse_input(&mut self, input: MouseInput, _handle: &RuntimeHandle) {
-        println!("{:?}", input)
+        // println!("{:?}", input)
     }
 }
