@@ -1,13 +1,31 @@
-#[derive(bevy_ecs::component::Component, Default)]
+#[derive(bevy_ecs::component::Component)]
 pub struct Transform {
     pub position: glam::Vec3,
     pub rotation: glam::Quat,
     pub scale: glam::Vec3,
 }
 
+impl Default for Transform {
+    /// Identity transform: at the origin, unrotated, unit scale. (A derived
+    /// `Default` would zero the scale and collapse whatever it's applied to.)
+    fn default() -> Self {
+        Self {
+            position: glam::Vec3::ZERO,
+            rotation: glam::Quat::IDENTITY,
+            scale: glam::Vec3::ONE,
+        }
+    }
+}
+
 impl Transform {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The local-to-world model matrix (scale, then rotation, then translation).
+    #[inline]
+    pub fn to_matrix(&self) -> glam::Mat4 {
+        glam::Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.position)
     }
 
     #[inline]

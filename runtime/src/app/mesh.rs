@@ -1,126 +1,99 @@
-use bytemuck::{Pod, Zeroable};
+use std::collections::{HashMap, HashSet};
+use std::ops::Range;
 
-/// A single vertex: position and face normal, both in model space.
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub(crate) struct Vertex {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
+use tracing::{info, warn};
+use wgpu::util::DeviceExt;
+
+use crate::assets::{AssetId, AssetRegistry, Vertex};
+
+/// A mesh's geometry uploaded to the GPU: immutable vertex + index buffers
+/// shared by every instance drawn from it.
+pub(crate) struct GpuMesh {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
 }
 
-/// Unit cube (extents -0.5..0.5 on each axis), 4 duplicated vertices per face
-/// so each face gets its own flat normal instead of smoothed corner normals.
-pub(crate) const CUBE_VERTICES: [Vertex; 24] = [
-    // +X
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        normal: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        normal: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        normal: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        normal: [1.0, 0.0, 0.0],
-    },
-    // -X
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        normal: [-1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        normal: [-1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        normal: [-1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        normal: [-1.0, 0.0, 0.0],
-    },
-    // +Y
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        normal: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        normal: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        normal: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        normal: [0.0, 1.0, 0.0],
-    },
-    // -Y
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        normal: [0.0, -1.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        normal: [0.0, -1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        normal: [0.0, -1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        normal: [0.0, -1.0, 0.0],
-    },
-    // +Z
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
-    },
-    // -Z
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
-    },
-];
+impl GpuMesh {
+    fn upload(device: &wgpu::Device, id: AssetId, verts: &[Vertex], indices: &[u16]) -> Self {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("mesh {id} vertex buffer")),
+            contents: bytemuck::cast_slice(verts),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-/// Two CCW-wound triangles per face, indexing into [`CUBE_VERTICES`].
-pub(crate) const CUBE_INDICES: [u16; 36] = [
-    0, 1, 2, 0, 2, 3, // +X
-    4, 5, 6, 4, 6, 7, // -X
-    8, 9, 10, 8, 10, 11, // +Y
-    12, 13, 14, 12, 14, 15, // -Y
-    16, 17, 18, 16, 18, 19, // +Z
-    20, 21, 22, 20, 22, 23, // -Z
-];
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("mesh {id} index buffer")),
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        Self {
+            vertex_buffer,
+            index_buffer,
+            index_count: indices.len() as u32,
+        }
+    }
+
+    /// Binds this mesh at vertex slot 0 and draws it once per instance in
+    /// `instances`, which index into the instance buffer already bound at slot 1.
+    pub(crate) fn draw(&self, pass: &mut wgpu::RenderPass<'_>, instances: Range<u32>) {
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..self.index_count, 0, instances);
+    }
+}
+
+/// Meshes already uploaded to the GPU, keyed by their asset id. Meshes are
+/// uploaded the first time something asks to draw them.
+pub(crate) struct GpuMeshCache {
+    meshes: HashMap<AssetId, GpuMesh>,
+    /// ids that were asked for but don't exist in the registry, so the warning
+    /// is logged once instead of every frame
+    missing: HashSet<AssetId>,
+}
+
+impl GpuMeshCache {
+    pub(crate) fn new() -> Self {
+        Self {
+            meshes: HashMap::new(),
+            missing: HashSet::new(),
+        }
+    }
+
+    /// Uploads mesh `id` from the registry if it isn't on the GPU yet.
+    /// Returns whether the mesh is now available to [`Self::get`].
+    pub(crate) fn ensure_uploaded(
+        &mut self,
+        device: &wgpu::Device,
+        registry: &AssetRegistry,
+        id: AssetId,
+    ) -> bool {
+        if self.meshes.contains_key(&id) {
+            return true;
+        }
+
+        let Some(asset) = registry.get_mesh(id) else {
+            if self.missing.insert(id) {
+                warn!("Mesh asset {} isn't loaded, so it can't be drawn", id);
+            }
+            return false;
+        };
+
+        let gpu_mesh = GpuMesh::upload(device, id, asset.verts(registry), asset.indices(registry));
+        info!(
+            "Uploaded mesh {} to the GPU ({} vertices, {} indices)",
+            id,
+            asset.verts(registry).len(),
+            gpu_mesh.index_count
+        );
+        self.meshes.insert(id, gpu_mesh);
+
+        true
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, id: AssetId) -> Option<&GpuMesh> {
+        self.meshes.get(&id)
+    }
+}

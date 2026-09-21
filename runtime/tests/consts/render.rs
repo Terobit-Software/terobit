@@ -25,7 +25,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_constants)]
-    fn cube_spins_at_a_positive_rate() {
-        assert!(CUBE_SPIN_RADIANS_PER_SECOND > 0.0);
+    fn instance_buffer_starts_with_room_for_instances() {
+        assert!(INITIAL_INSTANCE_CAPACITY > 0);
     }
 }

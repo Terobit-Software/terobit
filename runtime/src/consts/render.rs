@@ -13,6 +13,6 @@ pub const CAMERA_FAR: f32 = 100.0;
 /// World-space position of the placeholder camera, looking at the origin.
 pub const CAMERA_POSITION: glam::Vec3 = glam::Vec3::new(0.0, 0.0, 3.0);
 
-/// Radians/second the demo cube spins, split evenly across the X and Y axes,
-/// so there's something visibly 3D on screen before a real camera exists.
-pub const CUBE_SPIN_RADIANS_PER_SECOND: f32 = 0.8;
+/// Number of per-instance model matrices the instance buffer has room for
+/// before it first has to grow; it doubles from here as more meshes spawn.
+pub const INITIAL_INSTANCE_CAPACITY: usize = 64;

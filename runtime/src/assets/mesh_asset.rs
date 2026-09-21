@@ -1,10 +1,14 @@
+use bytemuck::{Pod, Zeroable};
+
 use crate::assets::asset_error::AssetError;
 use crate::assets::raw_asset::RawAssetData;
 use crate::assets::registry::{AssetId, AssetRegistry};
 use crate::consts::mesh::CUBE_FACES;
 
 /// A single mesh vertex: position and face normal, both in model space.
-#[derive(Clone, Copy, Debug)]
+/// `Pod` so a mesh's vertices can be uploaded to the GPU as-is.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub(crate) struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
@@ -38,7 +42,7 @@ impl MeshData {
 
     /// Unit cube (extents -0.5..0.5 on each axis), 4 duplicated vertices per
     /// face so each face gets its own flat normal instead of smoothed corner
-    /// normals. Mirrors `app::mesh::CUBE_VERTICES`/`CUBE_INDICES`.
+    /// normals.
     fn builtin_cube() -> Self {
         let mut verts = Vec::with_capacity(24);
         let mut indices = Vec::with_capacity(36);

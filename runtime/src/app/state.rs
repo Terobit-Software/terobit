@@ -1,14 +1,14 @@
 use crate::app::instance::InstanceRaw;
-use crate::app::mesh::{CUBE_INDICES, CUBE_VERTICES, Vertex};
+use crate::app::mesh::GpuMeshCache;
 use crate::app::window::Window;
-use crate::assets::AssetRegistry;
+use crate::assets::{AssetId, AssetRegistry, Vertex};
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
 use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_MARGIN};
 use crate::consts::render::{
-    CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, CUBE_SPIN_RADIANS_PER_SECOND,
-    DEPTH_FORMAT,
+    CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, DEPTH_FORMAT,
+    INITIAL_INSTANCE_CAPACITY,
 };
 use crate::ecs::{Mesh, Transform};
 use crate::listeners::ListenerManager;
@@ -18,6 +18,7 @@ use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
 use crate::misc::data::format_bytes;
 use crate::{BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
+use std::ops::Range;
 use std::path::Path;
 use std::time::Instant;
 
@@ -53,6 +54,13 @@ pub(crate) enum AppStateError {
     AssetError(#[from] crate::assets::AssetError),
 }
 
+/// One `draw_indexed` call's worth of work: every instance of a single mesh,
+/// laid out contiguously in the instance buffer.
+struct DrawBatch {
+    asset_id: AssetId,
+    instances: Range<u32>,
+}
+
 /// The main application state.
 pub(crate) struct AppState {
     instance: wgpu::Instance,
@@ -67,11 +75,11 @@ pub(crate) struct AppState {
     routine_manager: RoutineManager,
     shader_modules: Vec<wgpu::ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
+    gpu_meshes: GpuMeshCache,
     instance_buffer: wgpu::Buffer,
-    instance_count: u32,
+    /// how many instances `instance_buffer` has room for
+    instance_capacity: usize,
+    draw_batches: Vec<DrawBatch>,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     start_time: Instant,
@@ -127,25 +135,7 @@ impl AppState {
 
         let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("cube vertex buffer"),
-            contents: bytemuck::cast_slice(&CUBE_VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("cube index buffer"),
-            contents: bytemuck::cast_slice(&CUBE_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instances = [InstanceRaw::from_model(Mat4::IDENTITY)];
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("instance buffer"),
-            contents: bytemuck::cast_slice(&instances),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-        let instance_count = instances.len() as u32;
+        let instance_buffer = Self::create_instance_buffer(&device, INITIAL_INSTANCE_CAPACITY);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera uniform buffer"),
@@ -204,11 +194,10 @@ impl AppState {
             routine_manager: RoutineManager::new(),
             shader_modules: Vec::new(),
             render_pipeline: None,
-            vertex_buffer,
-            index_buffer,
-            index_count: CUBE_INDICES.len() as u32,
+            gpu_meshes: GpuMeshCache::new(),
             instance_buffer,
-            instance_count,
+            instance_capacity: INITIAL_INSTANCE_CAPACITY,
+            draw_batches: Vec::new(),
             camera_buffer,
             camera_bind_group,
             start_time: Instant::now(),
@@ -307,6 +296,16 @@ impl AppState {
         });
 
         texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    /// Creates a vertex buffer big enough for `capacity` per-instance model matrices.
+    fn create_instance_buffer(device: &wgpu::Device, capacity: usize) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("instance buffer"),
+            size: (capacity * size_of::<InstanceRaw>()) as wgpu::BufferAddress,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
     }
 
     /// Builds the root render pipeline from the most recently compiled shader module.
@@ -480,8 +479,8 @@ impl AppState {
         self.current_world = world;
     }
 
-    /// Recomputes the camera's view-projection matrix and each instance's
-    /// model matrix for this frame, uploading both to their buffers.
+    /// Recomputes the camera's view-projection matrix and uploads it, then
+    /// uploads this frame's mesh instances.
     fn update_frame(&mut self) {
         let view = look_at_mat4(CAMERA_POSITION, Vec3::ZERO, Vec3::Y);
         let aspect = self.size.width.max(1) as f32 / self.size.height.max(1) as f32;
@@ -494,10 +493,63 @@ impl AppState {
             bytemuck::cast_slice(&view_proj.to_cols_array()),
         );
 
-        let elapsed = self.start_time.elapsed().as_secs_f32();
-        let model = Mat4::from_rotation_y(elapsed * CUBE_SPIN_RADIANS_PER_SECOND)
-            * Mat4::from_rotation_x(elapsed * CUBE_SPIN_RADIANS_PER_SECOND * 0.6);
-        let instances = [InstanceRaw::from_model(model)];
+        self.upload_instances();
+    }
+
+    /// Gathers every `(Mesh, Transform)` entity in the current world, groups
+    /// them by mesh, and writes their model matrices to the instance buffer
+    /// (growing it if needed) so each mesh can be drawn in a single instanced
+    /// call. Meshes are uploaded to the GPU the first time they're seen.
+    fn upload_instances(&mut self) {
+        let world = &mut self.worlds[self.current_world];
+        let mut entities: Vec<(AssetId, InstanceRaw)> = world
+            .query::<(&Mesh, &Transform)>()
+            .iter(world)
+            .map(|(mesh, transform)| {
+                (
+                    mesh.asset_id(),
+                    InstanceRaw::from_model(transform.to_matrix()),
+                )
+            })
+            .collect();
+        self.mesh_count = entities.len();
+
+        // sort_by_key is stable, so entities keep their query order within a mesh
+        entities.sort_by_key(|(asset_id, _)| *asset_id);
+
+        self.draw_batches.clear();
+        let mut instances: Vec<InstanceRaw> = Vec::with_capacity(entities.len());
+        for group in entities.chunk_by(|a, b| a.0 == b.0) {
+            let asset_id = group[0].0;
+            if !self
+                .gpu_meshes
+                .ensure_uploaded(&self.device, &self.asset_registry, asset_id)
+            {
+                continue;
+            }
+
+            let start = instances.len() as u32;
+            instances.extend(group.iter().map(|(_, instance)| *instance));
+            self.draw_batches.push(DrawBatch {
+                asset_id,
+                instances: start..instances.len() as u32,
+            });
+        }
+
+        if instances.is_empty() {
+            return;
+        }
+
+        if instances.len() > self.instance_capacity {
+            self.instance_capacity = instances.len().next_power_of_two();
+            self.instance_buffer =
+                Self::create_instance_buffer(&self.device, self.instance_capacity);
+            info!(
+                "Grew instance buffer to {} instances",
+                self.instance_capacity
+            );
+        }
+
         self.queue
             .write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances));
     }
@@ -613,19 +665,7 @@ impl AppState {
         drop(user_interface);
     }
 
-    fn accumulate_meshes(&mut self) -> Vec<(&Mesh, &Transform)> {
-        let world = &mut self.worlds[self.current_world];
-        let meshes = world
-            .query::<(&Mesh, &Transform)>()
-            .iter(world)
-            .collect::<Vec<_>>();
-        meshes
-    }
-
     fn render(&mut self) {
-        let mesh_count = self.accumulate_meshes().len();
-        self.mesh_count = mesh_count;
-
         let surface_texture = match self.surface.get_current_texture() {
             Ok(texture) if texture.suboptimal => {
                 drop(texture);
@@ -701,14 +741,16 @@ impl AppState {
             occlusion_query_set: None,
         });
 
-        // Draw the cube with the root pipeline.
+        // Draw every mesh with the root pipeline, one instanced call per mesh.
         if let Some(pipeline) = &self.render_pipeline {
             renderpass.set_pipeline(pipeline);
             renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
-            renderpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             renderpass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            renderpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            renderpass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+            for batch in &self.draw_batches {
+                if let Some(mesh) = self.gpu_meshes.get(batch.asset_id) {
+                    mesh.draw(&mut renderpass, batch.instances.clone());
+                }
+            }
         }
 
         // End the renderpass.

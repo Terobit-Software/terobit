@@ -7,7 +7,24 @@ mod tests {
         let transform = Transform::new();
         assert_eq!(transform.get_pos(), glam::Vec3::ZERO);
         assert_eq!(transform.get_rot(), glam::Quat::IDENTITY);
-        assert_eq!(transform.get_scale(), glam::Vec3::ZERO);
+        assert_eq!(transform.get_scale(), glam::Vec3::ONE);
+    }
+
+    #[test]
+    fn default_transform_is_identity_matrix() {
+        assert_eq!(Transform::default().to_matrix(), glam::Mat4::IDENTITY);
+    }
+
+    #[test]
+    fn to_matrix_applies_scale_then_rotation_then_translation() {
+        let transform = Transform::new()
+            .with_pos(glam::Vec3::new(1.0, 2.0, 3.0))
+            .with_rot(glam::Quat::from_rotation_z(std::f32::consts::FRAC_PI_2))
+            .with_scale(glam::Vec3::new(2.0, 2.0, 2.0));
+
+        // (1, 0, 0) -> scaled (2, 0, 0) -> rotated 90deg about Z (0, 2, 0) -> translated (1, 4, 3)
+        let point = transform.to_matrix().transform_point3(glam::Vec3::X);
+        assert!(point.abs_diff_eq(glam::Vec3::new(1.0, 4.0, 3.0), 1e-5));
     }
 
     #[test]
