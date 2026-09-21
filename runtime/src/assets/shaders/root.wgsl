@@ -33,7 +33,7 @@ fn vs_main(input: VertexInput, instance: InstanceInput) -> VertexOutput {
     let normal_matrix = mat3x3<f32>(model[0].xyz, model[1].xyz, model[2].xyz);
 
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * model * vec4<f32>(input.position, 1.0);
+    out.clip_position = camera.view_proj * (model * vec4<f32>(input.position, 1.0));
     out.normal = normal_matrix * input.normal;
     return out;
 }
