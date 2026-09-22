@@ -13,6 +13,6 @@ pub const CAMERA_FAR: f32 = 100.0;
 /// World-space position of the placeholder camera, looking at the origin.
 pub const CAMERA_POSITION: glam::Vec3 = glam::Vec3::new(0.0, 0.0, 3.0);
 
-/// Number of per-instance model matrices the instance buffer has room for
-/// before it first has to grow; it doubles from here as more meshes spawn.
+/// Number of per-instance model matrices each mesh's instance buffer has room
+/// for before it first has to grow; it doubles from here as more instances spawn.
 pub const INITIAL_INSTANCE_CAPACITY: usize = 64;

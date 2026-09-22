@@ -1,16 +1,14 @@
-use crate::app::instance::InstanceRaw;
+use crate::app::instance::InstanceCache;
 use crate::app::mesh::GpuMeshCache;
 use crate::app::window::Window;
-use crate::assets::{AssetId, AssetRegistry, Vertex};
+use crate::assets::{AssetRegistry, Vertex};
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
 use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_MARGIN};
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, DEPTH_FORMAT,
-    INITIAL_INSTANCE_CAPACITY,
 };
-use crate::ecs::{Mesh, Transform};
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
@@ -18,7 +16,6 @@ use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
 use crate::misc::data::format_bytes;
 use crate::{BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
-use std::ops::Range;
 use std::path::Path;
 use std::time::Instant;
 
@@ -54,13 +51,6 @@ pub(crate) enum AppStateError {
     AssetError(#[from] crate::assets::AssetError),
 }
 
-/// One `draw_indexed` call's worth of work: every instance of a single mesh,
-/// laid out contiguously in the instance buffer.
-struct DrawBatch {
-    asset_id: AssetId,
-    instances: Range<u32>,
-}
-
 /// The main application state.
 pub(crate) struct AppState {
     instance: wgpu::Instance,
@@ -76,10 +66,7 @@ pub(crate) struct AppState {
     shader_modules: Vec<wgpu::ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     gpu_meshes: GpuMeshCache,
-    instance_buffer: wgpu::Buffer,
-    /// how many instances `instance_buffer` has room for
-    instance_capacity: usize,
-    draw_batches: Vec<DrawBatch>,
+    instances: InstanceCache,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     start_time: Instant,
@@ -134,8 +121,6 @@ impl AppState {
         info!("Surface format: {:?}", format);
 
         let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
-
-        let instance_buffer = Self::create_instance_buffer(&device, INITIAL_INSTANCE_CAPACITY);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera uniform buffer"),
@@ -195,9 +180,7 @@ impl AppState {
             shader_modules: Vec::new(),
             render_pipeline: None,
             gpu_meshes: GpuMeshCache::new(),
-            instance_buffer,
-            instance_capacity: INITIAL_INSTANCE_CAPACITY,
-            draw_batches: Vec::new(),
+            instances: InstanceCache::new(),
             camera_buffer,
             camera_bind_group,
             start_time: Instant::now(),
@@ -296,16 +279,6 @@ impl AppState {
         });
 
         texture.create_view(&wgpu::TextureViewDescriptor::default())
-    }
-
-    /// Creates a vertex buffer big enough for `capacity` per-instance model matrices.
-    fn create_instance_buffer(device: &wgpu::Device, capacity: usize) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("instance buffer"),
-            size: (capacity * size_of::<InstanceRaw>()) as wgpu::BufferAddress,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
     }
 
     /// Builds the root render pipeline from the most recently compiled shader module.
@@ -499,62 +472,18 @@ impl AppState {
         self.upload_instances();
     }
 
-    /// Gathers every `(Mesh, Transform)` entity in the current world, groups
-    /// them by mesh, and writes their model matrices to the instance buffer
-    /// (growing it if needed) so each mesh can be drawn in a single instanced
-    /// call. Meshes are uploaded to the GPU the first time they're seen.
+    /// Syncs changed `(Mesh, Transform)` entities into the GPU instance
+    /// buffers, and uploads any mesh geometry drawn for the first time.
     fn upload_instances(&mut self) {
         let world = &mut self.worlds[self.current_world];
-        let mut entities: Vec<(AssetId, InstanceRaw)> = world
-            .query::<(&Mesh, &Transform)>()
-            .iter(world)
-            .map(|(mesh, transform)| {
-                (
-                    mesh.asset_id(),
-                    InstanceRaw::from_model(transform.to_matrix()),
-                )
-            })
-            .collect();
-        self.mesh_count = entities.len();
+        self.instances
+            .sync(&self.device, &self.queue, self.current_world, world);
+        self.mesh_count = self.instances.len();
 
-        // sort_by_key is stable, so entities keep their query order within a mesh
-        entities.sort_by_key(|(asset_id, _)| *asset_id);
-
-        self.draw_batches.clear();
-        let mut instances: Vec<InstanceRaw> = Vec::with_capacity(entities.len());
-        for group in entities.chunk_by(|a, b| a.0 == b.0) {
-            let asset_id = group[0].0;
-            if !self
-                .gpu_meshes
-                .ensure_uploaded(&self.device, &self.asset_registry, asset_id)
-            {
-                continue;
-            }
-
-            let start = instances.len() as u32;
-            instances.extend(group.iter().map(|(_, instance)| *instance));
-            self.draw_batches.push(DrawBatch {
-                asset_id,
-                instances: start..instances.len() as u32,
-            });
+        for (asset_id, _, _) in self.instances.batches() {
+            self.gpu_meshes
+                .ensure_uploaded(&self.device, &self.asset_registry, asset_id);
         }
-
-        if instances.is_empty() {
-            return;
-        }
-
-        if instances.len() > self.instance_capacity {
-            self.instance_capacity = instances.len().next_power_of_two();
-            self.instance_buffer =
-                Self::create_instance_buffer(&self.device, self.instance_capacity);
-            info!(
-                "Grew instance buffer to {} instances",
-                self.instance_capacity
-            );
-        }
-
-        self.queue
-            .write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances));
     }
 
     /// Updates the smoothed FPS estimate from the time elapsed since the
@@ -748,10 +677,10 @@ impl AppState {
         if let Some(pipeline) = &self.render_pipeline {
             renderpass.set_pipeline(pipeline);
             renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
-            renderpass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            for batch in &self.draw_batches {
-                if let Some(mesh) = self.gpu_meshes.get(batch.asset_id) {
-                    mesh.draw(&mut renderpass, batch.instances.clone());
+            for (asset_id, instance_buffer, count) in self.instances.batches() {
+                if let Some(mesh) = self.gpu_meshes.get(asset_id) {
+                    renderpass.set_vertex_buffer(1, instance_buffer.slice(..));
+                    mesh.draw(&mut renderpass, 0..count);
                 }
             }
         }
