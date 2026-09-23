@@ -8,8 +8,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::assertions_on_constants)]
-    fn fps_smoothing_is_a_valid_weight() {
-        assert!(OVERLAY_FPS_SMOOTHING > 0.0 && OVERLAY_FPS_SMOOTHING < 1.0);
+    fn fps_sample_interval_is_nonzero() {
+        assert!(!OVERLAY_FPS_SAMPLE_INTERVAL.is_zero());
     }
 }

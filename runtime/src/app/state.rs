@@ -5,7 +5,7 @@ use crate::assets::{AssetRegistry, Vertex};
 use crate::consts::app::{
     DESIRED_MAXIMUM_FRAME_LATENCY, PRESENT_MODE, SKIPPED_FRAME_DELAY, WINDOW_TITLE,
 };
-use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SMOOTHING, OVERLAY_MARGIN};
+use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SAMPLE_INTERVAL, OVERLAY_MARGIN};
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, DEPTH_FORMAT,
 };
@@ -74,7 +74,8 @@ pub(crate) struct AppState {
     current_world: usize,
     iced_renderer: iced_wgpu::Renderer,
     frame_count: u64,
-    last_frame_time: Instant,
+    fps_window_start: Instant,
+    fps_window_frames: u32,
     fps: f32,
     asset_registry: AssetRegistry,
     listener_manager: ListenerManager,
@@ -188,7 +189,8 @@ impl AppState {
             current_world: 0,
             iced_renderer,
             frame_count: 0,
-            last_frame_time: Instant::now(),
+            fps_window_start: Instant::now(),
+            fps_window_frames: 0,
             fps: 0.0,
             asset_registry: AssetRegistry::new()?,
             listener_manager: ListenerManager::new(),
@@ -486,23 +488,23 @@ impl AppState {
         }
     }
 
-    /// Updates the smoothed FPS estimate from the time elapsed since the
-    /// previous frame.
+    /// Counts this frame and, once per [`OVERLAY_FPS_SAMPLE_INTERVAL`],
+    /// refreshes the FPS readout as frames counted / time elapsed.
+    ///
+    /// Averaging per-frame `1 / dt` instead would be skewed by any
+    /// near-instant frames (e.g. when the swapchain hands back an already-free
+    /// drawable), reporting hundreds of FPS while actually presenting a few.
     fn update_fps(&mut self) {
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_frame_time).as_secs_f32();
-        self.last_frame_time = now;
+        self.fps_window_frames += 1;
 
-        if dt <= 0.0 {
+        let elapsed = self.fps_window_start.elapsed();
+        if elapsed < OVERLAY_FPS_SAMPLE_INTERVAL {
             return;
         }
 
-        let instantaneous = 1.0 / dt;
-        self.fps = if self.frame_count <= 1 {
-            instantaneous
-        } else {
-            self.fps + OVERLAY_FPS_SMOOTHING * (instantaneous - self.fps)
-        };
+        self.fps = self.fps_window_frames as f32 / elapsed.as_secs_f32();
+        self.fps_window_frames = 0;
+        self.fps_window_start = Instant::now();
     }
 
     /// A single label/value row of the debug overlay's stat table.
