@@ -291,7 +291,7 @@ impl AppState {
 
     /// Builds the root render pipeline from the most recently compiled shader module.
     fn create_root_pipeline(&mut self, camera_bind_group_layout: &wgpu::BindGroupLayout) {
-        let module = match self.shader_modules.last() {
+        let module = match self.shader_modules.first() {
             Some(module) => module,
             None => {
                 error!("No shader module compiled");
