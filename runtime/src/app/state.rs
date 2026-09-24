@@ -203,12 +203,13 @@ impl AppState {
             .asset_registry
             .read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?;
         state.compile_shader_asset(root_shader, Some("rootshader"));
-        state.create_root_pipeline(&camera_bind_group_layout);
 
         let cull_shader = state
             .asset_registry
             .read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH))?;
         state.compile_shader_asset(cull_shader, Some("cullshader"));
+
+        state.create_root_pipeline(&camera_bind_group_layout);
 
         Ok(state)
     }
