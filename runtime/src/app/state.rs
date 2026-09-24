@@ -15,7 +15,7 @@ use crate::listeners::MouseInput;
 use crate::listeners::WindowListener;
 use crate::listeners::{InputListener, ScreenPosition};
 use crate::misc::data::format_bytes;
-use crate::{BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
+use crate::{BUILTIN_FRUSTUM_SHADER_PATH, BUILTIN_ROOT_SHADER_PATH, ShaderAsset};
 use std::path::Path;
 use std::time::Instant;
 
@@ -207,7 +207,7 @@ impl AppState {
 
         let cull_shader = state
             .asset_registry
-            .read_shader_from_path(Path::new("assets/shaders/cull.wgsl"))?;
+            .read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH))?;
         state.compile_shader_asset(cull_shader, Some("cullshader"));
 
         Ok(state)
