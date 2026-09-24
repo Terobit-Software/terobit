@@ -4,12 +4,12 @@ use std::path::Path;
 
 use tracing::info;
 
-use crate::BUILTIN_ROOT_SHADER_PATH;
 use crate::assets::asset_error::AssetError;
 use crate::assets::mesh_asset::{MeshAsset, MeshData, Vertex};
 use crate::assets::raw_asset::{BUILTIN_CUBE_PATH, RawAsset, RawAssetData};
 use crate::assets::shader_asset::{ShaderAsset, ShaderData};
 use crate::misc::data::format_bytes;
+use crate::{BUILTIN_FRUSTUM_SHADER_PATH, BUILTIN_ROOT_SHADER_PATH};
 
 pub(crate) type AssetId = usize;
 
@@ -50,8 +50,7 @@ impl AssetRegistry {
         // loaded first so the built-ins get the same ids
         let _cube = reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
         let _root_shader = reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?; // 0 - shader, 1 - raw
-
-        info!("Asset registry initialized");
+        let _frustum_shader = reg.read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH))?; // 1 - shader, 2 - raw
 
         Ok(reg)
     }
