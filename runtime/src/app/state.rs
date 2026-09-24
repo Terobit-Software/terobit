@@ -205,6 +205,11 @@ impl AppState {
         state.compile_shader_asset(root_shader, Some("rootshader"));
         state.create_root_pipeline(&camera_bind_group_layout);
 
+        let cull_shader = state
+            .asset_registry
+            .read_shader_from_path(Path::new("assets/shaders/cull.wgsl"))?;
+        state.compile_shader_asset(cull_shader, Some("cullshader"));
+
         Ok(state)
     }
 
