@@ -14,22 +14,14 @@ pub(crate) struct ShaderData {
 impl ShaderData {
     pub(crate) fn from_raw(raw: &RawAssetData) -> Self {
         if raw.is_builtin() {
-            let data = match str::from_utf8(raw.data()) {
-                Ok(data) => data,
-                Err(err) => {
-                    warn!("Failed to parse built-in shader data: {}", err);
-                    ""
-                }
-            };
-
-            match data {
-                "bi.rootshader" => {
+            match raw.data() {
+                b"bi.rootshader" => {
                     return Self {
                         data: String::from(include_str!("shaders/root.wgsl")),
                         path: raw.path().to_owned().into_boxed_path(),
                     };
                 }
-                "bi.frustumshader" => {
+                b"bi.frustumshader" => {
                     return Self {
                         data: String::from(include_str!("shaders/frustum.wgsl")),
                         path: raw.path().to_owned().into_boxed_path(),
