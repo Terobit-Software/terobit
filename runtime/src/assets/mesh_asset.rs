@@ -78,7 +78,8 @@ impl MeshData {
         mesh
     }
 
-    fn get_radius(&self) -> f32 {
+    #[inline]
+    fn radius(&self) -> f32 {
         self.radius
     }
 
