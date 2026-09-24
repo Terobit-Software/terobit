@@ -1,9 +1,11 @@
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(0) @binding(1) var<storage, read> objects: array<InstanceInput>;
+@group(0) @binding(2) var<storage, read> visible: array<u32>;
+
 struct Camera {
     view_proj: mat4x4<f32>,
 };
 
-@group(0) @binding(0)
-var<uniform> camera: Camera;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -23,7 +25,9 @@ struct VertexOutput {
 };
 
 @vertex
-fn vs_main(input: VertexInput, instance: InstanceInput) -> VertexOutput {
+fn vs_main(input: VertexInput, @builtin(instance_index) instance_id: u32) -> VertexOutput {
+    let instance = objects[visible[instance_id]];
+
     let model = mat4x4<f32>(
         instance.model_col0,
         instance.model_col1,

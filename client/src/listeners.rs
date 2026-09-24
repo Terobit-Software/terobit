@@ -14,12 +14,12 @@ impl WindowListener for ClientWindowListener {
         // if num == 0 {
         // scatter cubes around the origin, each at a random orientation so
         // they read as 3D
-        for _ in 0..200_000 {
+        for _ in 0..2_000_000 {
             let transform = Transform::new()
                 .with_pos(glam::Vec3::new(
-                    rng.random_range(-1.0..1.0),
-                    rng.random_range(-0.7..0.7),
-                    rng.random_range(-1.0..1.0),
+                    rng.random_range(-100.0..100.0),
+                    rng.random_range(-100.0..100.0),
+                    rng.random_range(-100.0..100.0),
                 ))
                 .with_rot(glam::Quat::from_euler(
                     glam::EulerRot::XYZ,
