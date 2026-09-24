@@ -1,5 +1,5 @@
 @group(0) @binding(1) var<storage, read> objects: array<InstanceInput>;
-@group(0) @binding(2) var<storage, read> visible: array<u32>;
+@group(0) @binding(2) var<storage, read_write> visible: array<u32>;
 @group(0) @binding(3) var<storage, read_write> args: DrawSettings;
 @group(0) @binding(4) var<uniform> frustum: Frustum; // 6 planes
 
@@ -20,17 +20,17 @@ struct InstanceInput {
     @location(3) model_col1: vec4<f32>,
     @location(4) model_col2: vec4<f32>,
     @location(5) model_col3: vec4<f32>,
+    @location(6) bounding_sphere: vec4<f32>,
 };
 
 struct Frustum {
     planes: array<vec4<f32>, 6>,
 };
 
-fn sphere_in_frustum(center: vec3<f32>, radius: f32) -> bool {
+fn sphere_in_frustum(sphere: vec4<f32>) -> bool {
     for (var i = 0u; i < 6u; i++) {
         let p = frustum.planes[i];
-        // Sphere is entirely behind this plane, so it's outside.
-        if (dot(p.xyz, center) + p.w < -radius) {
+        if (dot(p.xyz, sphere.xyz) + p.w < -sphere.w) {
             return false;
         }
     }
@@ -38,6 +38,13 @@ fn sphere_in_frustum(center: vec3<f32>, radius: f32) -> bool {
 }
 
 @compute @workgroup_size(64)
-fn frustum_cull () {
+fn cull (@builtin(global_invocation_id) id: vec3<u32>) {
+    let i = id.x;
 
+    if (i >= arrayLength(&objects)) { return; }
+
+    if (sphere_in_frustum(objects[i].bounding_sphere)) {
+        let slot = atomicAdd(&args.instance_count, 1u);
+        visible[slot] = i;
+    }
 }
