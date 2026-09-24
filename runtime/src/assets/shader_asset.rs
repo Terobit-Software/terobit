@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-
 use crate::assets::raw_asset::RawAssetData;
 use crate::assets::registry::{AssetId, AssetRegistry};
+use std::path::{Path, PathBuf};
+use tracing::warn;
 
 /// Parsed shader source. Owned exclusively by the [`AssetRegistry`]; nothing
 /// outside the registry holds this data directly.
@@ -13,11 +13,30 @@ pub(crate) struct ShaderData {
 
 impl ShaderData {
     pub(crate) fn from_raw(raw: &RawAssetData) -> Self {
-        if raw.is_builtin() && raw.data() == "bi.rootshader".as_bytes() {
-            return Self {
-                data: String::from(include_str!("shaders/root.wgsl")),
-                path: raw.path().to_owned().into_boxed_path(),
+        if raw.is_builtin() {
+            let data = match str::from_utf8(raw.data()) {
+                Ok(data) => data,
+                Err(err) => {
+                    warn!("Failed to parse built-in shader data: {}", err);
+                    ""
+                }
             };
+
+            match data {
+                "bi.rootshader" => {
+                    return Self {
+                        data: String::from(include_str!("shaders/root.wgsl")),
+                        path: raw.path().to_owned().into_boxed_path(),
+                    };
+                }
+                "bi.frustumshader" => {
+                    return Self {
+                        data: String::from(include_str!("shaders/frustum.wgsl")),
+                        path: raw.path().to_owned().into_boxed_path(),
+                    };
+                }
+                _ => {}
+            }
         }
 
         Self {
