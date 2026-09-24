@@ -199,14 +199,16 @@ impl AppState {
 
         state.configure_surface();
 
-        let root_shader = state
-            .asset_registry
-            .read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?;
+        let root_shader = state.asset_registry.read_shader_from_path(
+            Path::new(BUILTIN_ROOT_SHADER_PATH),
+            crate::ShaderType::VertexFragment,
+        )?;
         state.compile_shader_asset(root_shader, Some("rootshader"));
 
-        let cull_shader = state
-            .asset_registry
-            .read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH))?;
+        let cull_shader = state.asset_registry.read_shader_from_path(
+            Path::new(BUILTIN_FRUSTUM_SHADER_PATH),
+            crate::ShaderType::Compute,
+        )?;
         state.compile_shader_asset(cull_shader, Some("cullshader"));
 
         state.create_root_pipeline(&camera_bind_group_layout);
