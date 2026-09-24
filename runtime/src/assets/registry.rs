@@ -9,7 +9,7 @@ use crate::assets::mesh_asset::{MeshAsset, MeshData, Vertex};
 use crate::assets::raw_asset::{BUILTIN_CUBE_PATH, RawAsset, RawAssetData};
 use crate::assets::shader_asset::{ShaderAsset, ShaderData};
 use crate::misc::data::format_bytes;
-use crate::{BUILTIN_FRUSTUM_SHADER_PATH, BUILTIN_ROOT_SHADER_PATH, ShaderType};
+use crate::{BUILTIN_FRUSTUM_SHADER_PATH, BUILTIN_ROOT_SHADER_PATH};
 
 pub(crate) type AssetId = usize;
 
@@ -49,14 +49,10 @@ impl AssetRegistry {
 
         // loaded first so the built-ins get the same ids
         let _cube = reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
-        let _root_shader = reg.read_shader_from_path(
-            Path::new(BUILTIN_ROOT_SHADER_PATH),
-            crate::ShaderType::VertexFragment,
-        )?; // 0 - shader, 1 - raw
-        let _frustum_shader = reg.read_shader_from_path(
-            Path::new(BUILTIN_FRUSTUM_SHADER_PATH),
-            crate::ShaderType::Compute,
-        )?; // 1 - shader, 2 - raw
+        let _root_shader =
+            reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH), "bi.rootshader")?; // 0 - shader, 1 - raw
+        let _frustum_shader =
+            reg.read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH), "bi.frustumshader")?; // 1 - shader, 2 - raw
 
         Ok(reg)
     }
@@ -127,7 +123,7 @@ impl AssetRegistry {
     pub(crate) fn read_shader_from_path(
         &mut self,
         path: &Path,
-        shader_type: ShaderType,
+        id: &str,
     ) -> Result<ShaderAsset, AssetError> {
         if let Some(&id) = self.shader_ids.get(path) {
             info!("Shader cache hit '{:?}' with id {}", path, id);
@@ -135,7 +131,7 @@ impl AssetRegistry {
         }
 
         let raw = self.read_raw_from_path(path)?;
-        let shader = ShaderData::from_raw(self.raw_assets.get(&raw.id()).unwrap(), shader_type);
+        let shader = ShaderData::from_raw(self.raw_assets.get(&raw.id()).unwrap(), id);
         let size = shader.data().len();
 
         let id = self.next_shader_id;

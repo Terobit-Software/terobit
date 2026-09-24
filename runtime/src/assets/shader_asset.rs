@@ -10,32 +10,25 @@ pub(crate) struct ShaderData {
     // used box path for less memory footprint
     path: Box<Path>,
     // it is reccomended to use a fixed length vec
-    shader_type: ShaderType,
-}
-
-pub(crate) enum ShaderType {
-    Vertex,
-    Fragment,
-    Compute,
-    VertexFragment,
+    id: String,
 }
 
 impl ShaderData {
-    pub(crate) fn from_raw(raw: &RawAssetData, shader_type: ShaderType) -> Self {
+    pub(crate) fn from_raw(raw: &RawAssetData, id: &str) -> Self {
         if raw.is_builtin() {
             match raw.data() {
                 b"bi.rootshader" => {
                     return Self {
                         data: String::from(include_str!("shaders/root.wgsl")),
                         path: raw.path().to_owned().into_boxed_path(),
-                        shader_type: ShaderType::VertexFragment,
+                        id: id.to_string(),
                     };
                 }
                 b"bi.frustumshader" => {
                     return Self {
                         data: String::from(include_str!("shaders/frustum.wgsl")),
                         path: raw.path().to_owned().into_boxed_path(),
-                        shader_type: ShaderType::Compute,
+                        id: id.to_string(),
                     };
                 }
                 _ => {}
@@ -45,7 +38,7 @@ impl ShaderData {
         Self {
             data: String::from_utf8_lossy(raw.data()).into_owned(),
             path: raw.path().to_owned().into_boxed_path(),
-            shader_type,
+            id: id.to_string(),
         }
     }
 
