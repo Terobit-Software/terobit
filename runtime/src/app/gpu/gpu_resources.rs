@@ -1,13 +1,6 @@
-struct GpuResources {
+use crate::app::gpu::GpuBindGroup;
+use crate::app::gpu::GpuBuffer;
+
+pub(crate) struct GpuResources {
     groups: Vec<GpuBindGroup>,
 }
-
-struct GpuBindGroup {
-    number: u32,
-    buffers: Vec<GpuBuffer>,
-}
-
-struct GpuBuffer {
-    number: u32,
-}
-
