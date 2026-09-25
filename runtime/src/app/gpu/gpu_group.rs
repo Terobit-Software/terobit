@@ -1,5 +1,6 @@
 use crate::app::gpu::GpuBuffer;
 use tracing::error;
+use wgpu::{BindGroupLayoutEntry, ShaderStages, wgc::device};
 
 #[derive(Default)]
 pub(crate) struct GpuBindGroup {
@@ -17,9 +18,11 @@ impl GpuBindGroup {
 }
 
 pub(crate) struct GpuBindGroupBuilder<'a> {
-    name: Option<&'static str>,
+    name: Option<&'a str>,
     device: Option<&'a wgpu::Device>,
     buffers: Vec<GpuBuffer>,
+    number: Option<u32>,
+    visibility: Option<ShaderStages>,
 }
 
 impl<'a> GpuBindGroupBuilder<'a> {
@@ -28,10 +31,12 @@ impl<'a> GpuBindGroupBuilder<'a> {
             name: None,
             device: None,
             buffers: Vec::new(),
+            number: None,
+            visibility: None,
         }
     }
 
-    pub(crate) fn name(mut self, name: &'static str) -> Self {
+    pub(crate) fn name(mut self, name: &'a str) -> Self {
         self.name = Some(name);
         self
     }
@@ -41,12 +46,35 @@ impl<'a> GpuBindGroupBuilder<'a> {
         self
     }
 
+    pub(crate) fn number(mut self, number: u32) -> Self {
+        self.number = Some(number);
+        self
+    }
+
+    pub(crate) fn visibility(mut self, visibility: wgpu::ShaderStages) -> Self {
+        self.visibility = Some(visibility);
+        self
+    }
+
     fn build_layout(&self) -> wgpu::BindGroupLayout {
         self.device
             .expect("set device before building layout on gpu group")
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: self.name,
-                entries: &[],
+                entries: &[BindGroupLayoutEntry {
+                    binding: self
+                        .number
+                        .expect("set bind group number before building group layout"),
+                    visibility: self
+                        .visibility
+                        .expect("set visibilty group before building group layout"),
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
             })
     }
 
