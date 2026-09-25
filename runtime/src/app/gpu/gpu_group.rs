@@ -15,6 +15,22 @@ impl GpuBindGroup {
     pub(crate) fn builder<'a>() -> GpuBindGroupBuilder<'a> {
         GpuBindGroupBuilder::new()
     }
+
+    pub(crate) fn get_layout(&self) -> &wgpu::BindGroupLayout {
+        self.layout
+            .as_ref()
+            .expect("gpu bind group incorrectly built, no layout")
+    }
+
+    pub(crate) fn get_group(&self) -> &wgpu::BindGroup {
+        self.group
+            .as_ref()
+            .expect("gpu bind group incorrectly built, no group")
+    }
+
+    pub(crate) fn get_buffers(&self) -> &[GpuBuffer] {
+        &self.buffers
+    }
 }
 
 pub(crate) struct GpuBindGroupBuilder<'a> {
@@ -56,6 +72,11 @@ impl<'a> GpuBindGroupBuilder<'a> {
         self
     }
 
+    pub(crate) fn buffer(mut self, buffer: GpuBuffer) -> Self {
+        self.buffers.push(buffer);
+        self
+    }
+
     fn build_layout(&self) -> wgpu::BindGroupLayout {
         self.device
             .expect("set device before building layout on gpu group")
@@ -84,11 +105,17 @@ impl<'a> GpuBindGroupBuilder<'a> {
         match self.device {
             Some(device) => {
                 let layout = self.build_layout();
-                bind_group.group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: self.name,
-                    layout: &layout,
-                    entries: &[],
-                }));
+                bind_group.group = Some(
+                    device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: self.name,
+                        layout: &layout,
+                        entries: &self
+                            .buffers
+                            .iter()
+                            .map(|buf| buf.get_entry())
+                            .collect::<Vec<_>>(), // this is amazing
+                    }),
+                );
                 bind_group.layout = Some(layout);
                 bind_group.ready = true;
 

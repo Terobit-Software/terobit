@@ -9,6 +9,7 @@ use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SAMPLE_INTERVAL, OVE
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, DEPTH_FORMAT,
 };
+use crate::gpu::{GpuBindGroup, GpuBindGroupBuilder, GpuBuffer, GpuResources};
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
@@ -67,8 +68,6 @@ pub(crate) struct AppState {
     render_pipeline: Option<wgpu::RenderPipeline>,
     gpu_meshes: GpuMeshCache,
     instances: InstanceCache,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
     start_time: Instant,
     worlds: Vec<World>,
     current_world: usize,
@@ -80,6 +79,7 @@ pub(crate) struct AppState {
     asset_registry: AssetRegistry,
     listener_manager: ListenerManager,
     mesh_count: usize,
+    gpu_resources: GpuResources,
 }
 
 impl AppState {
@@ -121,37 +121,67 @@ impl AppState {
         let format = capabilities.formats[0];
         info!("Surface format: {:?}", format);
 
+        let gpu_resources = GpuResources::new();
+
+        let camera_buffer = GpuBuffer::builder()
+            .name("camera buffer")
+            .device(&device)
+            .number(0)
+            .contents(bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()))
+            .build();
+
+        let frustum_buffer = GpuBuffer::builder()
+            .name("frustum buffer")
+            .device(&device)
+            .number(1)
+            .contents(&[])
+            .build();
+
+        let group0 = GpuBindGroup::builder()
+            .name("camera group")
+            .device(&device)
+            .number(0)
+            .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
+            .buffer(camera_buffer)
+            .buffer(frustum_buffer)
+            .build();
+
+        // --- GROUP 0 END --- //
+
+        let objects_array_buffer = GpuBuffer::builder()
+            .name("objects array buffer")
+            .device(&device)
+            .number(0)
+            .contents(&[])
+            .build();
+
+        let visible_objects_array_buffer = GpuBuffer::builder()
+            .name("visible objects array buffer")
+            .device(&device)
+            .number(1)
+            .contents(&[])
+            .build();
+
+        let draw_args_buffer = GpuBuffer::builder()
+            .name("draw args buffer")
+            .device(&device)
+            .number(2)
+            .contents(&[])
+            .build();
+
+        let group1 = GpuBindGroup::builder()
+            .name("camera group")
+            .device(&device)
+            .number(0)
+            .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
+            .buffer(objects_array_buffer)
+            .buffer(visible_objects_array_buffer)
+            .buffer(draw_args_buffer)
+            .build();
+
+        // --- GROUP 1 END --- //
+
         let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
-
-        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("camera uniform buffer"),
-            contents: bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("camera bind group layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("camera bind group"),
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-        });
 
         // the overlay draws to the same sRGB-suffixed view the cube pipeline
         // targets, so the iced engine's pipelines must be built for that format
@@ -182,8 +212,6 @@ impl AppState {
             render_pipeline: None,
             gpu_meshes: GpuMeshCache::new(),
             instances: InstanceCache::new(),
-            camera_buffer,
-            camera_bind_group,
             start_time: Instant::now(),
             worlds: Vec::from([World::new()]),
             current_world: 0,
@@ -195,6 +223,7 @@ impl AppState {
             asset_registry: AssetRegistry::new()?,
             listener_manager: ListenerManager::new(),
             mesh_count: 0,
+            gpu_resources,
         };
 
         state.configure_surface();
@@ -209,7 +238,7 @@ impl AppState {
             .read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH), "bi.frustumshader")?;
         state.compile_shader_asset(cull_shader, Some("cullshader"));
 
-        state.create_root_pipeline(&camera_bind_group_layout);
+        state.create_root_pipeline();
 
         Ok(state)
     }
@@ -290,7 +319,7 @@ impl AppState {
     }
 
     /// Builds the root render pipeline from the most recently compiled shader module.
-    fn create_root_pipeline(&mut self, camera_bind_group_layout: &wgpu::BindGroupLayout) {
+    fn create_root_pipeline(&mut self) {
         let module = match self.shader_modules.first() {
             Some(module) => module,
             None => {
@@ -303,7 +332,7 @@ impl AppState {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("root pipeline layout"),
-                bind_group_layouts: &[camera_bind_group_layout],
+                bind_group_layouts: &self.gpu_resources.get_group_layouts(),
                 push_constant_ranges: &[],
             });
 
@@ -471,11 +500,18 @@ impl AppState {
         let projection = perspective(CAMERA_FOV_Y_RADIANS, aspect, CAMERA_NEAR, CAMERA_FAR);
         let view_proj = projection * view;
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&view_proj.to_cols_array()),
-        );
+        if let Some(camera_buffer) = self
+            .gpu_resources
+            .get_groups()
+            .first()
+            .and_then(|group| group.get_buffers().first())
+        {
+            self.queue.write_buffer(
+                camera_buffer.get_buffer(),
+                0,
+                bytemuck::cast_slice(&view_proj.to_cols_array()),
+            );
+        }
 
         self.upload_instances();
     }
@@ -684,7 +720,9 @@ impl AppState {
         // Draw every mesh with the root pipeline, one instanced call per mesh.
         if let Some(pipeline) = &self.render_pipeline {
             renderpass.set_pipeline(pipeline);
-            renderpass.set_bind_group(0, &self.camera_bind_group, &[]);
+            for (index, group) in self.gpu_resources.get_groups().iter().enumerate() {
+                renderpass.set_bind_group(index as u32, group.get_group(), &[]);
+            }
             for (asset_id, instance_buffer, count) in self.instances.batches() {
                 if let Some(mesh) = self.gpu_meshes.get(asset_id) {
                     renderpass.set_vertex_buffer(1, instance_buffer.slice(..));

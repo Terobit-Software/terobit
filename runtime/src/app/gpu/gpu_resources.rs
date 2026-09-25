@@ -2,17 +2,20 @@ use crate::AppState;
 use crate::app::gpu::GpuBindGroup;
 use crate::app::gpu::GpuBuffer;
 
-pub(crate) struct GpuResources<'a> {
+pub(crate) struct GpuResources {
     groups: Vec<GpuBindGroup>,
-    state: &'a AppState,
 }
 
-impl<'a> GpuResources<'a> {
-    pub(crate) fn new(state: &'a AppState) -> Self {
-        Self {
-            groups: Vec::new(),
-            state,
-        }
+impl GpuResources {
+    pub(crate) fn new() -> Self {
+        Self { groups: Vec::new() }
+    }
+
+    pub(crate) fn get_group_layouts(&self) -> Vec<&wgpu::BindGroupLayout> {
+        self.groups
+            .iter()
+            .map(|group| group.get_layout())
+            .collect::<Vec<_>>()
     }
 
     pub(crate) fn get_groups(&self) -> &[GpuBindGroup] {

@@ -10,6 +10,17 @@ impl GpuBuffer {
     pub(crate) fn builder<'a>() -> GpuBufferBuilder<'a> {
         GpuBufferBuilder::new()
     }
+
+    pub(crate) fn get_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
+
+    pub(crate) fn get_entry<'a>(&'a self) -> wgpu::BindGroupEntry<'a> {
+        wgpu::BindGroupEntry {
+            binding: self.number,
+            resource: self.buffer.as_entire_binding(),
+        }
+    }
 }
 
 pub(crate) struct GpuBufferBuilder<'a> {
