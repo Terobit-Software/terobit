@@ -10,3 +10,6 @@ pub use state::*;
 
 mod window;
 pub use window::*;
+
+mod gpu_resources;
+pub use gpu_resources::*;

@@ -1,7 +1,7 @@
-@group(0) @binding(1) var<storage, read> objects: array<InstanceInput>;
-@group(0) @binding(2) var<storage, read_write> visible: array<u32>;
-@group(0) @binding(3) var<storage, read_write> args: DrawSettings;
-@group(0) @binding(4) var<uniform> frustum: Frustum; // 6 planes
+@group(0) @binding(1) var<uniform> frustum: Frustum; // 6 planes
+@group(1) @binding(1) var<storage, read> objects: array<InstanceInput>;
+@group(1) @binding(2) var<storage, read_write> visible: array<u32>;
+@group(1) @binding(3) var<storage, read_write> args: DrawSettings;
 
 struct Camera {
     view_proj: mat4x4<f32>,
@@ -16,11 +16,11 @@ struct DrawSettings {
 };
 
 struct InstanceInput {
-    @location(2) model_col0: vec4<f32>,
-    @location(3) model_col1: vec4<f32>,
-    @location(4) model_col2: vec4<f32>,
-    @location(5) model_col3: vec4<f32>,
-    @location(6) bounding_sphere: vec4<f32>,
+    model_col0: vec4<f32>,
+    model_col1: vec4<f32>,
+    model_col2: vec4<f32>,
+    model_col3: vec4<f32>,
+    bounding_sphere: vec4<f32>,
 };
 
 struct Frustum {

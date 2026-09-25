@@ -13,10 +13,10 @@ struct VertexInput {
 };
 
 struct InstanceInput {
-    @location(2) model_col0: vec4<f32>,
-    @location(3) model_col1: vec4<f32>,
-    @location(4) model_col2: vec4<f32>,
-    @location(5) model_col3: vec4<f32>,
+    model_col0: vec4<f32>,
+    model_col1: vec4<f32>,
+    model_col2: vec4<f32>,
+    model_col3: vec4<f32>,
 };
 
 struct VertexOutput {
