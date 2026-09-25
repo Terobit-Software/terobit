@@ -1,6 +1,3 @@
-use std::num::NonZero;
-
-use glam::Mat4;
 use tracing::info;
 use wgpu::util::DeviceExt;
 
@@ -45,7 +42,7 @@ impl GpuBuffer {
         wgpu::BindGroupLayoutEntry {
             binding: self.number,
             visibility: self.visibility,
-            count: NonZero::new(self.number + 1),
+            count: None,
             ty: wgpu::BindingType::Buffer {
                 ty: buffer_type_to_wgpu(&self.buffer_type),
                 has_dynamic_offset: false,
@@ -59,7 +56,8 @@ pub(crate) struct GpuBufferBuilder<'a> {
     number: u32,
     name: Option<&'a str>,
     init_contents: Option<&'a [u8]>,
-    usage: wgpu::BufferUsages,
+    size: Option<u64>,
+    extra_usage: wgpu::BufferUsages,
     device: Option<&'a wgpu::Device>,
     visibility: Option<wgpu::ShaderStages>,
     buffer_type: Option<BufferType>,
@@ -71,7 +69,8 @@ impl<'a> GpuBufferBuilder<'a> {
             number: 0,
             name: None,
             init_contents: None,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            size: None,
+            extra_usage: wgpu::BufferUsages::empty(),
             device: None,
             visibility: None,
             buffer_type: None,
@@ -103,31 +102,62 @@ impl<'a> GpuBufferBuilder<'a> {
         self
     }
 
+    pub(crate) fn size(mut self, size: u64) -> Self {
+        self.size = Some(size);
+        self
+    }
+    
+    pub(crate) fn usage(mut self, usage: wgpu::BufferUsages) -> Self {
+        self.extra_usage |= usage;
+        self
+    }
+
     pub(crate) fn device(mut self, device: &'a wgpu::Device) -> Self {
         self.device = Some(device);
         self
     }
 
     pub(crate) fn build(self) -> GpuBuffer {
-        let buffer = self
+        let device = self
             .device
-            .expect("no device, add device before building gpu buffer")
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("camera uniform buffer"),
-                contents: bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
+            .expect("no device, add device before building gpu buffer");
+        let buffer_type = self.buffer_type.unwrap_or(BufferType::Uniform);
+        let usage = match buffer_type {
+            BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+            BufferType::BufferReadOnly | BufferType::BufferReadable => {
+                wgpu::BufferUsages::STORAGE
+            }
+        } | wgpu::BufferUsages::COPY_DST
+            | self.extra_usage;
+
+        let buffer = match (self.init_contents, self.size) {
+            (Some(contents), _) => device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: self.name,
+                contents,
+                usage,
+            }),
+            (None, Some(size)) => device.create_buffer(&wgpu::BufferDescriptor {
+                label: self.name,
+                size,
+                usage,
+                mapped_at_creation: false,
+            }),
+            (None, None) => panic!("set contents or size before building gpu buffer"),
+        };
 
         info!(
-            "built gpu buffer with number {:?}, name {:?}, and usage {:?}",
-            self.number, self.name, self.usage
+            "built gpu buffer with number {:?}, name {:?}, size {}, and usage {:?}",
+            self.number,
+            self.name,
+            buffer.size(),
+            usage
         );
 
         GpuBuffer {
             number: self.number,
             buffer,
             visibility: self.visibility.unwrap_or(wgpu::ShaderStages::all()),
-            buffer_type: self.buffer_type.unwrap_or(BufferType::Uniform),
+            buffer_type,
         }
     }
 }

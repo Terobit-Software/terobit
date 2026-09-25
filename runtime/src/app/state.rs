@@ -9,7 +9,7 @@ use crate::consts::overlay::{OVERLAY_FONT_SIZE, OVERLAY_FPS_SAMPLE_INTERVAL, OVE
 use crate::consts::render::{
     CAMERA_FAR, CAMERA_FOV_Y_RADIANS, CAMERA_NEAR, CAMERA_POSITION, DEPTH_FORMAT,
 };
-use crate::gpu::{GpuBindGroup, GpuBindGroupBuilder, GpuBuffer, GpuResources};
+use crate::gpu::{BufferType, GpuBindGroup, GpuBindGroupBuilder, GpuBuffer, GpuResources};
 use crate::listeners::ListenerManager;
 use crate::listeners::ListenerValue;
 use crate::listeners::MouseInput;
@@ -34,7 +34,6 @@ use iced_widget::{container, table, text};
 use thiserror::Error;
 use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
-use wgpu::{Features, FeaturesWGPU, FeaturesWebGPU};
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Error, Debug)]
@@ -102,13 +101,7 @@ impl AppState {
 
         // create the wgpu device
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                required_features: Features {
-                    features_wgpu: FeaturesWGPU::BUFFER_BINDING_ARRAY,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
+            .request_device(&wgpu::DeviceDescriptor::default())
             .await?;
         info!("New wgpu device and queue successfully created");
 
@@ -136,6 +129,7 @@ impl AppState {
             .number(0)
             .contents(bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()))
             .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
+            .ty(BufferType::Uniform)
             .build();
 
         let frustum_buffer = GpuBuffer::builder()
@@ -144,6 +138,7 @@ impl AppState {
             .number(1)
             .visibility(wgpu::ShaderStages::COMPUTE)
             .contents(&[])
+            .ty(BufferType::Uniform)
             .build();
 
         let group0 = GpuBindGroup::builder()
@@ -161,7 +156,8 @@ impl AppState {
             .device(&device)
             .number(0)
             .contents(&[])
-            .visibility(wgpu::ShaderStages::all())
+            .visibility(wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::COMPUTE)
+            .ty(BufferType::BufferReadOnly)
             .build();
 
         let visible_objects_array_buffer = GpuBuffer::builder()
@@ -169,7 +165,8 @@ impl AppState {
             .device(&device)
             .number(1)
             .contents(&[])
-            .visibility(wgpu::ShaderStages::all())
+            .visibility(wgpu::ShaderStages::COMPUTE)
+            .ty(BufferType::BufferReadable)
             .build();
 
         let draw_args_buffer = GpuBuffer::builder()
@@ -178,12 +175,14 @@ impl AppState {
             .number(2)
             .contents(&[])
             .visibility(wgpu::ShaderStages::COMPUTE)
+            .ty(BufferType::BufferReadable)
+            .usage(wgpu::BufferUsages::INDIRECT)
             .build();
 
         let group1 = GpuBindGroup::builder()
-            .name("camera group")
+            .name("objects group")
             .device(&device)
-            .number(0)
+            .number(1)
             .buffer(objects_array_buffer)
             .buffer(visible_objects_array_buffer)
             .buffer(draw_args_buffer)
