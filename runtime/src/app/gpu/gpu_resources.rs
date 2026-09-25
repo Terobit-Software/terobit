@@ -15,7 +15,11 @@ impl<'a> GpuResources<'a> {
         }
     }
 
-    pub(crate) fn groups(&self) -> &[GpuBindGroup] {
+    pub(crate) fn get_groups(&self) -> &[GpuBindGroup] {
         &self.groups
+    }
+
+    pub(crate) fn add_group(&mut self, group: GpuBindGroup) {
+        self.groups.push(group);
     }
 }
