@@ -34,21 +34,22 @@ use iced_widget::{container, table, text};
 use thiserror::Error;
 use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
+use wgpu::{Features, FeaturesWGPU, FeaturesWebGPU};
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Error, Debug)]
 pub(crate) enum AppStateError {
-    #[error("failed to create window")]
+    #[error("failed to create window: {0}")]
     WindowError(#[from] crate::app::window::WindowError),
-    #[error("failed to create wgpu adapter")]
+    #[error("failed to create wgpu adapter: {0}")]
     WgpuAdapterError(#[from] wgpu::RequestAdapterError),
-    #[error("failed to create wgpu device")]
+    #[error("failed to create wgpu device: {0}")]
     WgpuDeviceError(#[from] wgpu::RequestDeviceError),
-    #[error("failed to create wgpu surface")]
+    #[error("failed to create wgpu surface: {0}")]
     WgpuSurfaceError(#[from] wgpu::CreateSurfaceError),
     #[error("failed to load shader")]
     ShaderError,
-    #[error("failed to load asset")]
+    #[error("failed to load asset: {0}")]
     AssetError(#[from] crate::assets::AssetError),
 }
 
@@ -101,7 +102,13 @@ impl AppState {
 
         // create the wgpu device
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default())
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: Features {
+                    features_wgpu: FeaturesWGPU::BUFFER_BINDING_ARRAY,
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await?;
         info!("New wgpu device and queue successfully created");
 
