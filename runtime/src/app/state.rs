@@ -128,12 +128,14 @@ impl AppState {
             .device(&device)
             .number(0)
             .contents(bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array()))
+            .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
             .build();
 
         let frustum_buffer = GpuBuffer::builder()
             .name("frustum buffer")
             .device(&device)
             .number(1)
+            .visibility(wgpu::ShaderStages::COMPUTE)
             .contents(&[])
             .build();
 
@@ -141,7 +143,6 @@ impl AppState {
             .name("camera group")
             .device(&device)
             .number(0)
-            .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
             .buffer(camera_buffer)
             .buffer(frustum_buffer)
             .build();
@@ -153,6 +154,7 @@ impl AppState {
             .device(&device)
             .number(0)
             .contents(&[])
+            .visibility(wgpu::ShaderStages::all())
             .build();
 
         let visible_objects_array_buffer = GpuBuffer::builder()
@@ -160,6 +162,7 @@ impl AppState {
             .device(&device)
             .number(1)
             .contents(&[])
+            .visibility(wgpu::ShaderStages::all())
             .build();
 
         let draw_args_buffer = GpuBuffer::builder()
@@ -167,13 +170,13 @@ impl AppState {
             .device(&device)
             .number(2)
             .contents(&[])
+            .visibility(wgpu::ShaderStages::COMPUTE)
             .build();
 
         let group1 = GpuBindGroup::builder()
             .name("camera group")
             .device(&device)
             .number(0)
-            .visibility(wgpu::ShaderStages::VERTEX_FRAGMENT)
             .buffer(objects_array_buffer)
             .buffer(visible_objects_array_buffer)
             .buffer(draw_args_buffer)

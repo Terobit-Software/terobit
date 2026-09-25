@@ -1,5 +1,5 @@
 use crate::app::gpu::GpuBuffer;
-use tracing::error;
+use tracing::{error, info};
 use wgpu::{BindGroupLayoutEntry, ShaderStages, wgc::device};
 
 #[derive(Default)]
@@ -67,11 +67,6 @@ impl<'a> GpuBindGroupBuilder<'a> {
         self
     }
 
-    pub(crate) fn visibility(mut self, visibility: wgpu::ShaderStages) -> Self {
-        self.visibility = Some(visibility);
-        self
-    }
-
     pub(crate) fn buffer(mut self, buffer: GpuBuffer) -> Self {
         self.buffers.push(buffer);
         self
@@ -82,20 +77,11 @@ impl<'a> GpuBindGroupBuilder<'a> {
             .expect("set device before building layout on gpu group")
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: self.name,
-                entries: &[BindGroupLayoutEntry {
-                    binding: self
-                        .number
-                        .expect("set bind group number before building group layout"),
-                    visibility: self
-                        .visibility
-                        .expect("set visibilty group before building group layout"),
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
+                entries: &self
+                    .buffers
+                    .iter()
+                    .map(|buf| buf.get_layout_entry())
+                    .collect::<Vec<_>>(),
             })
     }
 
@@ -112,12 +98,19 @@ impl<'a> GpuBindGroupBuilder<'a> {
                         entries: &self
                             .buffers
                             .iter()
-                            .map(|buf| buf.get_entry())
+                            .map(|buf| buf.get_bind_group_entry())
                             .collect::<Vec<_>>(), // this is amazing
                     }),
                 );
                 bind_group.layout = Some(layout);
                 bind_group.ready = true;
+
+                info!(
+                    "built gpu bind group with number {:?}, name {:?}, and # of buffers {}",
+                    self.number,
+                    self.name,
+                    self.buffers.len()
+                );
 
                 bind_group
             }
