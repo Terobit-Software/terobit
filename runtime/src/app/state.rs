@@ -121,7 +121,7 @@ impl AppState {
         let format = capabilities.formats[0];
         info!("Surface format: {:?}", format);
 
-        let gpu_resources = GpuResources::new();
+        let mut gpu_resources = GpuResources::new();
 
         let camera_buffer = GpuBuffer::builder()
             .name("camera buffer")
@@ -137,7 +137,7 @@ impl AppState {
             .device(&device)
             .number(1)
             .visibility(wgpu::ShaderStages::COMPUTE)
-            .contents(&[])
+            .contents(&[0])
             .ty(BufferType::Uniform)
             .build();
 
@@ -155,7 +155,7 @@ impl AppState {
             .name("objects array buffer")
             .device(&device)
             .number(0)
-            .contents(&[])
+            .contents(&[0])
             .visibility(wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::COMPUTE)
             .ty(BufferType::BufferReadOnly)
             .build();
@@ -164,7 +164,7 @@ impl AppState {
             .name("visible objects array buffer")
             .device(&device)
             .number(1)
-            .contents(&[])
+            .contents(&[0])
             .visibility(wgpu::ShaderStages::COMPUTE)
             .ty(BufferType::BufferReadable)
             .build();
@@ -173,7 +173,7 @@ impl AppState {
             .name("draw args buffer")
             .device(&device)
             .number(2)
-            .contents(&[])
+            .contents(&[0])
             .visibility(wgpu::ShaderStages::COMPUTE)
             .ty(BufferType::BufferReadable)
             .usage(wgpu::BufferUsages::INDIRECT)
@@ -189,6 +189,9 @@ impl AppState {
             .build();
 
         // --- GROUP 1 END --- //
+
+        gpu_resources.add_group(group0);
+        gpu_resources.add_group(group1);
 
         let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
 
