@@ -165,7 +165,7 @@ impl AppState {
             .device(&device)
             .number(1)
             .contents(&[0])
-            .visibility(wgpu::ShaderStages::COMPUTE)
+            .visibility(wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::VERTEX)
             .ty(BufferType::BufferReadable)
             .build();
 
