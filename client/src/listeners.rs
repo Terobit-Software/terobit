@@ -1,8 +1,5 @@
 use rand::RngExt;
-use runtime::ecs::{Mesh, Transform};
-use runtime::handle::RuntimeHandle;
-use runtime::listeners::{InputListener, Listener, WindowListener};
-use runtime::listeners::{KeyInput, MouseInput};
+use runtime::prelude::*;
 
 pub struct ClientWindowListener {}
 
@@ -16,18 +13,18 @@ impl WindowListener for ClientWindowListener {
         // they read as 3D
         for _ in 0..2_000_000 {
             let transform = Transform::new()
-                .with_pos(glam::Vec3::new(
+                .with_pos(Vec3::new(
                     rng.random_range(-100.0..100.0),
                     rng.random_range(-100.0..100.0),
                     rng.random_range(-100.0..100.0),
                 ))
-                .with_rot(glam::Quat::from_euler(
-                    glam::EulerRot::XYZ,
+                .with_rot(Quat::from_euler(
+                    EulerRot::XYZ,
                     rng.random_range(0.0..std::f32::consts::TAU),
                     rng.random_range(0.0..std::f32::consts::TAU),
                     rng.random_range(0.0..std::f32::consts::TAU),
                 ))
-                .with_scale(glam::Vec3::splat(0.3));
+                .with_scale(Vec3::splat(0.3));
             _handle.world().spawn((Mesh::CUBE, transform));
         }
     }

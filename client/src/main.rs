@@ -1,6 +1,6 @@
 #![cfg_attr(feature = "dist", windows_subsystem = "windows")]
 
-use runtime::Runtime;
+use runtime::prelude::*;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};
 use tracing_appender::rolling;
