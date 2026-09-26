@@ -141,22 +141,12 @@ impl AppState {
             .ty(BufferType::Uniform)
             .build();
 
-        let group0 = GpuBindGroup::builder()
-            .name("camera group")
-            .device(&device)
-            .number(0)
-            .buffer(camera_buffer)
-            .buffer(frustum_buffer)
-            .build();
-
-        // --- GROUP 0 END --- //
-
         let objects_array_buffer = GpuBuffer::builder()
             .name("objects array buffer")
             .device(&device)
             .number(0)
             .contents(&[0])
-            .visibility(wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::COMPUTE)
+            .visibility(wgpu::ShaderStages::COMPUTE)
             .ty(BufferType::BufferReadOnly)
             .build();
 
@@ -165,7 +155,7 @@ impl AppState {
             .device(&device)
             .number(1)
             .contents(&[0])
-            .visibility(wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::VERTEX)
+            .visibility(wgpu::ShaderStages::COMPUTE)
             .ty(BufferType::BufferReadable)
             .build();
 
@@ -179,8 +169,57 @@ impl AppState {
             .usage(wgpu::BufferUsages::INDIRECT)
             .build();
 
-        let group1 = GpuBindGroup::builder()
-            .name("objects group")
+        // handles for the render groups; cloning a wgpu::Buffer is a refcount bump
+        let objects_handle = objects_array_buffer.get_buffer().clone();
+        let visible_handle = visible_objects_array_buffer.get_buffer().clone();
+
+        // --- RENDER GROUPS --- //
+
+        let render_group0 = GpuBindGroup::builder()
+            .name("render camera group")
+            .device(&device)
+            .number(0)
+            .buffer(camera_buffer)
+            .build();
+
+        let render_group1 = GpuBindGroup::builder()
+            .name("render objects group")
+            .device(&device)
+            .number(1)
+            .buffer(
+                GpuBuffer::builder()
+                    .name("objects array buffer (vertex)")
+                    .from_buffer(objects_handle)
+                    .number(0)
+                    .visibility(wgpu::ShaderStages::VERTEX)
+                    .ty(BufferType::BufferReadOnly)
+                    .build(),
+            )
+            .buffer(
+                GpuBuffer::builder()
+                    .name("visible objects array buffer (vertex)")
+                    .from_buffer(visible_handle)
+                    .number(1)
+                    .visibility(wgpu::ShaderStages::VERTEX)
+                    .ty(BufferType::BufferReadOnly)
+                    .build(),
+            )
+            .build();
+
+        gpu_resources.add_render_group(render_group0);
+        gpu_resources.add_render_group(render_group1);
+
+        // --- COMPUTE GROUPS --- //
+
+        let compute_group0 = GpuBindGroup::builder()
+            .name("compute frustum group")
+            .device(&device)
+            .number(0)
+            .buffer(frustum_buffer)
+            .build();
+
+        let compute_group1 = GpuBindGroup::builder()
+            .name("compute objects group")
             .device(&device)
             .number(1)
             .buffer(objects_array_buffer)
@@ -188,10 +227,8 @@ impl AppState {
             .buffer(draw_args_buffer)
             .build();
 
-        // --- GROUP 1 END --- //
-
-        gpu_resources.add_group(group0);
-        gpu_resources.add_group(group1);
+        gpu_resources.add_compute_group(compute_group0);
+        gpu_resources.add_compute_group(compute_group1);
 
         let depth_view = Self::create_depth_view(&device, size.width.max(1), size.height.max(1));
 
@@ -344,7 +381,7 @@ impl AppState {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("root pipeline layout"),
-                bind_group_layouts: &self.gpu_resources.get_group_layouts(),
+                bind_group_layouts: &self.gpu_resources.get_render_layouts(),
                 push_constant_ranges: &[],
             });
 
@@ -514,7 +551,7 @@ impl AppState {
 
         if let Some(camera_buffer) = self
             .gpu_resources
-            .get_groups()
+            .get_render_groups()
             .first()
             .and_then(|group| group.get_buffers().first())
         {
@@ -732,7 +769,7 @@ impl AppState {
         // Draw every mesh with the root pipeline, one instanced call per mesh.
         if let Some(pipeline) = &self.render_pipeline {
             renderpass.set_pipeline(pipeline);
-            for (index, group) in self.gpu_resources.get_groups().iter().enumerate() {
+            for (index, group) in self.gpu_resources.get_render_groups().iter().enumerate() {
                 renderpass.set_bind_group(index as u32, group.get_group(), &[]);
             }
             for (asset_id, instance_buffer, count) in self.instances.batches() {

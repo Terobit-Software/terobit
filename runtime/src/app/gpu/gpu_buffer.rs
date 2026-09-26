@@ -57,6 +57,7 @@ pub(crate) struct GpuBufferBuilder<'a> {
     name: Option<&'a str>,
     init_contents: Option<&'a [u8]>,
     size: Option<u64>,
+    existing: Option<wgpu::Buffer>,
     extra_usage: wgpu::BufferUsages,
     device: Option<&'a wgpu::Device>,
     visibility: Option<wgpu::ShaderStages>,
@@ -70,6 +71,7 @@ impl<'a> GpuBufferBuilder<'a> {
             name: None,
             init_contents: None,
             size: None,
+            existing: None,
             extra_usage: wgpu::BufferUsages::empty(),
             device: None,
             visibility: None,
@@ -106,7 +108,12 @@ impl<'a> GpuBufferBuilder<'a> {
         self.size = Some(size);
         self
     }
-    
+
+    pub(crate) fn from_buffer(mut self, buffer: wgpu::Buffer) -> Self {
+        self.existing = Some(buffer);
+        self
+    }
+
     pub(crate) fn usage(mut self, usage: wgpu::BufferUsages) -> Self {
         self.extra_usage |= usage;
         self
@@ -118,15 +125,31 @@ impl<'a> GpuBufferBuilder<'a> {
     }
 
     pub(crate) fn build(self) -> GpuBuffer {
+        let buffer_type = self.buffer_type.unwrap_or(BufferType::Uniform);
+
+        if let Some(buffer) = self.existing {
+            info!(
+                "built gpu buffer with number {:?}, name {:?}, from existing buffer (size {}, usage {:?})",
+                self.number,
+                self.name,
+                buffer.size(),
+                buffer.usage()
+            );
+
+            return GpuBuffer {
+                number: self.number,
+                buffer,
+                visibility: self.visibility.unwrap_or(wgpu::ShaderStages::all()),
+                buffer_type,
+            };
+        }
+
         let device = self
             .device
             .expect("no device, add device before building gpu buffer");
-        let buffer_type = self.buffer_type.unwrap_or(BufferType::Uniform);
         let usage = match buffer_type {
             BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-            BufferType::BufferReadOnly | BufferType::BufferReadable => {
-                wgpu::BufferUsages::STORAGE
-            }
+            BufferType::BufferReadOnly | BufferType::BufferReadable => wgpu::BufferUsages::STORAGE,
         } | wgpu::BufferUsages::COPY_DST
             | self.extra_usage;
 
