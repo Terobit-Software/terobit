@@ -21,7 +21,7 @@ fn get_log_directory() -> PathBuf {
     {
         Path::new(&format!(
             "/Users/{}/Library/Logs/TerobitClient/",
-            std::env::var("USER").unwrap_or_default()
+            std::env::var("USER").unwrap()
         ))
         .to_path_buf()
         .into() // add this to make it a `PathBuf` because its crying for some reason
