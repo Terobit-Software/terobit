@@ -1,5 +1,6 @@
 use crate::app::instance::InstanceCache;
 use crate::app::mesh::GpuMeshCache;
+use crate::app::rendering::culling::Frustum;
 use crate::app::window::Window;
 use crate::assets::{AssetRegistry, Vertex};
 use crate::consts::app::{
@@ -137,7 +138,7 @@ impl AppState {
             .device(&device)
             .number(1)
             .visibility(wgpu::ShaderStages::COMPUTE)
-            .contents(&[0])
+            .size(size_of::<Frustum>() as u64)
             .ty(BufferType::Uniform)
             .build();
 
@@ -559,6 +560,19 @@ impl AppState {
                 camera_buffer.get_buffer(),
                 0,
                 bytemuck::cast_slice(&view_proj.to_cols_array()),
+            );
+        }
+
+        if let Some(frustum_buffer) = self
+            .gpu_resources
+            .get_compute_groups()
+            .first()
+            .and_then(|group| group.get_buffers().first())
+        {
+            self.queue.write_buffer(
+                frustum_buffer.get_buffer(),
+                0,
+                bytemuck::bytes_of(&Frustum::from_view_proj(view_proj)),
             );
         }
 
