@@ -9,7 +9,6 @@ pub(crate) struct ShaderData {
     data: String,
     // used box path for less memory footprint
     path: Box<Path>,
-    // it is reccomended to use a fixed length vec
     name: String,
 }
 
