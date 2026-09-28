@@ -4,6 +4,7 @@ use crate::assets::asset_error::AssetError;
 use crate::assets::raw_asset::RawAssetData;
 use crate::assets::registry::{AssetId, AssetRegistry};
 use crate::consts::mesh::CUBE_FACES;
+use tracing::info;
 
 /// A single mesh vertex: position and face normal, both in model space.
 /// `Pod` so a mesh's vertices can be uploaded to the GPU as-is.
@@ -19,6 +20,7 @@ pub(crate) struct Vertex {
 pub(crate) struct MeshData {
     verts: Vec<Vertex>,
     indices: Vec<u16>,
+    radius: f32,
 }
 
 impl MeshData {
@@ -58,7 +60,40 @@ impl MeshData {
             indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
         }
 
-        Self { verts, indices }
+        let mut mesh = Self {
+            verts,
+            indices,
+            radius: 0.0,
+        };
+
+        mesh.update_radius();
+
+        info!(
+            "Created default cube mesh with {} vertices, {} indices, radius {}",
+            mesh.verts.len(),
+            mesh.indices.len(),
+            mesh.radius
+        );
+
+        mesh
+    }
+
+    #[inline]
+    fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    fn update_radius(&mut self) {
+        let mut max = 0.0;
+        for vertex in &self.verts {
+            let dist_squared = vertex.position[0] * vertex.position[0]
+                + vertex.position[1] * vertex.position[1]
+                + vertex.position[2] * vertex.position[2];
+            if dist_squared > max {
+                max = dist_squared;
+            }
+        }
+        self.radius = max.sqrt();
     }
 
     /// Parses an OBJ file via `tobj`, triangulating faces and merging
@@ -119,7 +154,22 @@ impl MeshData {
             compute_smooth_normals(&mut verts, &indices);
         }
 
-        Ok(Self { verts, indices })
+        let mut obj = Self {
+            verts,
+            indices,
+            radius: 0.0,
+        };
+
+        obj.update_radius();
+
+        info!(
+            "Parsed mesh with {} vertices, {} indices, radius {}",
+            obj.verts.len(),
+            obj.indices.len(),
+            obj.radius
+        );
+
+        Ok(obj)
     }
 }
 

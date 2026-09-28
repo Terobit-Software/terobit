@@ -4,12 +4,12 @@ use std::path::Path;
 
 use tracing::info;
 
-use crate::BUILTIN_ROOT_SHADER_PATH;
 use crate::assets::asset_error::AssetError;
 use crate::assets::mesh_asset::{MeshAsset, MeshData, Vertex};
 use crate::assets::raw_asset::{BUILTIN_CUBE_PATH, RawAsset, RawAssetData};
 use crate::assets::shader_asset::{ShaderAsset, ShaderData};
 use crate::misc::data::format_bytes;
+use crate::{BUILTIN_FRUSTUM_SHADER_PATH, BUILTIN_ROOT_SHADER_PATH};
 
 pub(crate) type AssetId = usize;
 
@@ -49,9 +49,10 @@ impl AssetRegistry {
 
         // loaded first so the built-ins get the same ids
         let _cube = reg.read_mesh_from_path(Path::new(BUILTIN_CUBE_PATH))?; // 0 - mesh, 0 - raw
-        let _root_shader = reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH))?; // 0 - shader, 1 - raw
-
-        info!("Asset registry initialized");
+        let _root_shader =
+            reg.read_shader_from_path(Path::new(BUILTIN_ROOT_SHADER_PATH), "bi.rootshader")?; // 0 - shader, 1 - raw
+        let _frustum_shader =
+            reg.read_shader_from_path(Path::new(BUILTIN_FRUSTUM_SHADER_PATH), "bi.frustumshader")?; // 1 - shader, 2 - raw
 
         Ok(reg)
     }
@@ -119,14 +120,18 @@ impl AssetRegistry {
     /// registry. Repeated calls with the same path return a handle to the
     /// same cached entry.
     #[allow(dead_code)]
-    pub(crate) fn read_shader_from_path(&mut self, path: &Path) -> Result<ShaderAsset, AssetError> {
+    pub(crate) fn read_shader_from_path(
+        &mut self,
+        path: &Path,
+        id: &str,
+    ) -> Result<ShaderAsset, AssetError> {
         if let Some(&id) = self.shader_ids.get(path) {
             info!("Shader cache hit '{:?}' with id {}", path, id);
             return Ok(ShaderAsset::new(id));
         }
 
         let raw = self.read_raw_from_path(path)?;
-        let shader = ShaderData::from_raw(self.raw_assets.get(&raw.id()).unwrap());
+        let shader = ShaderData::from_raw(self.raw_assets.get(&raw.id()).unwrap(), id);
         let size = shader.data().len();
 
         let id = self.next_shader_id;

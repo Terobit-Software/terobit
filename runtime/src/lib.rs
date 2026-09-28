@@ -12,3 +12,5 @@ mod assets;
 pub use assets::*;
 
 pub mod misc;
+
+pub mod prelude;

@@ -7,6 +7,7 @@ use crate::assets::registry::{AssetId, AssetRegistry};
 /// built ins
 pub(crate) const BUILTIN_CUBE_PATH: &str = "bi.cubeobj";
 pub(crate) const BUILTIN_ROOT_SHADER_PATH: &str = "bi.rootshader";
+pub(crate) const BUILTIN_FRUSTUM_SHADER_PATH: &str = "bi.frustumshader";
 
 /// Raw bytes read from disk (or synthesized for a built-in asset). Owned
 /// exclusively by the [`AssetRegistry`]; nothing outside the registry holds
@@ -25,6 +26,7 @@ impl RawAssetData {
         match path.to_str() {
             Some(BUILTIN_CUBE_PATH) => Some(BUILTIN_CUBE_PATH),
             Some(BUILTIN_ROOT_SHADER_PATH) => Some(BUILTIN_ROOT_SHADER_PATH),
+            Some(BUILTIN_FRUSTUM_SHADER_PATH) => Some(BUILTIN_FRUSTUM_SHADER_PATH),
             _ => None,
         }
     }
