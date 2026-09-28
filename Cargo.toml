@@ -1,2 +1,2 @@
 [workspace]
-members = ["client", "runtime"]
+members = ["bins/client", "bins/server", "crates/terobit_assets", "crates/terobit_core", "crates/terobit_render"]

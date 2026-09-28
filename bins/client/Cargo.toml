@@ -1,0 +1,9 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+terobit_core = { path = "../../crates/terobit_core" }
+terobit_render = { path = "../../crates/terobit_render" }
+tracing = "0.1.44"
