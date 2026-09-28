@@ -7,13 +7,13 @@ import sys
 
 # Constants
 CWD = os.getcwd() # Current Working Directory
-CLIENT_DIR = os.path.join(CWD, "client") # Path to the client dir
+CLIENT_DIR = os.path.join(CWD, "bins", "terobit_client") # Path to the client dir
 CLIENT_ASSETS_DIR = os.path.join(CLIENT_DIR, "assets")
 OUT_DIR = os.path.join(CWD, "out", "client")
 
 # Build the client
 print("Building client...")
-build_proc = subprocess.run(["cargo", "build", "--release", "-p", "client"], check=False)
+build_proc = subprocess.run(["cargo", "build", "--release", "-p", "terobit_client"], check=False)
 
 # Check if the build succeeded
 if build_proc.returncode != 0:
@@ -40,7 +40,7 @@ else:
     shutil.copytree(CLIENT_ASSETS_DIR, os.path.join(OUT_DIR, "assets"))
 
 # Get the binary name
-bin = "client"
+bin = "terobit_client"
 if os.name == "nt":
     bin += ".exe"
 

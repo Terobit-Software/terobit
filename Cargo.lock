@@ -1987,15 +1987,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
-name = "client"
-version = "0.1.0"
-dependencies = [
- "terobit_core",
- "terobit_render",
- "tracing",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4630,10 +4621,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server"
-version = "0.1.0"
-
-[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4889,6 +4876,15 @@ name = "terobit_assets"
 version = "0.1.0"
 
 [[package]]
+name = "terobit_client"
+version = "0.1.0"
+dependencies = [
+ "terobit_core",
+ "terobit_render",
+ "tracing",
+]
+
+[[package]]
 name = "terobit_core"
 version = "0.1.0"
 
@@ -4898,6 +4894,10 @@ version = "0.1.0"
 dependencies = [
  "bevy",
 ]
+
+[[package]]
+name = "terobit_server"
+version = "0.1.0"
 
 [[package]]
 name = "thiserror"
