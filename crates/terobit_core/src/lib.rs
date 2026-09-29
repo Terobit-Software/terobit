@@ -1,14 +1,26 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use bevy::{
+    app::{
+        PanicHandlerPlugin, PluginGroup, PluginGroupBuilder, TaskPoolPlugin,
+        TerminalCtrlCHandlerPlugin,
+    },
+    diagnostic::{DiagnosticsPlugin, FrameCountPlugin},
+    state::app::StatesPlugin,
+    time::TimePlugin,
+    transform::TransformPlugin,
+};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct TerobitCorePlugins;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl PluginGroup for TerobitCorePlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(PanicHandlerPlugin)
+            .add(TaskPoolPlugin::default())
+            .add(FrameCountPlugin)
+            .add(TimePlugin)
+            .add(TransformPlugin)
+            .add(DiagnosticsPlugin)
+            .add(TerminalCtrlCHandlerPlugin)
+            .add(StatesPlugin)
     }
 }

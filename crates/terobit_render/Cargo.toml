@@ -4,34 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# Default features pull in audio, UI, text, sprites, gltf, animation, picking,
-# gamepads, scenes, etc. Only enable what the 3D renderer actually uses.
-bevy = { version = "0.19.1", default-features = false, features = [
-    # app core
-    "std",
-    "multi_threaded",
-    "async_executor",
-    "bevy_asset",
-    "bevy_log",
-    "bevy_state",
-    # windowing + input
-    "bevy_winit",
-    "bevy_window",
-    "keyboard",
-    "mouse",
-    # 3D rendering
-    "bevy_render",
-    "bevy_core_pipeline",
-    "bevy_pbr",
-    "bevy_light",
-    "bevy_camera",
-    "bevy_mesh",
-    "bevy_material",
-    "bevy_shader",
-    "bevy_image",
-    "bevy_color",
-    # default Camera3d tonemapping (TonyMcMapface) needs these LUTs
-    "tonemapping_luts",
-    "zstd_rust",
-    "png",
-] }
+bevy = { version = "0.19.1", default-features=false, features = ["std", "multi_threaded", "bevy_render", "bevy_image", "bevy_mesh", "bevy_camera", "bevy_light", "bevy_core_pipeline", "bevy_post_process", "bevy_anti_alias", "bevy_sprite", "bevy_sprite_render", "bevy_pbr", "bevy_gltf", "bevy_gizmos", "bevy_gizmos_render", "bevy_mikktspace", "morph", "png", "hdr", "ktx2", "zstd_rust", "tonemapping_luts", "smaa_luts", "webgl2"] }

@@ -1,11 +1,19 @@
 [workspace]
 resolver = "3"
 members = [
-    "bins/terobit_client",
+    "bins/terobit_client", "bins/terobit_editor",
     "bins/terobit_server",
+    "crates/terobit_animation",
     "crates/terobit_assets",
+    "crates/terobit_audio",
     "crates/terobit_core",
-    "crates/terobit_render"
+    "crates/terobit_input",
+    "crates/terobit_logging",
+    "crates/terobit_picking",
+    "crates/terobit_render",
+    "crates/terobit_scene",
+    "crates/terobit_ui",
+    "crates/terobit_window",
 ]
 
 # Final release builds: slow to compile, maximum speed and minimum size.

@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use bevy::app::PluginGroup;
+use bevy::app::PluginGroupBuilder;
+use bevy::asset::AssetPlugin;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct TerobitAssetPlugins;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl PluginGroup for TerobitAssetPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>().add(AssetPlugin::default())
     }
 }

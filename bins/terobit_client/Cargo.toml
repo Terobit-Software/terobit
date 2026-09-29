@@ -4,6 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-terobit_core = { path = "../../crates/terobit_core" }
-terobit_render = { path = "../../crates/terobit_render" }
 tracing = "0.1.44"
+bevy = { version = "0.19.1", default-features=false}
+terobit_animation = { path = "../../crates/terobit_animation" }
+terobit_assets = { path = "../../crates/terobit_assets" }
+terobit_audio = { path = "../../crates/terobit_audio" }
+terobit_core = { path = "../../crates/terobit_core" }
+terobit_input = { path = "../../crates/terobit_input" }
+terobit_logging = { path = "../../crates/terobit_logging" }
+terobit_picking = { path = "../../crates/terobit_picking" }
+terobit_render = { path = "../../crates/terobit_render" }
+terobit_scene = { path = "../../crates/terobit_scene" }
+terobit_ui = { path = "../../crates/terobit_ui" }
+terobit_window = { path = "../../crates/terobit_window" }
