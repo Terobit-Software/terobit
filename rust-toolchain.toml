@@ -1,0 +1,12 @@
+[toolchain]
+
+targets = [
+    # macos
+    "aarch64-apple-darwin", # silicon
+    "x86_64-apple-darwin", # intel
+    # linux
+    "aarch64-unknown-linux-gnu", # arm
+    "x86_64-unknown-linux-gnu", # intel
+    # windows
+    "x86_64-pc-windows-msvc", # intel, amd
+]

@@ -1,2 +1,53 @@
 [workspace]
-members = ["client", "runtime"]
+resolver = "3"
+members = [
+    "bins/terobit_client", "bins/terobit_editor",
+    "bins/terobit_server",
+    "crates/runtime/runtime_animation",
+    "crates/runtime/runtime_assets",
+    "crates/runtime/runtime_audio",
+    "crates/runtime/runtime_core",
+    "crates/runtime/runtime_input",
+    "crates/runtime/runtime_logging",
+    "crates/runtime/runtime_pack",
+    "crates/runtime/runtime_picking",
+    "crates/runtime/runtime_render", "crates/runtime/runtime_sandbox",
+    "crates/runtime/runtime_scene",
+    "crates/runtime/runtime_ui",
+    "crates/runtime/runtime_window",
+]
+
+# Final release builds: slow to compile, maximum speed and minimum size.
+# cargo build --release
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Development release builds: optimized, but compiles quickly and incrementally.
+# cargo build --profile release-dev
+[profile.release-dev]
+inherits = "release"
+lto = "off"
+codegen-units = 256
+incremental = true
+strip = false
+debug = "line-tables-only"
+panic = "unwind"
+
+# Keep dev builds usable: optimize dependencies (bevy) but not our crates.
+[profile.dev.package."*"]
+opt-level = 3
+
+# CI builds: fastest possible compile, runtime speed doesn't matter.
+# Overrides the dev profile's opt-level=3 for dependencies and drops debuginfo,
+# which otherwise bloats every bevy-linked test binary and fills the runner disk.
+[profile.ci]
+inherits = "dev"
+debug = false
+incremental = false
+
+[profile.ci.package."*"]
+opt-level = 0

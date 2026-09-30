@@ -1,0 +1,7 @@
+[package]
+name = "runtime_animation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.19.1", default-features=false, features = ["std", "bevy_animation", "gltf_animation"] }
