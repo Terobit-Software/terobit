@@ -4527,6 +4527,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime_pack"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "runtime_picking"
 version = "0.1.0"
 dependencies = [

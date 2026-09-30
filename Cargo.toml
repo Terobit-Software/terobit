@@ -9,6 +9,7 @@ members = [
     "crates/runtime/runtime_core",
     "crates/runtime/runtime_input",
     "crates/runtime/runtime_logging",
+    "crates/runtime/runtime_pack",
     "crates/runtime/runtime_picking",
     "crates/runtime/runtime_render",
     "crates/runtime/runtime_scene",
