@@ -3,9 +3,9 @@ use bevy::{
     picking::DefaultPickingPlugins,
 };
 
-pub struct TerobitPickingPlugins;
+pub struct RuntimePickingPlugins;
 
-impl PluginGroup for TerobitPickingPlugins {
+impl PluginGroup for RuntimePickingPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>().add_group(DefaultPickingPlugins)
     }

@@ -5,9 +5,9 @@ use bevy::{
     input_focus::{InputDispatchPlugin, InputFocusPlugin},
 };
 
-pub struct TerobitInputPlugins;
+pub struct RuntimeInputPlugins;
 
-impl PluginGroup for TerobitInputPlugins {
+impl PluginGroup for RuntimeInputPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(InputPlugin)

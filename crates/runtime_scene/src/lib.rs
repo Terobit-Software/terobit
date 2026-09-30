@@ -4,9 +4,9 @@ use bevy::{
     world_serialization::WorldSerializationPlugin,
 };
 
-pub struct TerobitScenePlugins;
+pub struct RuntimeScenePlugins;
 
-impl PluginGroup for TerobitScenePlugins {
+impl PluginGroup for RuntimeScenePlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(WorldSerializationPlugin)

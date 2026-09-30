@@ -9,9 +9,9 @@ use bevy::{
     transform::TransformPlugin,
 };
 
-pub struct TerobitCorePlugins;
+pub struct RuntimeCorePlugins;
 
-impl PluginGroup for TerobitCorePlugins {
+impl PluginGroup for RuntimeCorePlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(PanicHandlerPlugin)

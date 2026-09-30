@@ -6,10 +6,10 @@ use bevy::{
     ui_widgets::UiWidgetsPlugins,
 };
 
-/// Must be added after `TerobitRenderPlugins`.
-pub struct TerobitUiPlugins;
+/// Must be added after `RuntimeRenderPlugins`.
+pub struct RuntimeUiPlugins;
 
-impl PluginGroup for TerobitUiPlugins {
+impl PluginGroup for RuntimeUiPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(TextPlugin)

@@ -3,9 +3,9 @@ use bevy::{
     audio::AudioPlugin,
 };
 
-pub struct TerobitAudioPlugins;
+pub struct RuntimeAudioPlugins;
 
-impl PluginGroup for TerobitAudioPlugins {
+impl PluginGroup for RuntimeAudioPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>().add(AudioPlugin::default())
     }

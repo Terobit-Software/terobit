@@ -6,10 +6,10 @@ use bevy::{
     winit::WinitPlugin,
 };
 
-/// Must be added after `TerobitAssetPlugins` (custom cursors need the `AssetServer`).
-pub struct TerobitWindowPlugins;
+/// Must be added after `RuntimeAssetPlugins` (custom cursors need the `AssetServer`).
+pub struct RuntimeWindowPlugins;
 
-impl PluginGroup for TerobitWindowPlugins {
+impl PluginGroup for RuntimeWindowPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(WindowPlugin::default())

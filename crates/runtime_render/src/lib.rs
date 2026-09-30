@@ -16,10 +16,10 @@ use bevy::{
     sprite_render::SpriteRenderPlugin,
 };
 
-/// Must be added after `TerobitAssetPlugins` and `TerobitWindowPlugins`.
-pub struct TerobitRenderPlugins;
+/// Must be added after `RuntimeAssetPlugins` and `RuntimeWindowPlugins`.
+pub struct RuntimeRenderPlugins;
 
-impl PluginGroup for TerobitRenderPlugins {
+impl PluginGroup for RuntimeRenderPlugins {
     fn build(self) -> PluginGroupBuilder {
         let group = PluginGroupBuilder::start::<Self>()
             .add(RenderPlugin::default())

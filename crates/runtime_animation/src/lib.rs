@@ -3,9 +3,9 @@ use bevy::{
     app::{PluginGroup, PluginGroupBuilder},
 };
 
-pub struct TerobitAnimationPlugins;
+pub struct RuntimeAnimationPlugins;
 
-impl PluginGroup for TerobitAnimationPlugins {
+impl PluginGroup for RuntimeAnimationPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>().add(AnimationPlugin)
     }
