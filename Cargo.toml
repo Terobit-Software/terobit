@@ -3,17 +3,17 @@ resolver = "3"
 members = [
     "bins/terobit_client", "bins/terobit_editor",
     "bins/terobit_server",
-    "crates/runtime_animation",
-    "crates/runtime_assets",
-    "crates/runtime_audio",
-    "crates/runtime_core",
-    "crates/runtime_input",
-    "crates/runtime_logging",
-    "crates/runtime_picking",
-    "crates/runtime_render",
-    "crates/runtime_scene",
-    "crates/runtime_ui",
-    "crates/runtime_window",
+    "crates/runtime/runtime_animation",
+    "crates/runtime/runtime_assets",
+    "crates/runtime/runtime_audio",
+    "crates/runtime/runtime_core",
+    "crates/runtime/runtime_input",
+    "crates/runtime/runtime_logging",
+    "crates/runtime/runtime_picking",
+    "crates/runtime/runtime_render",
+    "crates/runtime/runtime_scene",
+    "crates/runtime/runtime_ui",
+    "crates/runtime/runtime_window",
 ]
 
 # Final release builds: slow to compile, maximum speed and minimum size.

@@ -6,14 +6,14 @@ edition = "2024"
 [dependencies]
 tracing = "0.1.44"
 bevy = { version = "0.19.1", default-features=false}
-runtime_animation = { path = "../../crates/runtime_animation" }
-runtime_assets = { path = "../../crates/runtime_assets" }
-runtime_audio = { path = "../../crates/runtime_audio" }
-runtime_core = { path = "../../crates/runtime_core" }
-runtime_input = { path = "../../crates/runtime_input" }
-runtime_logging = { path = "../../crates/runtime_logging" }
-runtime_picking = { path = "../../crates/runtime_picking" }
-runtime_render = { path = "../../crates/runtime_render" }
-runtime_scene = { path = "../../crates/runtime_scene" }
-runtime_ui = { path = "../../crates/runtime_ui" }
-runtime_window = { path = "../../crates/runtime_window" }
+runtime_animation = { path = "../../crates/runtime/runtime_animation" }
+runtime_assets = { path = "../../crates/runtime/runtime_assets" }
+runtime_audio = { path = "../../crates/runtime/runtime_audio" }
+runtime_core = { path = "../../crates/runtime/runtime_core" }
+runtime_input = { path = "../../crates/runtime/runtime_input" }
+runtime_logging = { path = "../../crates/runtime/runtime_logging" }
+runtime_picking = { path = "../../crates/runtime/runtime_picking" }
+runtime_render = { path = "../../crates/runtime/runtime_render" }
+runtime_scene = { path = "../../crates/runtime/runtime_scene" }
+runtime_ui = { path = "../../crates/runtime/runtime_ui" }
+runtime_window = { path = "../../crates/runtime/runtime_window" }
