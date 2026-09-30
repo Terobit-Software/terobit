@@ -12,6 +12,7 @@ use bevy::{
     pbr::PbrPlugin,
     post_process::PostProcessPlugin,
     render::RenderPlugin,
+    render::pipelined_rendering::PipelinedRenderingPlugin,
     sprite::SpritePlugin,
     sprite_render::SpriteRenderPlugin,
 };
@@ -21,18 +22,14 @@ pub struct RuntimeRenderPlugins;
 
 impl PluginGroup for RuntimeRenderPlugins {
     fn build(self) -> PluginGroupBuilder {
-        let group = PluginGroupBuilder::start::<Self>()
+        PluginGroupBuilder::start::<Self>()
             .add(RenderPlugin::default())
             // after RenderPlugin so it knows the supported compressed texture formats
             .add(ImagePlugin::default())
             .add(MeshPlugin)
             .add(CameraPlugin)
-            .add(LightPlugin);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let group = group.add(bevy::render::pipelined_rendering::PipelinedRenderingPlugin);
-
-        group
+            .add(LightPlugin)
+            .add(PipelinedRenderingPlugin)
             .add(CorePipelinePlugin)
             .add(PostProcessPlugin)
             .add(AntiAliasPlugin)
