@@ -1,5 +1,5 @@
 [package]
-name = "terobit_render"
+name = "runtime_render"
 version = "0.1.0"
 edition = "2024"
 

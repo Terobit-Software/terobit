@@ -4483,6 +4483,85 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime_animation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_assets"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_audio"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_core"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_input"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_logging"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "runtime_picking"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_render"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_scene"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_ui"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "runtime_window"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4871,50 +4950,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "terobit_animation"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_assets"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_audio"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "terobit_client"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "terobit_animation",
- "terobit_assets",
- "terobit_audio",
- "terobit_core",
- "terobit_input",
- "terobit_logging",
- "terobit_picking",
- "terobit_render",
- "terobit_scene",
- "terobit_ui",
- "terobit_window",
+ "runtime_animation",
+ "runtime_assets",
+ "runtime_audio",
+ "runtime_core",
+ "runtime_input",
+ "runtime_logging",
+ "runtime_picking",
+ "runtime_render",
+ "runtime_scene",
+ "runtime_ui",
+ "runtime_window",
  "tracing",
-]
-
-[[package]]
-name = "terobit_core"
-version = "0.1.0"
-dependencies = [
- "bevy",
 ]
 
 [[package]]
@@ -4922,59 +4973,8 @@ name = "terobit_editor"
 version = "0.1.0"
 
 [[package]]
-name = "terobit_input"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_logging"
-version = "0.1.0"
-dependencies = [
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "terobit_picking"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_render"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_scene"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "terobit_server"
 version = "0.1.0"
-
-[[package]]
-name = "terobit_ui"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "terobit_window"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
 
 [[package]]
 name = "thiserror"

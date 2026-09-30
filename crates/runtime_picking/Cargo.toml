@@ -1,5 +1,5 @@
 [package]
-name = "terobit_picking"
+name = "runtime_picking"
 version = "0.1.0"
 edition = "2024"
 

@@ -1,5 +1,5 @@
 [package]
-name = "terobit_logging"
+name = "runtime_logging"
 version = "0.1.0"
 edition = "2024"
 

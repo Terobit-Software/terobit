@@ -1,5 +1,5 @@
 [package]
-name = "terobit_scene"
+name = "runtime_scene"
 version = "0.1.0"
 edition = "2024"
 

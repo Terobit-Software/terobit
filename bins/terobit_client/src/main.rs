@@ -1,17 +1,17 @@
 use bevy::prelude::*;
-use terobit_animation::TerobitAnimationPlugins;
-use terobit_assets::TerobitAssetPlugins;
-use terobit_audio::TerobitAudioPlugins;
-use terobit_core::TerobitCorePlugins;
-use terobit_input::TerobitInputPlugins;
-use terobit_picking::TerobitPickingPlugins;
-use terobit_render::TerobitRenderPlugins;
-use terobit_scene::TerobitScenePlugins;
-use terobit_ui::TerobitUiPlugins;
-use terobit_window::TerobitWindowPlugins;
+use runtime_animation::TerobitAnimationPlugins;
+use runtime_assets::TerobitAssetPlugins;
+use runtime_audio::TerobitAudioPlugins;
+use runtime_core::TerobitCorePlugins;
+use runtime_input::TerobitInputPlugins;
+use runtime_picking::TerobitPickingPlugins;
+use runtime_render::TerobitRenderPlugins;
+use runtime_scene::TerobitScenePlugins;
+use runtime_ui::TerobitUiPlugins;
+use runtime_window::TerobitWindowPlugins;
 
 fn main() {
-    let _guard = terobit_logging::init_logging();
+    let _guard = runtime_logging::init_logging();
 
     // order matters: assets before window/render, render before ui
     App::new()

@@ -1,5 +1,5 @@
 [package]
-name = "terobit_audio"
+name = "runtime_audio"
 version = "0.1.0"
 edition = "2024"
 

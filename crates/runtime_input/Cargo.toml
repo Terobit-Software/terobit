@@ -1,5 +1,5 @@
 [package]
-name = "terobit_input"
+name = "runtime_input"
 version = "0.1.0"
 edition = "2024"
 
