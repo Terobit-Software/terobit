@@ -1,7 +1,0 @@
-realm_id: u32 # the origin realm id
-owner_id: u64 # the id of the developer of the package
-user_id: u64 # the id of the user who the package was made for, user id of 0 means any user can run - note this for security reasons
-pack_version: u32 # version of the package, outdated versions cannot be used for online - note: this is not the version of the tbman or the tbpk format
-file_count: u16 # the number of files in the package
-asset_[[ origin:id ]]_file: u16 # the file number of [[ origin:id ]]'s resource file
-file_path_[[ u16 ]]: string # the [[ NUMBER ]]'th file path
