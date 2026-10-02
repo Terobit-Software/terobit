@@ -4,12 +4,16 @@ use bevy::prelude::*;
 
 #[derive(Resource, Default)]
 pub struct RuntimeFlags {
-    pub flags: HashMap<String, Vec<String>>,
+    flags: HashMap<String, Vec<String>>,
 }
 
 impl RuntimeFlags {
     pub fn read() -> Self {
         Self::from_args(std::env::args().skip(1))
+    }
+
+    pub fn get_flags(&self) -> &HashMap<String, Vec<String>> {
+        &self.flags
     }
 
     pub fn from_args(args: impl IntoIterator<Item = String>) -> Self {
