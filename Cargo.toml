@@ -26,6 +26,7 @@ bevy = { version = "0.19.1", default-features = false }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
+zstd = "0.14.0"
 
 # Internal crates
 runtime_animation = { path = "crates/runtime/runtime_animation" }

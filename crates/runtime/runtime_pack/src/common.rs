@@ -3,7 +3,7 @@ enum MagicValue {
     /// terobit pack file
     TBPK,
     /// terobit manifest file
-    TBMN,
+    TBMAN,
     /// terobit signature file
     TBSG,
     /// terobit license file
