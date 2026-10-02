@@ -14,7 +14,7 @@ impl Plugin for ClientDevPlugin {
                 "\n\n--------------------------------\nClient running in DEVELOPER mode\n--------------------------------\n"
             );
         } else {
-            tracing::info!("client running in normal mode");
+            tracing::info!("Client running in normal mode");
         }
     }
 }
