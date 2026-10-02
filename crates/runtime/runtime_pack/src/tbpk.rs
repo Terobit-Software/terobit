@@ -77,3 +77,5 @@ pub struct FileLocation {
     /// where the file starts in that chunk's raw bytes
     offset_in_chunk: u32,
 }
+
+pub const CURRENT_VERSION: u16 = 1;

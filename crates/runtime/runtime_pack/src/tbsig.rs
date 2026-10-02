@@ -14,3 +14,5 @@ pub struct SignatureV1 {
     /// ed25519 by cert.public_key over hash(PACK, manifest bytes)
     signature: [u8; 64],
 }
+
+pub const CURRENT_VERSION: u16 = 1;

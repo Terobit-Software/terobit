@@ -72,3 +72,5 @@ pub struct IndexRef {
     /// hash(INDEX, index bytes), see integrity
     hash: [u8; 32],
 }
+
+pub const CURRENT_VERSION: u16 = 1;

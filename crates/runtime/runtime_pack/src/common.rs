@@ -24,5 +24,5 @@ pub struct CommonHeader {
     /// reserved for file type
     reserved: u32,
     /// in bytes the length of the body after the header (file length is `header_length + body_length`)
-    body_length: u32,
+    body_length: u64,
 }
