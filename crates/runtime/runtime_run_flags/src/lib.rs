@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 #[derive(Resource, Default)]
 pub struct RuntimeFlags {
-    flags: HashMap<String, Vec<String>>,
+    pub flags: HashMap<String, Vec<String>>,
 }
 
 impl RuntimeFlags {
