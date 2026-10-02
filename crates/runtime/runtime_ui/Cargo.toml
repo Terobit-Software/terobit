@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.19.1", default-features=false, features = ["std", "bevy_text", "bevy_ui", "bevy_ui_render", "bevy_ui_widgets", "default_font"] }
+bevy = { workspace = true, features = ["std", "bevy_text", "bevy_ui", "bevy_ui_render", "bevy_ui_widgets", "default_font"] }

@@ -17,6 +17,25 @@ members = [
     "crates/runtime/runtime_window",
 ]
 
+[workspace.dependencies]
+bevy = { version = "0.19.1", default-features = false }
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = "0.3.23"
+
+# Internal crates
+runtime_animation = { path = "crates/runtime/runtime_animation" }
+runtime_assets = { path = "crates/runtime/runtime_assets" }
+runtime_audio = { path = "crates/runtime/runtime_audio" }
+runtime_core = { path = "crates/runtime/runtime_core" }
+runtime_input = { path = "crates/runtime/runtime_input" }
+runtime_logging = { path = "crates/runtime/runtime_logging" }
+runtime_picking = { path = "crates/runtime/runtime_picking" }
+runtime_render = { path = "crates/runtime/runtime_render" }
+runtime_scene = { path = "crates/runtime/runtime_scene" }
+runtime_ui = { path = "crates/runtime/runtime_ui" }
+runtime_window = { path = "crates/runtime/runtime_window" }
+
 # Final release builds: slow to compile, maximum speed and minimum size.
 # cargo build --release
 [profile.release]

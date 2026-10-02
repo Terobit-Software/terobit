@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tracing-appender = "0.2.5"
-tracing-subscriber = "0.3.23"
-tracing = "0.1.44"
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true

@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.19.1", default-features=false, features = ["std", "async_executor", "multi_threaded", "bevy_state"] }
+bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state"] }
