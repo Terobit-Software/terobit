@@ -1985,6 +1985,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
+name = "client_dev"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "runtime_run_flags",
+ "tracing",
+]
+
+[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4973,6 +4982,7 @@ name = "terobit_client"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "client_dev",
  "runtime_animation",
  "runtime_assets",
  "runtime_audio",

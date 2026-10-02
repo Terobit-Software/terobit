@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use client_dev::ClientDevPlugin;
 use runtime_animation::RuntimeAnimationPlugins;
 use runtime_assets::RuntimeAssetPlugins;
 use runtime_audio::RuntimeAudioPlugins;
@@ -25,5 +26,7 @@ fn main() {
         .add_plugins(RuntimeAnimationPlugins)
         .add_plugins(RuntimeAudioPlugins)
         .add_plugins(RuntimePickingPlugins)
+        // add client plugins AFTER runtime
+        .add_plugins(ClientDevPlugin)
         .run();
 }

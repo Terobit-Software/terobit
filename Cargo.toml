@@ -4,6 +4,7 @@ members = [
     "bins/terobit_client",
     "bins/terobit_editor",
     "bins/terobit_server",
+    "crates/client/client_dev",
     "crates/runtime/runtime_animation",
     "crates/runtime/runtime_assets",
     "crates/runtime/runtime_audio",
@@ -39,6 +40,7 @@ runtime_scene = { path = "crates/runtime/runtime_scene" }
 runtime_ui = { path = "crates/runtime/runtime_ui" }
 runtime_window = { path = "crates/runtime/runtime_window" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
+client_dev = { path = "crates/client/client_dev" }
 
 # Final release builds: slow to compile, maximum speed and minimum size.
 # cargo build --release
