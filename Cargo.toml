@@ -12,7 +12,7 @@ members = [
     "crates/runtime/runtime_logging",
     "crates/runtime/runtime_pack",
     "crates/runtime/runtime_picking",
-    "crates/runtime/runtime_render",
+    "crates/runtime/runtime_render", "crates/runtime/runtime_run_flags",
     "crates/runtime/runtime_sandbox",
     "crates/runtime/runtime_scene",
     "crates/runtime/runtime_ui",
