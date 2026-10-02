@@ -2,6 +2,7 @@
 # Usage: python scripts/run_client.py [--final]
 #   (default) builds with the fast-compiling "release-dev" profile
 #   --final   builds with the fully optimized "release" profile
+#   the client is run with --dev unless --final is passed
 
 import os
 import shutil
@@ -13,7 +14,9 @@ CWD = os.getcwd() # Current Working Directory
 CLIENT_DIR = os.path.join(CWD, "bins", "terobit_client") # Path to the client dir
 CLIENT_ASSETS_DIR = os.path.join(CLIENT_DIR, "assets")
 OUT_DIR = os.path.join(CWD, "out", "client")
-PROFILE = "release" if "--final" in sys.argv[1:] else "release-dev"
+FINAL = "--final" in sys.argv[1:]
+PROFILE = "release" if FINAL else "release-dev"
+CLIENT_FLAGS = [] if FINAL else ["--dev"] # Runtime flags passed to the client
 
 # Build the client
 print("Building client with profile", PROFILE+"...")
@@ -54,7 +57,7 @@ shutil.copy(os.path.join(CWD, "target", PROFILE, bin), os.path.join(OUT_DIR, bin
 
 # Start run
 print("Running", bin+"...")
-run_proc = subprocess.run([os.path.join(OUT_DIR, bin)], check=False, cwd=OUT_DIR)
+run_proc = subprocess.run([os.path.join(OUT_DIR, bin), *CLIENT_FLAGS], check=False, cwd=OUT_DIR)
 
 # Check if the run succeeded
 if run_proc.returncode != 0:
