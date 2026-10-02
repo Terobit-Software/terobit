@@ -1,7 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "bins/terobit_client", "bins/terobit_editor",
+    "bins/terobit_client",
+    "bins/terobit_editor",
     "bins/terobit_server",
     "crates/runtime/runtime_animation",
     "crates/runtime/runtime_assets",
@@ -11,7 +12,8 @@ members = [
     "crates/runtime/runtime_logging",
     "crates/runtime/runtime_pack",
     "crates/runtime/runtime_picking",
-    "crates/runtime/runtime_render", "crates/runtime/runtime_sandbox",
+    "crates/runtime/runtime_render",
+    "crates/runtime/runtime_sandbox",
     "crates/runtime/runtime_scene",
     "crates/runtime/runtime_ui",
     "crates/runtime/runtime_window",
