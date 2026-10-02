@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features=["std"]}
 zstd.workspace = true
+postcard.workspace = true
+serde.workspace = true
