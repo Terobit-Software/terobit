@@ -8,6 +8,7 @@ use bevy::{
     time::TimePlugin,
     transform::TransformPlugin,
 };
+use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
 
@@ -22,5 +23,6 @@ impl PluginGroup for RuntimeCorePlugins {
             .add(DiagnosticsPlugin)
             .add(TerminalCtrlCHandlerPlugin)
             .add(StatesPlugin)
+            .add(RuntimeRunFlagsPlugin)
     }
 }

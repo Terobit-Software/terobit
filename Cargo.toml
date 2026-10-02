@@ -12,7 +12,8 @@ members = [
     "crates/runtime/runtime_logging",
     "crates/runtime/runtime_pack",
     "crates/runtime/runtime_picking",
-    "crates/runtime/runtime_render", "crates/runtime/runtime_run_flags",
+    "crates/runtime/runtime_render",
+    "crates/runtime/runtime_run_flags",
     "crates/runtime/runtime_sandbox",
     "crates/runtime/runtime_scene",
     "crates/runtime/runtime_ui",
@@ -37,6 +38,7 @@ runtime_render = { path = "crates/runtime/runtime_render" }
 runtime_scene = { path = "crates/runtime/runtime_scene" }
 runtime_ui = { path = "crates/runtime/runtime_ui" }
 runtime_window = { path = "crates/runtime/runtime_window" }
+runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
 
 # Final release builds: slow to compile, maximum speed and minimum size.
 # cargo build --release

@@ -4508,6 +4508,7 @@ name = "runtime_core"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "runtime_run_flags",
 ]
 
 [[package]]
