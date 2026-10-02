@@ -1,75 +1,117 @@
 # terobit pack - .tbpk
 
-the container a game ships in. holds the manifest, its signature, and every file the
-manifest lists. it comes in two forms: an **archive** for anything distributed, and a
-**dev directory** for local development.
+everything one side needs to run one version of a realm: the manifest, its signature, an
+index, and the file data. file data is split into chunks that can each be read and checked
+on their own, so:
 
-the pack itself is unversioned because it is a standard archive. everything that needs a
-version (the manifest, the signature) carries its own [header](../common/HEADER.md).
+- reading one file never means reading the whole pack
+- reading part of a big file only touches the chunks that cover that part
+- memory use is bounded by the chunk size, however big the pack is
+
+current version: v1 (draft)
+oldest supported: v1
+
+## versions
+
+- [v1](v1.md)
 
 ## client and server packs
 
-every publish produces two archive packs from the same dev directory:
+every publish builds two packs from one dev directory. the manifest's signed `target`
+tells them apart.
 
-| pack        | `target` | contains                                 | who gets it              |
-|-------------|----------|------------------------------------------|--------------------------|
-| client pack | `Client` | shared assets, client assets and scripts | players                  |
-| server pack | `Server` | shared assets, server assets and scripts | game servers only, never players |
+| pack   | contains                                  | who gets it                                                                 |
+|--------|-------------------------------------------|-----------------------------------------------------------------------------|
+| client | shared + client assets and scripts        | players who can play the realm (it's free, or they own it)                  |
+| server | shared + server assets and scripts        | whoever hosts it: official servers (one docker image per realm), developers, community hosts, and players for p2p and offline play |
 
-server scripts and server assets are never in a client pack in any form, so nothing a
-player downloads can leak server logic. the manifest's `target` field (covered by the
-signature) is what a reader trusts, not the filename.
+server assets and scripts are never in a client pack. if a realm allows p2p or offline
+play though, players get its server pack so they can host, and its server code isn't
+secret from them.
 
-suggested filenames: `<realm_id>-<pack_version>.client.tbpk` and
-`<realm_id>-<pack_version>.server.tbpk`.
+suggested names: `<realm_id>-<pack_version>.client.tbpk` and
+`<realm_id>-<pack_version>.server.tbpk`. readers trust the manifest's `target`, never the
+filename.
 
-## contents
+## forms
+
+a pack exists in three forms. only the archive is a stable, versioned format.
+
+### archive
+
+a single `.tbpk` file, laid out as in [v1](v1.md). used to upload a realm to the platform,
+move a game between machines offline, and share with p2p peers.
+
+the pack tool writes archives unsigned (empty signature section). the platform adds the
+signature when it publishes. everything except the platform's upload service rejects
+unsigned archives.
+
+### installed
+
+how a client keeps games on disk. this is internal to the client and **not** a stable
+format: it can change between client versions without a format version bump.
 
 ```
-manifest.tbman      required, see tbman
-manifest.tbsig      required in archives, see tbsig
-<files>             every file listed in the manifest, at its listed path
+store/
+  chunks/<first 2 hex chars>/<hash as hex>       one file per chunk, stored bytes as-is
+  packs/<realm_id>/<target>/<pack_version>/
+    manifest.tbman
+    manifest.tbsig
+    index
 ```
 
-nothing else is allowed. a file in the pack that the manifest doesn't list is an error, so
-a pack can't smuggle in data that skipped hashing.
+- chunks are keyed by hash, so a chunk shared between versions or realms is stored once
+- an update downloads the new manifest, signature and index, then only the chunks the
+  store doesn't already have. a small patch to a 20 gb game downloads megabytes, not 20 gb
+- the old version is deleted only after the new one is complete, then chunks nothing
+  references are removed. an interrupted update leaves the old version playable
+- chunks are hashed again on every read (blake3 is fast enough), which also catches disk
+  corruption and local tampering
+- files are read with positional reads, never memory mapped. on windows a mapped file
+  can't be replaced while the game runs, and on macos and linux a mapped file that shrinks
+  crashes the process
+- an install can be exported to an archive, and an archive imported into the store, for
+  moving games offline
 
-## archive form
+### dev directory
 
-a `tar` archive compressed with [zstd](https://facebook.github.io/zstd/), renamed to
-`.tbpk`. zstd decompresses several times faster than gzip at a similar size, which matters
-for load times.
+a plain directory, used while building a game. it holds
+[`manifest.toml`](../tbman/source.md) and the files it references, for both sides. no
+manifest.tbman, no index, no signature.
 
-- `manifest.tbman` must be the first entry and `manifest.tbsig` the second, so the reader
-  can verify the signature and `target` before extracting anything else
-- only regular files and directories. symlinks, hardlinks and devices are rejected
-- every path follows the [path rules](../common/CONVENTIONS.md#paths-inside-a-pack)
-- extracted size is checked against the manifest's file sizes while extracting, so a
-  compression bomb stops at the first file that goes over
+dev directories load in two places:
 
-## dev directory form
+- **now:** the client and server with `--dev`. the flag only exists in builds compiled with
+  the `dev` cargo feature. release binaries are never built with it, so no released client
+  or server can load a dev directory
+- **later:** the editor, which is the client plus tools and replaces `--dev`. once it exists,
+  the `dev` feature stays in the code but unused, in case it's needed again. a released
+  editor should only play a dev directory for a developer of that `realm_id` (checked
+  offline with a signed token), so a shared dev directory can't be used to pirate a realm
 
-a plain directory, used while building a game. it holds `manifest.toml` (the
-[human-written source](../tbman/source.md)) instead of `manifest.tbman`, and no signature.
-one dev directory holds both sides.
+`--dev` is for local testing only:
 
-- the dev client only loads the shared and `[client.*]` entries, the dev server only the
-  shared and `[server.*]` entries, so dev behaves like production
-- hashes are not checked, so editing an asset needs no rebuild
-- only loads when started with the dev flag
-- never accepted for online play
+- never logs into an account
+- never connects to any remote server or to other players. the dev client only connects to
+  a dev server on the same machine
+- the dev client loads only shared and `[client.*]` entries, the dev server only shared and
+  `[server.*]` entries, so dev behaves like production
+- hashes, signatures and licenses aren't checked, so editing a file needs no rebuild
+- path rules are enforced the same as in built packs
 
 ## building
 
-the pack tool turns a dev directory into both archives:
+the pack tool turns a dev directory into two archives:
 
-1. read `manifest.toml`
-2. check every listed file exists and every path is valid
-3. for each target, collect that target's entries
-4. hash every file, record sizes
-5. write each target's `manifest.tbman`
-6. write each archive in the order above
+1. read `manifest.toml` and check every path
+2. for each target, collect that target's entries and files
+3. split files into chunks and compress them (see [v1](v1.md#writing-chunks))
+4. write the index, hash it, and write the manifest with that hash
+5. write the archive with an empty signature section
 
-the tool lives in `runtime_pack` (planned) so the same code that reads packs also writes
-them. there is only one implementation of the format to keep correct. signing happens on
-the platform when a realm is published, not in this tool.
+the tool lives in `runtime_pack` (planned), so the same code that reads packs also writes
+them and there is only one implementation of the format to keep correct.
+
+## changelog
+
+- v1: own chunked format with an index. replaces the renamed `.tar.gz`

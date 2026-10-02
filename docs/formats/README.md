@@ -1,30 +1,40 @@
 # terobit file formats
 
-reference for every file terobit reads or writes. the client, server and editor all
-follow these docs, so the docs are the source of truth. if code and docs disagree, one of
-them is a bug.
+reference for every custom file terobit reads or writes. the client, server, editor and
+platform all follow these docs, so the docs are the source of truth. if code and docs
+disagree, one of them is a bug.
 
 ## formats
 
-| ext      | name      | what it is                                                     | current | status |
-|----------|-----------|----------------------------------------------------------------|---------|--------|
-| `.tbpk`  | pack      | the container a game ships in, one for client, one for server  | -       | draft  |
-| `.tbman` | manifest  | what is in a pack, who owns it, hashes of every file           | v1      | draft  |
-| `.tbsig` | signature | signature over a manifest                                      | v1      | draft  |
-| `.tbres` | resource  | undefined                                                      | -       | stub   |
+| ext      | magic  | what it is                                                    | current | status |
+|----------|--------|---------------------------------------------------------------|---------|--------|
+| `.tbpk`  | `TBPK` | pack: everything one side (client or server) needs to run a realm | v1  | draft  |
+| `.tbman` | `TBMN` | manifest: what is in a pack and who it belongs to             | v1      | draft  |
+| `.tbsig` | `TBSG` | signature: proves a manifest came from the platform           | v1      | draft  |
+| `.tblic` | `TBLC` | license: proves a user owns a realm, checked offline          | v1      | draft  |
+| `.tbres` | `TBRS` | resource, undefined                                           | -       | stub   |
 
-scripts are plain `.wasm` files listed in the manifest. there is no terobit wrapper around
-them because wasm already has its own header and version (see
-[tbman v1](tbman/v1.md#scripts)). client and server scripts ship in separate packs (see [tbpk](tbpk/REF.md#client-and-server-packs)).
+standard formats (`.wasm`, `.glb`, `.png`, ...) are stored in packs as-is and aren't
+documented here. scripts are plain `.wasm` modules, see [tbman v1](tbman/v1.md#scripts).
+
+## how they fit together
+
+```
+root key ─> certificate ─> .tbsig ─> .tbman ─> pack index ─> every chunk of every file
+root key ─> certificate ─> .tblic ─> "user X owns realm Y"
+```
+
+a `.tbpk` holds one manifest, its signature, its index and the file data. licenses live on
+the player's machine, separate from packs. everything in the chain can be checked offline.
 
 ## shared rules
 
 read these first. every format builds on them, so no format repeats them.
 
-- [conventions](common/CONVENTIONS.md): byte order, types, strings, ids, paths
-- [header](common/HEADER.md): the 24 byte header every binary terobit file starts with
-- [integrity](common/INTEGRITY.md): hashing and signing
-- [versioning](common/VERSIONING.md): how formats change without breaking old packs
+- [conventions](common/CONVENTIONS.md): byte order, encoding, ids, path rules
+- [header](common/HEADER.md): the 24 byte header every terobit file starts with
+- [integrity](common/INTEGRITY.md): hashing, keys, signing, revocation, offline rules
+- [versioning](common/VERSIONING.md): how formats change without breaking old games
 
 ## layout
 
@@ -41,6 +51,6 @@ docs/formats/
 
 ## adding a format
 
-1. pick a 3-4 letter extension starting with `tb` and a 4 byte magic (see [header](common/HEADER.md#magics))
+1. extension: `tb` plus 2-3 letters. magic: 4 bytes starting with `TB`
 2. create `<ext>/REF.md` and `<ext>/v1.md` from an existing format
-3. add a row to the table above and the magic table in [header](common/HEADER.md#magics)
+3. add a row to the table above and to the magic table in [header](common/HEADER.md#magics)

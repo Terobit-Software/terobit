@@ -1,10 +1,12 @@
 # terobit signature - .tbsig
 
-an ed25519 signature over a pack's `manifest.tbman`. it proves the manifest came from the
-platform and wasn't changed, and the manifest's hashes then cover every other file in the
-pack. see [integrity](../common/INTEGRITY.md) for how signing fits together.
+proves a pack's `manifest.tbman` came from the platform and wasn't changed. the manifest
+then covers every other byte of the pack through the index hash. see
+[integrity](../common/INTEGRITY.md) for the whole chain of trust.
 
-every archive pack has exactly one, at `manifest.tbsig`. dev directories have none.
+every published pack has exactly one, stored in the pack's signature section and next to
+the manifest in a client's install. carries the certificate for the key that signed it,
+so it can be checked offline. dev directories have none.
 
 current version: v1 (draft)
 oldest supported: v1
@@ -15,4 +17,4 @@ oldest supported: v1
 
 ## changelog
 
-- v1: initial version. ed25519, platform keys only
+- v1: initial version. ed25519, signing key certified by a root key

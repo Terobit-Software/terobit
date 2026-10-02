@@ -2,12 +2,13 @@
 
 the human-written manifest that lives in a dev directory. you write this, the pack tool
 compiles it into **two** [`manifest.tbman`](v1.md) files, one for the client pack and one
-for the server pack. it has no sizes, hashes or file indexes, since the tool works those
-out.
+for the server pack. it has no sizes, hashes or indexes, since the tool works those out.
 
-the client and server read this directly when loading a dev directory with the dev flag,
-so you can edit assets and scripts without rebuilding anything. each side only reads its
-own sections, the same as it would from a built pack.
+with `--dev` (only in builds with the `dev` feature), the client and server read this
+directly from the dev directory, so you can edit assets and scripts without rebuilding
+anything. each side only reads its own sections, the same as it would from a built pack.
+see
+[tbpk dev directories](../tbpk/REF.md#dev-directory).
 
 ## example
 
@@ -15,8 +16,7 @@ own sections, the same as it would from a built pack.
 realm_id = 1
 owner_id = 1
 pack_version = 1
-runtime_api = 1
-# allowed_user = 42     # leave out to let anyone run it
+access = "licensed"     # or "free"
 
 # assets both sides need, copied into both packs
 [assets]
@@ -45,8 +45,7 @@ runtime_api = 1
 | `realm_id`         | yes      | both packs                                   |
 | `owner_id`         | yes      | both packs                                   |
 | `pack_version`     | yes      | both packs                                   |
-| `runtime_api`      | yes      | both packs                                   |
-| `allowed_user`     | no       | both packs, none if missing                  |
+| `access`           | yes      | both packs, `"free"` or `"licensed"`         |
 | `[assets]`         | no       | `assets` of both packs, id = path            |
 | `[client.assets]`  | no       | `assets` of the client pack only             |
 | `[client.scripts]` | no       | `scripts` of the client pack only, id = path |
@@ -57,7 +56,9 @@ an id can't appear in both `[assets]` and a side's `[*.assets]`. the client and 
 namespaces are separate, so `self:main` can be a script on both sides.
 
 each pack's `files` is built from every path referenced by that pack's entries,
-deduplicated and sorted. a file that nothing references isn't packed.
+deduplicated and sorted. a file that nothing references isn't packed. every path must
+follow the [path rules](../common/CONVENTIONS.md#paths-inside-a-pack), checked by both the
+dev loader and the pack tool.
 
 code shared by both sides is shared at the source level (a rust crate both scripts depend
 on) and compiled into each side's `.wasm` separately.

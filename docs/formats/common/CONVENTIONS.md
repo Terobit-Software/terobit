@@ -24,11 +24,16 @@ postcard rules worth knowing when reading a version doc:
 | `Option<T>`        | `0` for none, `1` then `T` for some                 |
 | `enum`             | varint variant index, then the variant's fields     |
 
-postcard is not self-describing. adding, removing or reordering a field changes the layout,
-so it needs a new version (see [versioning](VERSIONING.md)).
+postcard is not self-describing. adding, removing or reordering a field or enum variant
+changes the layout, so it needs a new version (see [versioning](VERSIONING.md)).
 
-the fixed [header](HEADER.md) is the only part not encoded with postcard, so a reader can
-always identify a file and its version without knowing the body layout.
+exceptions, all fixed width little endian so they never change shape:
+
+- the [common header](HEADER.md)
+- the [tbpk table of contents](../tbpk/v1.md#table-of-contents), so a reader can seek
+  without decoding anything
+- the byte strings that get signed (see [integrity](INTEGRITY.md)), so there is exactly one
+  way to rebuild them
 
 ## strings
 
@@ -36,25 +41,36 @@ utf-8, never null terminated. length comes from the encoding.
 
 ## ids
 
-all platform ids (`realm_id`, `owner_id`, user ids) are `u64`. `u32` runs out at ~4 billion,
-and a ugc platform can pass that for things like assets or sessions. varint encoding means
-small ids still cost 1-2 bytes, so there is no size reason to use smaller types.
-
-ids are never 0. use `Option` for "no id".
+all platform ids (`realm_id`, `owner_id`, `user_id`) are `u64`. varint encoding means small
+ids still cost 1-2 bytes, so there is no size reason to use smaller types. ids are never 0.
 
 ## paths inside a pack
 
-- utf-8, `/` separated, relative to the pack root (`models/castle.glb`)
-- no leading `/`, no `..` segments, no `.` segments, no empty segments, no `\`
-- no symlinks, devices or other special files
-- compared byte for byte (case sensitive), but two paths that differ only in case are
-  rejected so packs behave the same on case-insensitive filesystems
+a path is 1-16 segments joined by `/`, at most 255 bytes in total.
 
-readers **must** reject a pack that breaks any of these. this blocks path traversal attacks
-where a pack writes outside its own directory.
+each segment:
 
-## asset ids
+- is 1-64 bytes, using only `a-z`, `0-9`, `.`, `_`, `-`
+- doesn't start or end with `.` (rules out `.`, `..`, hidden files, and the trailing dots
+  windows strips)
+- isn't a windows reserved name, with or without an extension: `con`, `prn`, `aux`, `nul`,
+  `com1`-`com9`, `lpt1`-`lpt9` (so `con.png` is rejected too)
 
-`namespace:name`, both parts lowercase `a-z`, `0-9`, `_`, `-`, `/`. the namespace is the
-origin of the asset (for example `self` for assets in this pack). names are what scripts use
-to refer to assets, so scripts never touch file paths directly.
+so: no uppercase, no spaces, no unicode, no `\`, no leading `/`, no empty segments.
+
+this makes every path mean the same file on windows, macos and linux. there are no case
+or unicode normalization questions, and no path can point outside the pack.
+
+readers must reject a pack with any invalid path. the pack tool and the dev loader enforce
+the same rule, so mistakes show up during development and not at publish.
+
+the rule starts strict on purpose: allowing more characters later doesn't break existing
+packs, but tightening it would.
+
+## asset and script ids
+
+`namespace:name`. both parts use `a-z`, `0-9`, `_`, `-`, and the name may also use `/`.
+
+`self` is the only namespace in v1 and means "this pack". other namespaces are reserved
+for later, such as depending on assets from another realm. scripts refer to assets by id,
+never by file path.

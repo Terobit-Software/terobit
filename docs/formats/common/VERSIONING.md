@@ -36,6 +36,24 @@ only the loader knows old versions exist. the rest of the engine sees the latest
 
 writers always write the latest version. there is no writing old versions.
 
+## golden files
+
+every released version of every format has sample files committed to the repo, along with
+the values they should decode to. a test decodes each one and checks the values, and stays
+until that version is dropped. if one fails, either a decoder broke or a layout changed
+without a version bump, and both are bugs.
+
+while a version is still draft, its golden files can be regenerated freely.
+
+## things that never change
+
+some values are baked into data that outlives any version and can never be edited, only
+replaced with new ones:
+
+- hash context strings (see [integrity](INTEGRITY.md#hashing))
+- magics (see [header](HEADER.md#magics))
+- the zstd version and level of a released manifest version
+
 ## dropping support
 
 each `REF.md` lists the oldest version still read. raising it needs every published pack on
