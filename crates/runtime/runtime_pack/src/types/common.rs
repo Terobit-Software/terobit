@@ -1,5 +1,5 @@
 /// the magic value of the file
-enum MagicValue {
+pub enum MagicValue {
     /// terobit pack file
     TBPK,
     /// terobit manifest file
@@ -14,15 +14,15 @@ enum MagicValue {
 
 pub struct CommonHeader {
     /// the magic value of the file
-    magic: MagicValue,
+    pub magic: MagicValue,
     /// the version of the file type, starts at 1
-    version: u16,
+    pub version: u16,
     /// reserved for file type
-    flags: u16,
+    pub flags: u16,
     /// length of the header from the start of the file in bytes
-    header_length: u32,
+    pub header_length: u32,
     /// reserved for file type
-    reserved: u32,
+    pub reserved: u32,
     /// in bytes the length of the body after the header (file length is `header_length + body_length`)
-    body_length: u64,
+    pub body_length: u64,
 }

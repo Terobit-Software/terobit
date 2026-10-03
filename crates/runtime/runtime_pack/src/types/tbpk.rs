@@ -78,4 +78,4 @@ pub struct FileLocation {
     offset_in_chunk: u32,
 }
 
-pub const CURRENT_VERSION: u16 = 1;
+pub const TBPK_CURRENT_VERSION: u16 = 1;

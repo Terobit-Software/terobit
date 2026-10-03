@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
+members = ["bins/tbpk_generator",
     "bins/terobit_client",
     "bins/terobit_editor",
     "bins/terobit_server",

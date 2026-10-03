@@ -73,4 +73,4 @@ pub struct IndexRef {
     hash: [u8; 32],
 }
 
-pub const CURRENT_VERSION: u16 = 1;
+pub const TBMAN_CURRENT_VERSION: u16 = 1;

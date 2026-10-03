@@ -7,12 +7,14 @@ use tracing_subscriber::{Layer, fmt};
 
 #[inline]
 /// Returns the directory where log files should be stored
-fn get_log_directory() -> PathBuf {
+fn get_log_directory(first_name: &'static str, last_name: &'static str) -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         Path::new(&format!(
-            "/Users/{}/Library/Logs/TerobitClient/",
-            std::env::var("USER").unwrap()
+            "/Users/{}/Library/Logs/{}{}/",
+            std::env::var("USER").unwrap(),
+            first_name,
+            last_name
         ))
         .to_path_buf()
         .into() // add this to make it a `PathBuf` because its crying for some reason
@@ -20,20 +22,26 @@ fn get_log_directory() -> PathBuf {
     // these are placeholders
     #[cfg(target_os = "linux")]
     {
-        Path::new("~/.local/share/terobit/logs/").to_path_buf()
+        Path::new(format!(
+            "~/.local/share/{}{}/logs/",
+            first_name.to_lowercase(),
+            last_name.to_lowercase()
+        ))
+        .to_path_buf()
     }
     #[cfg(target_os = "windows")]
     {
         let base = std::env::var("LOCALAPPDATA").expect("LOCALAPPDATA not set");
         PathBuf::from(base)
-            .join("terobit")
-            .join("client")
+            .join(first_name.to_lowercase())
+            .join(last_name.to_lowercase())
             .join("logs")
     }
 }
 
-pub fn init_logging() -> WorkerGuard {
-    let log_dir = get_log_directory();
+/// first name should be formated as `Name` NOT `name` or `NAME`. Only the first letter should be capitalized
+pub fn init_logging(first_name: &'static str, last_name: &'static str) -> WorkerGuard {
+    let log_dir = get_log_directory(first_name, last_name);
     std::fs::create_dir_all(&log_dir).unwrap();
 
     // daily rotation: creates terobit-client.log.2026-09-04, etc.

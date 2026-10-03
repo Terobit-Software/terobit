@@ -15,4 +15,4 @@ pub struct SignatureV1 {
     signature: [u8; 64],
 }
 
-pub const CURRENT_VERSION: u16 = 1;
+pub const TBSIG_CURRENT_VERSION: u16 = 1;

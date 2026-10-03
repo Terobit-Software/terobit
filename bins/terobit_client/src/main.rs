@@ -11,7 +11,7 @@ use runtime_ui::RuntimeUiPlugins;
 use runtime_window::RuntimeWindowPlugins;
 
 fn main() {
-    let _guard = runtime_logging::init_logging();
+    let _guard = runtime_logging::init_logging("Terobit", "Client");
 
     // order matters: core (assets) before window/render, render before ui
     App::new()

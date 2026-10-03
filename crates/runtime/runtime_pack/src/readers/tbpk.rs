@@ -20,6 +20,15 @@ impl PackReader {
             }
 
             info!("Path is directory, continuing as a developer package. Assuming newest version");
+            let header = CommonHeader {
+                magic: crate::MagicValue::TBPK,
+                version: crate::TBPK_CURRENT_VERSION,
+                flags: 0,
+                header_length: size_of::<CommonHeader>() as u32,
+                reserved: 0,
+                body_length: 0,
+            };
+            return;
         }
 
         let file = match File::open(path) {

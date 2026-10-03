@@ -1,0 +1,12 @@
+[package]
+name = "tbpk_generator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracing.workspace = true
+runtime_core.workspace = true
+bevy.workspace = true
+client_dev.workspace = true
+runtime_pack.workspace = true
+runtime_logging.workspace = true
