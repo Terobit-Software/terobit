@@ -8,3 +8,4 @@ bevy = { workspace = true, features=["std"]}
 zstd.workspace = true
 postcard.workspace = true
 serde.workspace = true
+tracing.workspace = true

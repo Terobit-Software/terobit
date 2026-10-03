@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use bevy::prelude::*;
 
 pub struct ClientDevPlugin;
@@ -15,22 +17,38 @@ impl DeveloperModeStatus {
 
 impl Plugin for ClientDevPlugin {
     fn build(&self, app: &mut App) {
-        if app
-            .world()
-            .resource::<runtime_run_flags::RuntimeFlags>()
-            .get_flags()
-            .contains_key("--dev")
-        {
+        let (is_dev, pack_file) = {
+            let flags = app
+                .world()
+                .resource::<runtime_run_flags::RuntimeFlags>()
+                .get_flags();
+
+            let pack_file = flags.get("--pack-file").map(|values| {
+                PathBuf::from(values.first().expect("No pack file given in --pack-file"))
+                    .into_boxed_path()
+            });
+
+            (flags.contains_key("--dev"), pack_file)
+        };
+
+        if is_dev {
             tracing::info!(
                 "\n\n--------------------------------\nClient running in DEVELOPER mode\n--------------------------------\n"
             );
             app.world_mut()
                 .insert_resource(DeveloperModeStatus { value: true });
-        } else {
-            tracing::info!("Client running in normal mode");
-            app.world_mut()
-                .insert_resource(DeveloperModeStatus { value: false });
+
+            if let Some(path) = pack_file {
+                app.world_mut()
+                    .trigger(runtime_pack::LoadPackFileEvent { path });
+            }
+
+            return;
         }
+
+        tracing::info!("Client running in normal mode");
+        app.world_mut()
+            .insert_resource(DeveloperModeStatus { value: false });
     }
 }
 

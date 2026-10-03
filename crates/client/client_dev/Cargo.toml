@@ -7,3 +7,4 @@ edition = "2024"
 bevy.workspace = true
 runtime_run_flags.workspace = true
 tracing.workspace = true
+runtime_pack.workspace = true
