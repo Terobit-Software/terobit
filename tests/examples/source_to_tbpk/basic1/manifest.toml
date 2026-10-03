@@ -1,0 +1,21 @@
+realm_id = 1
+owner_id = 1
+pack_version = 1
+access = "free"
+# ^^^ done
+
+[assets]
+"self:map" = "models/map.glb"
+
+[client.assets] # done
+"self:car" = "images/car.gif"
+"self:music" = "audio/music.mp3"
+
+[client.scripts]
+"self:main" = "scripts/client.wasm"
+
+[server.assets]
+"self:loot_tables" = "data/loot.bin"
+
+[server.scripts]
+"self:main" = "scripts/server.wasm"
