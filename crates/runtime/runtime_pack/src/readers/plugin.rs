@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use std::path::Path;
-use tracing::info;
+
+use crate::PackReader;
 
 pub struct RuntimePackPlugin;
 
@@ -10,13 +11,10 @@ pub struct LoadPackFileEvent {
 }
 
 impl RuntimePackPlugin {
-    fn scan_pack(e: On<LoadPackFileEvent>) {
+    fn scan_pack(e: On<LoadPackFileEvent>, mut commands: Commands) {
         let path = e.event().path.as_ref();
 
-        info!(
-            "Pack plugin recieved request to read pack at path: {:?}",
-            path
-        );
+        PackReader::read_pack(&mut commands, path);
     }
 }
 
