@@ -16,7 +16,7 @@ CLIENT_ASSETS_DIR = os.path.join(CLIENT_DIR, "assets")
 OUT_DIR = os.path.join(CWD, "out", "client")
 FINAL = "--final" in sys.argv[1:]
 PROFILE = "release" if FINAL else "release-dev"
-CLIENT_FLAGS = [] if FINAL else ["--dev"] # Runtime flags passed to the client
+CLIENT_FLAGS = [] if FINAL else ["--dev", "--pack-file", "."] # Runtime flags passed to the client
 
 # Build the client
 print("Building client with profile", PROFILE+"...")

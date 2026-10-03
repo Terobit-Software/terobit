@@ -4552,13 +4552,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_assets"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_audio"
 version = "0.1.0"
 dependencies = [
@@ -4570,6 +4563,7 @@ name = "runtime_core"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "runtime_pack",
  "runtime_run_flags",
 ]
 
@@ -5050,7 +5044,6 @@ dependencies = [
  "bevy",
  "client_dev",
  "runtime_animation",
- "runtime_assets",
  "runtime_audio",
  "runtime_core",
  "runtime_input",

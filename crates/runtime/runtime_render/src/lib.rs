@@ -17,7 +17,7 @@ use bevy::{
     sprite_render::SpriteRenderPlugin,
 };
 
-/// Must be added after `RuntimeAssetPlugins` and `RuntimeWindowPlugins`.
+/// Must be added after `RuntimeCorePlugins` and `RuntimeWindowPlugins`.
 pub struct RuntimeRenderPlugins;
 
 impl PluginGroup for RuntimeRenderPlugins {

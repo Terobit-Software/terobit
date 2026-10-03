@@ -7,7 +7,6 @@ edition = "2024"
 tracing.workspace = true
 bevy.workspace = true
 runtime_animation.workspace = true
-runtime_assets.workspace = true
 runtime_audio.workspace = true
 runtime_core.workspace = true
 runtime_input.workspace = true

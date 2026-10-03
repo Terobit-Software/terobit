@@ -3,11 +3,13 @@ use bevy::{
         PanicHandlerPlugin, PluginGroup, PluginGroupBuilder, TaskPoolPlugin,
         TerminalCtrlCHandlerPlugin,
     },
+    asset::AssetPlugin,
     diagnostic::{DiagnosticsPlugin, FrameCountPlugin},
     state::app::StatesPlugin,
     time::TimePlugin,
     transform::TransformPlugin,
 };
+use runtime_pack::RuntimePackPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
@@ -23,6 +25,9 @@ impl PluginGroup for RuntimeCorePlugins {
             .add(DiagnosticsPlugin)
             .add(TerminalCtrlCHandlerPlugin)
             .add(StatesPlugin)
+            // scene, window and render all need the `AssetServer`
+            .add(AssetPlugin::default())
             .add(RuntimeRunFlagsPlugin)
+            .add(RuntimePackPlugin)
     }
 }

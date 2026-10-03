@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state"] }
+bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state", "bevy_asset"] }
 runtime_run_flags.workspace = true
+runtime_pack.workspace = true

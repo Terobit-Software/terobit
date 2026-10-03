@@ -1,7 +1,0 @@
-[package]
-name = "runtime_assets"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-bevy = { workspace = true, features = ["std", "multi_threaded", "bevy_asset"] }

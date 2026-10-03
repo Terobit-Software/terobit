@@ -6,7 +6,6 @@ members = [
     "bins/terobit_server",
     "crates/client/client_dev",
     "crates/runtime/runtime_animation",
-    "crates/runtime/runtime_assets",
     "crates/runtime/runtime_audio",
     "crates/runtime/runtime_core",
     "crates/runtime/runtime_input",
@@ -22,7 +21,7 @@ members = [
 ]
 
 [workspace.dependencies]
-bevy = { version = "0.19.1", default-features = false }
+bevy = { version = "0.19.1", default-features = false, features = ["debug"] }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
@@ -32,7 +31,6 @@ serde = { version = "1.0", default-features = false }
 
 # Internal crates
 runtime_animation = { path = "crates/runtime/runtime_animation" }
-runtime_assets = { path = "crates/runtime/runtime_assets" }
 runtime_audio = { path = "crates/runtime/runtime_audio" }
 runtime_core = { path = "crates/runtime/runtime_core" }
 runtime_input = { path = "crates/runtime/runtime_input" }
