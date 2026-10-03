@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-
 use bevy::prelude::*;
+use runtime_pack::RuntimePackConfig;
+use std::path::PathBuf;
 
 pub struct ClientDevPlugin;
 
@@ -37,6 +37,10 @@ impl Plugin for ClientDevPlugin {
             );
             app.world_mut()
                 .insert_resource(DeveloperModeStatus { value: true });
+
+            if let Some(mut config) = app.world_mut().get_resource_mut::<RuntimePackConfig>() {
+                config.set_allow_dir_read(true);
+            }
 
             if let Some(path) = pack_file {
                 app.world_mut()
