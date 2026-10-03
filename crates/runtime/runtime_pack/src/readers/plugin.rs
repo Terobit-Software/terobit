@@ -10,6 +10,20 @@ pub struct LoadPackFileEvent {
     pub path: Box<Path>,
 }
 
+#[derive(Resource, Default)]
+pub struct RuntimePackConfig {
+    allow_dirs: bool,
+}
+
+impl RuntimePackConfig {
+    pub fn get_allow_dir_read(&self) -> &bool {
+        &self.allow_dirs
+    }
+    pub fn set_allow_dir_read(&mut self, value: bool) {
+        self.allow_dirs = value;
+    }
+}
+
 impl RuntimePackPlugin {
     fn scan_pack(e: On<LoadPackFileEvent>, mut commands: Commands) {
         let path = e.event().path.as_ref();
@@ -21,5 +35,6 @@ impl RuntimePackPlugin {
 impl Plugin for RuntimePackPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(Self::scan_pack);
+        app.init_resource::<RuntimePackConfig>();
     }
 }
