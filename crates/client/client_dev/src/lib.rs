@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use runtime_pack::RuntimePackConfig;
 use std::path::PathBuf;
+use tracing::warn;
 
 pub struct ClientDevPlugin;
 
@@ -40,11 +41,17 @@ impl Plugin for ClientDevPlugin {
 
             if let Some(mut config) = app.world_mut().get_resource_mut::<RuntimePackConfig>() {
                 config.set_allow_dir_read(true);
+            } else {
+                warn!(
+                    "Failed to set RuntimePackConfig allow_dir_read to true, config does not exist"
+                )
             }
 
             if let Some(path) = pack_file {
                 app.world_mut()
                     .trigger(runtime_pack::LoadPackFileEvent { path });
+            } else {
+                warn!("Failed to fire LoadPackFileEvent, event does not exist")
             }
 
             return;
