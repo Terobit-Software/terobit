@@ -3,16 +3,23 @@ use std::fs::File;
 use std::path::Path;
 use tracing::{error, info};
 
-use crate::CommonHeader;
+use crate::{CommonHeader, RuntimePackConfig};
 
 pub struct PackReader {}
 
 impl PackReader {
-    pub fn read_pack(commands: &mut Commands, path: &Path) {
+    pub fn read_pack(commands: &mut Commands, path: &Path, config: &RuntimePackConfig) {
         info!("Reading pack at path {:?}", path);
 
         if path.is_dir() {
-            info!("Path is directory, continuing as a developer package. Assuming newest version")
+            if !*config.get_allow_dir_read() {
+                error!(
+                    "Path is directory, but allow_dir_read is NOT enabled. Failed to read pack file"
+                );
+                return;
+            }
+
+            info!("Path is directory, continuing as a developer package. Assuming newest version");
         }
 
         let file = match File::open(path) {
