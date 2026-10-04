@@ -22,7 +22,7 @@ fn get_log_directory(first_name: &'static str, last_name: &'static str) -> PathB
     // these are placeholders
     #[cfg(target_os = "linux")]
     {
-        Path::new(format!(
+        Path::new(&format!(
             "~/.local/share/{}{}/logs/",
             first_name.to_lowercase(),
             last_name.to_lowercase()
