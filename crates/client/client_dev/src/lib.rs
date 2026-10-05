@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use runtime_pack::RuntimePackConfig;
+use runtime_pack::readers::RuntimePackConfig;
 use std::path::PathBuf;
 use tracing::warn;
 
@@ -49,7 +49,7 @@ impl Plugin for ClientDevPlugin {
 
             if let Some(path) = pack_file {
                 app.world_mut()
-                    .trigger(runtime_pack::LoadPackFileEvent { path });
+                    .trigger(runtime_pack::readers::LoadPackFileEvent { path });
             } else {
                 warn!("Failed to fire LoadPackFileEvent, event does not exist")
             }

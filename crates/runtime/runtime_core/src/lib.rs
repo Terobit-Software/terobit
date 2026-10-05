@@ -9,7 +9,7 @@ use bevy::{
     time::TimePlugin,
     transform::TransformPlugin,
 };
-use runtime_pack::RuntimePackPlugin;
+use runtime_pack::readers::RuntimePackPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
