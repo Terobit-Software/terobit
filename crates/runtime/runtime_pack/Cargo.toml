@@ -9,3 +9,4 @@ zstd.workspace = true
 postcard.workspace = true
 serde.workspace = true
 tracing.workspace = true
+toml-spanner.workspace = true
