@@ -9,7 +9,7 @@ use bevy::{
     time::TimePlugin,
     transform::TransformPlugin,
 };
-use runtime_pack::readers::RuntimePackPlugin;
+use runtime_pack::readers::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
@@ -28,6 +28,6 @@ impl PluginGroup for RuntimeCorePlugins {
             // scene, window and render all need the `AssetServer`
             .add(AssetPlugin::default())
             .add(RuntimeRunFlagsPlugin)
-            .add(RuntimePackPlugin)
+            .add(RuntimePackReaderPlugin)
     }
 }

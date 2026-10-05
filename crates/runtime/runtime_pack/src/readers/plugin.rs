@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use std::path::Path;
 use tracing::info;
 
-pub struct RuntimePackPlugin;
+pub struct RuntimePackReaderPlugin;
 
 #[derive(Event)]
 pub struct LoadPackFileEvent {
@@ -25,7 +25,7 @@ impl RuntimePackConfig {
     }
 }
 
-impl RuntimePackPlugin {
+impl RuntimePackReaderPlugin {
     fn scan_pack(e: On<LoadPackFileEvent>, mut commands: Commands, config: Res<RuntimePackConfig>) {
         let path = e.event().path.as_ref();
 
@@ -33,7 +33,7 @@ impl RuntimePackPlugin {
     }
 }
 
-impl Plugin for RuntimePackPlugin {
+impl Plugin for RuntimePackReaderPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(Self::scan_pack);
         app.init_resource::<RuntimePackConfig>();
