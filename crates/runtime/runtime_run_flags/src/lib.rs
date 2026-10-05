@@ -92,6 +92,42 @@ mod struct_tests {
 
         assert!(flags.flags.is_empty());
     }
+
+    #[test]
+    fn runtime_args_only_values() {
+        let flags = RuntimeFlags::from_args(args(&["a", "b"]));
+
+        assert!(flags.flags.is_empty());
+    }
+
+    #[test]
+    fn runtime_args_repeated_flag_keeps_last() {
+        let flags = RuntimeFlags::from_args(args(&["--mod", "a", "--mod", "b"]));
+
+        assert_eq!(flags.flags.get("--mod"), Some(&args(&["b"])));
+        assert_eq!(flags.flags.len(), 1);
+    }
+
+    #[test]
+    fn runtime_args_single_dash_is_value() {
+        let flags = RuntimeFlags::from_args(args(&["--level", "-1", "-v"]));
+
+        assert_eq!(flags.flags.get("--level"), Some(&args(&["-1", "-v"])));
+        assert_eq!(flags.flags.len(), 1);
+    }
+
+    #[test]
+    fn get_flags_matches_parsed() {
+        let flags = RuntimeFlags::from_args(args(&["--dev", "--pack-file", "game.tbpk"]));
+
+        assert_eq!(flags.get_flags(), &flags.flags);
+        assert!(flags.get_flags().contains_key("--dev"));
+    }
+
+    #[test]
+    fn default_is_empty() {
+        assert!(RuntimeFlags::default().get_flags().is_empty());
+    }
 }
 
 #[cfg(test)]

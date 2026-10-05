@@ -31,3 +31,26 @@ impl PluginGroup for RuntimeCorePlugins {
             .add(RuntimePackReaderPlugin)
     }
 }
+
+#[cfg(test)]
+mod plugin_tests {
+    use super::*;
+    use bevy::prelude::*;
+
+    #[test]
+    fn adds_runtime_resources() {
+        let mut app = App::new();
+        app.add_plugins(RuntimeCorePlugins);
+
+        assert!(
+            app.world()
+                .get_resource::<runtime_run_flags::RuntimeFlags>()
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .get_resource::<runtime_pack::readers::RuntimePackConfig>()
+                .is_some()
+        );
+    }
+}
