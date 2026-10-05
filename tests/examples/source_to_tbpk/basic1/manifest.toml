@@ -2,13 +2,12 @@ realm_id = 1
 owner_id = 1
 pack_version = 1
 access = "free"
-# ^^^ done
 
 [assets]
 "self:cube" = "meshes/mesh.obj"
 "self:cube.material" = "meshes/mesh.mtl"
 
-[client.assets] # done
+[client.assets]
 "self:car" = "images/car.gif"
 
 [server.assets]
