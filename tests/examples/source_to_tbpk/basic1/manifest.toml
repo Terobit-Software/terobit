@@ -5,17 +5,11 @@ access = "free"
 # ^^^ done
 
 [assets]
-"self:map" = "models/map.glb"
+"self:cube" = "meshes/mesh.obj"
+"self:cube.material" = "meshes/mesh.mtl"
 
 [client.assets] # done
 "self:car" = "images/car.gif"
-"self:music" = "audio/music.mp3"
-
-[client.scripts]
-"self:main" = "scripts/client.wasm"
 
 [server.assets]
-"self:loot_tables" = "data/loot.bin"
-
-[server.scripts]
-"self:main" = "scripts/server.wasm"
+"self:music" = "audio/music.mp3"
