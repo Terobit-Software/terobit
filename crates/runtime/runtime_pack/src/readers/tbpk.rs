@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::Path;
 use tracing::{error, info};
 
-use crate::{CommonHeader, RuntimePackConfig};
+use crate::{CommonHeader, readers::RuntimePackConfig};
 
 pub struct PackReader {}
 

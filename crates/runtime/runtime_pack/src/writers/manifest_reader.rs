@@ -1,23 +1,39 @@
-use std::path::Path;
+use serde::Deserialize;
+use std::collections::BTreeMap;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum ManifestAccessLevel {
     Free,
     Licensed,
 }
 
-pub(crate) struct ManifestSource {
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManifestSource {
     realm_id: u64,
     owner_id: u64,
     pack_version: u64,
     access: ManifestAccessLevel,
+    #[serde(default)]
+    assets: BTreeMap<String, String>,
+    #[serde(default)]
+    client: SideAssets,
+    #[serde(default)]
+    server: SideAssets,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SideAssets {
+    #[serde(default)]
+    // btree instead of hashmap for determinism in builds
+    assets: BTreeMap<String, String>,
 }
 
 impl ManifestSource {
-    pub(crate) fn from_path(path: Box<Path>) -> Result<Self, std::io::Error> {
-        let content = std::fs::read_to_string(path)?;
-        let arena = toml_spanner::Arena::new();
-        let doc = toml_spanner::parse(&content, &arena);
-
-        
+    pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
+        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        toml::from_str::<Self>(&text).map_err(|e| e.to_string())
     }
 }

@@ -1,4 +1,4 @@
-use crate::PackReader;
+use crate::readers::PackReader;
 use bevy::prelude::*;
 use std::path::Path;
 use tracing::info;
