@@ -1,1 +1,23 @@
-pub struct TbPackWriter {}
+use std::path::{Path, PathBuf};
+
+use crate::writers::ManifestSource;
+
+#[derive(Default)]
+pub struct PackWriter {
+    manifest_source: Option<ManifestSource>,
+}
+
+impl PackWriter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn read_manifest(&mut self, path: PathBuf) -> Result<(), String> {
+        self.manifest_source = Some(ManifestSource::from_path(&path)?);
+        Ok(())
+    }
+
+    pub fn prep_assets(&mut self) -> Result<(), String> {
+        if self.manifest_source.is_none() { Err("") }
+    }
+}
