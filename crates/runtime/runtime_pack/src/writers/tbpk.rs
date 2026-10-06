@@ -18,6 +18,12 @@ impl PackWriter {
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
-        if self.manifest_source.is_none() { Err("") }
+        if self.manifest_source.is_none() {
+            return Err(
+                "Manifest not loaded, load manifest before attempting to prep assets".into(),
+            );
+        }
+
+        Ok(())
     }
 }
