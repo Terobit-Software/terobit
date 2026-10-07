@@ -17,8 +17,7 @@ struct AssetEntries {
 struct AssetValue {
     handle: Handle,
     /// on load, if they do not match panic
-    size: u64
-
+    size: u64,
 }
 
 impl PackWriter {
@@ -56,8 +55,6 @@ impl PackWriter {
         }
 
         let asset_entries = self.collect_asset_entries()?;
-
-        let
 
         Ok(())
     }
