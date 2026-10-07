@@ -5,7 +5,7 @@ members = ["bins/tbpk_generator",
     "bins/terobit_editor",
     "bins/terobit_server",
     "crates/client/client_dev",
-    "crates/runtime/runtime_animation",
+    "crates/runtime/runtime_animation", "crates/runtime/runtime_assets",
     "crates/runtime/runtime_audio",
     "crates/runtime/runtime_core",
     "crates/runtime/runtime_input",
@@ -44,6 +44,7 @@ runtime_ui = { path = "crates/runtime/runtime_ui" }
 runtime_window = { path = "crates/runtime/runtime_window" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
 runtime_pack = { path = "crates/runtime/runtime_pack" }
+runtime_assets = { path = "crates/runtime/runtime_assets" }
 client_dev = { path = "crates/client/client_dev" }
 
 # Final release builds: slow to compile, maximum speed and minimum size.
