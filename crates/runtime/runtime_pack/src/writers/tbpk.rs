@@ -7,6 +7,12 @@ pub struct PackWriter {
     manifest_source: Option<ManifestSource>,
 }
 
+struct AssetEntries {
+    client: Vec<String>,
+    server: Vec<String>,
+    shared: Vec<String>,
+}
+
 impl PackWriter {
     pub fn new() -> Self {
         Self::default()
@@ -16,6 +22,8 @@ impl PackWriter {
         self.manifest_source = Some(ManifestSource::from_path(&path)?);
         Ok(())
     }
+
+    fn collect_asset_entries() -> AssetEntries {}
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
         if self.manifest_source.is_none() {
