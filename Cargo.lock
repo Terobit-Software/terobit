@@ -2034,7 +2034,7 @@ name = "client_dev"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "runtime_pack",
+ "runtime_assets",
  "runtime_run_flags",
  "tracing",
 ]
@@ -4635,6 +4635,15 @@ dependencies = [
 [[package]]
 name = "runtime_assets"
 version = "0.1.0"
+dependencies = [
+ "bevy",
+ "cap-std",
+ "postcard",
+ "serde",
+ "toml",
+ "tracing",
+ "zstd",
+]
 
 [[package]]
 name = "runtime_audio"
@@ -4648,7 +4657,7 @@ name = "runtime_core"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "runtime_pack",
+ "runtime_assets",
  "runtime_run_flags",
 ]
 
@@ -4666,19 +4675,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "runtime_pack"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "cap-std",
- "postcard",
- "serde",
- "toml",
- "tracing",
- "zstd",
 ]
 
 [[package]]
@@ -5140,9 +5136,9 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "client_dev",
+ "runtime_assets",
  "runtime_core",
  "runtime_logging",
- "runtime_pack",
  "tracing",
 ]
 

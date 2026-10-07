@@ -9,7 +9,7 @@ use bevy::{
     time::TimePlugin,
     transform::TransformPlugin,
 };
-use runtime_pack::readers::RuntimePackReaderPlugin;
+use runtime_assets::pack::readers::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
@@ -49,7 +49,7 @@ mod plugin_tests {
         );
         assert!(
             app.world()
-                .get_resource::<runtime_pack::readers::RuntimePackConfig>()
+                .get_resource::<runtime_assets::pack::readers::RuntimePackConfig>()
                 .is_some()
         );
     }

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::Path;
 use tracing::{error, info};
 
-use crate::{CommonHeader, readers::RuntimePackConfig};
+use crate::pack::{CommonHeader, readers::RuntimePackConfig};
 
 pub struct PackReader {}
 
@@ -21,8 +21,8 @@ impl PackReader {
 
             info!("Path is directory, continuing as a developer package. Assuming newest version");
             let header = CommonHeader {
-                magic: crate::MagicValue::TBPK,
-                version: crate::TBPK_CURRENT_VERSION,
+                magic: crate::pack::MagicValue::TBPK,
+                version: crate::pack::TBPK_CURRENT_VERSION,
                 flags: 0,
                 header_length: size_of::<CommonHeader>() as u32,
                 reserved: 0,

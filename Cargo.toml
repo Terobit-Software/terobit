@@ -10,7 +10,6 @@ members = ["bins/tbpk_generator",
     "crates/runtime/runtime_core",
     "crates/runtime/runtime_input",
     "crates/runtime/runtime_logging",
-    "crates/runtime/runtime_pack",
     "crates/runtime/runtime_picking",
     "crates/runtime/runtime_render",
     "crates/runtime/runtime_run_flags",
@@ -43,7 +42,6 @@ runtime_scene = { path = "crates/runtime/runtime_scene" }
 runtime_ui = { path = "crates/runtime/runtime_ui" }
 runtime_window = { path = "crates/runtime/runtime_window" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
-runtime_pack = { path = "crates/runtime/runtime_pack" }
 runtime_assets = { path = "crates/runtime/runtime_assets" }
 client_dev = { path = "crates/client/client_dev" }
 

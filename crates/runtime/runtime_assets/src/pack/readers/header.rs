@@ -1,4 +1,4 @@
-use crate::CommonHeader;
+use crate::pack::CommonHeader;
 
 pub struct HeaderReader;
 

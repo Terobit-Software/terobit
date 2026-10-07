@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::writers::ManifestSource;
+use crate::pack::{validate_id, writers::ManifestSource};
 
 #[derive(Default)]
 pub struct PackWriter {
@@ -56,6 +56,40 @@ impl PackWriter {
 
         let asset_entries = self.collect_asset_entries();
 
+        for id in asset_entries
+            .shared
+            .iter()
+            .chain(&asset_entries.client)
+            .chain(&asset_entries.server)
+        {
+            validate_id(id)?;
+        }
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn example_manifest() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/examples/source_to_tbpk/basic1/manifest.toml")
+    }
+
+    #[test]
+    fn prep_assets_without_manifest_is_error() {
+        assert!(PackWriter::new().prep_assets().is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_asset_id() {
+        // basic1 has `self:cube.material`, and `.` isn't allowed in ids
+        let mut writer = PackWriter::new();
+        writer.read_manifest(example_manifest()).unwrap();
+
+        let err = writer.prep_assets().unwrap_err();
+        assert!(err.contains("self:cube.material"), "{err}");
     }
 }

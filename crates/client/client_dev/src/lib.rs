@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use runtime_pack::readers::RuntimePackConfig;
+use runtime_assets::pack::readers::RuntimePackConfig;
 use std::path::PathBuf;
 use tracing::warn;
 
@@ -49,7 +49,7 @@ impl Plugin for ClientDevPlugin {
 
             if let Some(path) = pack_file {
                 app.world_mut()
-                    .trigger(runtime_pack::readers::LoadPackFileEvent { path });
+                    .trigger(runtime_assets::pack::readers::LoadPackFileEvent { path });
             } else {
                 warn!("Failed to fire LoadPackFileEvent, event does not exist")
             }
@@ -100,7 +100,7 @@ mod plugin_tests {
         app.init_resource::<RuntimePackConfig>();
         app.init_resource::<LoadedPacks>();
         app.add_observer(
-            |e: On<runtime_pack::readers::LoadPackFileEvent>, mut loaded: ResMut<LoadedPacks>| {
+            |e: On<runtime_assets::pack::readers::LoadPackFileEvent>, mut loaded: ResMut<LoadedPacks>| {
                 loaded.0.push(e.event().path.to_path_buf());
             },
         );

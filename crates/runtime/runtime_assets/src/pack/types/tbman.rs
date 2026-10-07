@@ -1,4 +1,4 @@
-use crate::CommonHeader;
+use crate::pack::CommonHeader;
 
 /// zstd level used to compress chunks in packs whose manifest is v1
 pub const ZSTD_LEVEL: i32 = 19;

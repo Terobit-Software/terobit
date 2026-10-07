@@ -109,7 +109,7 @@ the pack tool turns a dev directory into two archives:
 4. write the index, hash it, and write the manifest with that hash
 5. write the archive with an empty signature section
 
-the tool lives in `runtime_pack` (planned), so the same code that reads packs also writes
+the tool lives in `runtime_assets::pack` (planned), so the same code that reads packs also writes
 them and there is only one implementation of the format to keep correct.
 
 ## changelog

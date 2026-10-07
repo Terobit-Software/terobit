@@ -8,5 +8,5 @@ tracing.workspace = true
 runtime_core.workspace = true
 bevy.workspace = true
 client_dev.workspace = true
-runtime_pack = { workspace = true, features = ["writer"]}
+runtime_assets = { workspace = true, features = ["writer"]}
 runtime_logging.workspace = true

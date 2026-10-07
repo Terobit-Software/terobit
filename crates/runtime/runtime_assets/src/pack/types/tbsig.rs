@@ -1,4 +1,4 @@
-use crate::{Certificate, CommonHeader};
+use crate::pack::{Certificate, CommonHeader};
 
 /// a `.tbsig` file
 pub struct TbSignature {

@@ -1,4 +1,4 @@
-use crate::CommonHeader;
+use crate::pack::CommonHeader;
 
 /// size of the table of contents in bytes, right after the common header
 pub const TOC_LEN: u64 = 64;
