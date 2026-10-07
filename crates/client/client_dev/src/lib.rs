@@ -100,7 +100,8 @@ mod plugin_tests {
         app.init_resource::<RuntimePackConfig>();
         app.init_resource::<LoadedPacks>();
         app.add_observer(
-            |e: On<runtime_assets::pack::readers::LoadPackFileEvent>, mut loaded: ResMut<LoadedPacks>| {
+            |e: On<runtime_assets::pack::readers::LoadPackFileEvent>,
+             mut loaded: ResMut<LoadedPacks>| {
                 loaded.0.push(e.event().path.to_path_buf());
             },
         );

@@ -14,6 +14,13 @@ struct AssetEntries {
     shared: Vec<Handle>,
 }
 
+struct AssetValue {
+    handle: Handle,
+    /// on load, if they do not match panic
+    size: u64
+
+}
+
 impl PackWriter {
     pub fn new() -> Self {
         Self::default()
@@ -49,6 +56,8 @@ impl PackWriter {
         }
 
         let asset_entries = self.collect_asset_entries()?;
+
+        let
 
         Ok(())
     }
