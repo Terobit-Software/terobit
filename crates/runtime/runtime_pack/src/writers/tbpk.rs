@@ -23,7 +23,29 @@ impl PackWriter {
         Ok(())
     }
 
-    fn collect_asset_entries() -> AssetEntries {}
+    fn collect_asset_entries(&self) -> AssetEntries {
+        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
+
+        let shared = source.get_assets().keys().cloned().collect::<Vec<_>>();
+        let client = source
+            .get_client()
+            .get_assets()
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        let server = source
+            .get_server()
+            .get_assets()
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        AssetEntries {
+            client,
+            server,
+            shared,
+        }
+    }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
         if self.manifest_source.is_none() {
@@ -31,6 +53,8 @@ impl PackWriter {
                 "Manifest not loaded, load manifest before attempting to prep assets".into(),
             );
         }
+
+        let asset_entries = self.collect_asset_entries();
 
         Ok(())
     }

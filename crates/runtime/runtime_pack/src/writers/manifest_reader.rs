@@ -36,6 +36,40 @@ impl ManifestSource {
         let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         toml::from_str::<Self>(&text).map_err(|e| e.to_string())
     }
+
+    pub fn get_realm_id(&self) -> &u64 {
+        &self.realm_id
+    }
+
+    pub fn get_owner_id(&self) -> &u64 {
+        &self.owner_id
+    }
+
+    pub fn get_pack_version(&self) -> &u64 {
+        &self.pack_version
+    }
+
+    pub(crate) fn get_access(&self) -> &ManifestAccessLevel {
+        &self.access
+    }
+
+    pub fn get_assets(&self) -> &BTreeMap<String, String> {
+        &self.assets
+    }
+
+    pub(crate) fn get_client(&self) -> &SideAssets {
+        &self.client
+    }
+
+    pub(crate) fn get_server(&self) -> &SideAssets {
+        &self.server
+    }
+}
+
+impl SideAssets {
+    pub fn get_assets(&self) -> &BTreeMap<String, String> {
+        &self.assets
+    }
 }
 
 #[cfg(test)]
