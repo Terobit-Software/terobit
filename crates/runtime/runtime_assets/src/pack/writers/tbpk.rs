@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use crate::pack::{validate_id, writers::ManifestSource};
+use crate::pack::{Handle, writers::ManifestSource};
 
 #[derive(Default)]
 pub struct PackWriter {
@@ -8,9 +9,9 @@ pub struct PackWriter {
 }
 
 struct AssetEntries {
-    client: Vec<String>,
-    server: Vec<String>,
-    shared: Vec<String>,
+    client: Vec<Handle>,
+    server: Vec<Handle>,
+    shared: Vec<Handle>,
 }
 
 impl PackWriter {
@@ -23,28 +24,21 @@ impl PackWriter {
         Ok(())
     }
 
-    fn collect_asset_entries(&self) -> AssetEntries {
+    fn collect_asset_entries(&self) -> Result<AssetEntries, String> {
         let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
 
-        let shared = source.get_assets().keys().cloned().collect::<Vec<_>>();
-        let client = source
-            .get_client()
-            .get_assets()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        let server = source
-            .get_server()
-            .get_assets()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
+        let parse = |assets: &BTreeMap<String, String>| {
+            assets
+                .keys()
+                .map(|key| key.parse::<Handle>())
+                .collect::<Result<Vec<_>, _>>()
+        };
 
-        AssetEntries {
-            client,
-            server,
-            shared,
-        }
+        Ok(AssetEntries {
+            client: parse(source.get_client().get_assets())?,
+            server: parse(source.get_server().get_assets())?,
+            shared: parse(source.get_assets())?,
+        })
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
@@ -54,16 +48,7 @@ impl PackWriter {
             );
         }
 
-        let asset_entries = self.collect_asset_entries();
-
-        for id in asset_entries
-            .shared
-            .iter()
-            .chain(&asset_entries.client)
-            .chain(&asset_entries.server)
-        {
-            validate_id(id)?;
-        }
+        let asset_entries = self.collect_asset_entries()?;
 
         Ok(())
     }
@@ -84,8 +69,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_asset_id() {
-        // basic1 has `self:cube.material`, and `.` isn't allowed in ids
+    fn rejects_invalid_asset_handle() {
+        // basic1 has `self:cube.material`, and `.` isn't allowed in handles
         let mut writer = PackWriter::new();
         writer.read_manifest(example_manifest()).unwrap();
 

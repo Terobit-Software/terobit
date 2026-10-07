@@ -15,3 +15,6 @@ pub use integrity::*;
 
 mod common;
 pub use common::*;
+
+mod handle;
+pub use handle::*;
