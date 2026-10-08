@@ -15,7 +15,7 @@ fn main() {
             let mut writer = runtime_assets::pack::writers::PackWriter::new();
             let _manifest = writer.read_manifest(
                 Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../../tests/examples/source_to_tbpk/basic1/manifest.toml"),
+                    .join("../../tests/examples/source_to_tbpk/basic1/manifest.toml"),
             );
             let _assets = writer.prep_assets();
         })
