@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::pack::{Handle, writers::ManifestSource};
@@ -12,9 +12,38 @@ struct AssetHandles {
     client: Vec<Handle>,
     server: Vec<Handle>,
     shared: Vec<Handle>,
+    validated: bool,
 }
 
-struct AssetValue {
+impl AssetHandles {
+    pub fn validate(&mut self) -> Result<(), String> {
+        let set = self.shared.clone().into_iter().collect::<HashSet<_>>();
+
+        for v in &self.client {
+            if set.contains(v) {
+                return Err(format!("client list contains shared item: {}", v));
+            }
+        }
+
+        for v in &self.server {
+            if set.contains(v) {
+                return Err(format!("server list contains shared item: {}", v));
+            }
+        }
+
+        self.validated = true;
+
+        Ok(())
+    }
+}
+
+struct AssetInfoHolder {
+    client: Vec<AssetInfo>,
+    server: Vec<AssetInfo>,
+    shared: Vec<AssetInfo>,
+}
+
+struct AssetInfo {
     handle: Handle,
     /// on load, if they do not match panic
     size: u64,
@@ -44,8 +73,11 @@ impl PackWriter {
             client: parse(source.get_client().get_assets())?,
             server: parse(source.get_server().get_assets())?,
             shared: parse(source.get_assets())?,
+            validated: false,
         })
     }
+
+    fn load_asset_info(&mut self, handles: AssetHandles) -> Result<AssetInfoHolder, String> {}
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
         if self.manifest_source.is_none() {
@@ -54,7 +86,11 @@ impl PackWriter {
             );
         }
 
-        let asset_handles = self.collect_asset_handles()?;
+        let mut asset_handles = self.collect_asset_handles()?;
+
+        asset_handles.validate();
+
+        let asset_info = self.load_asset_info(asset_handles)?;
 
         Ok(())
     }
