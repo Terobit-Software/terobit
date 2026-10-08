@@ -1,5 +1,8 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use crate::pack::Handle;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -21,6 +24,9 @@ pub struct ManifestSource {
     client: SideAssets,
     #[serde(default)]
     server: SideAssets,
+    /// directory the manifest was read from, asset paths are relative to it
+    #[serde(skip)]
+    root: PathBuf,
 }
 
 #[derive(Deserialize, Default)]
@@ -34,7 +40,9 @@ pub(crate) struct SideAssets {
 impl ManifestSource {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-        toml::from_str::<Self>(&text).map_err(|e| e.to_string())
+        let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
+        manifest.root = path.parent().map(Into::into).unwrap_or_default();
+        Ok(manifest)
     }
 
     pub fn get_realm_id(&self) -> &u64 {
@@ -63,6 +71,16 @@ impl ManifestSource {
 
     pub(crate) fn get_server(&self) -> &SideAssets {
         &self.server
+    }
+
+    pub(crate) fn resolve_handle_to_path(&self, handle: &Handle) -> Result<PathBuf, String> {
+        let key = handle.to_string();
+
+        [&self.assets, &self.client.assets, &self.server.assets]
+            .into_iter()
+            .find_map(|assets| assets.get(&key))
+            .map(|relative| self.root.join(relative))
+            .ok_or_else(|| format!("handle with name '{handle}' is not found in the manifest"))
     }
 }
 

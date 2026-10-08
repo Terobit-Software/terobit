@@ -1,7 +1,6 @@
+use crate::pack::{Handle, writers::ManifestSource};
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
-
-use crate::pack::{Handle, writers::ManifestSource};
 
 #[derive(Default)]
 pub struct PackWriter {
@@ -77,7 +76,31 @@ impl PackWriter {
         })
     }
 
-    fn load_asset_info(&mut self, handles: AssetHandles) -> Result<AssetInfoHolder, String> {}
+    fn load_asset_group_info(&self, group: Vec<Handle>) -> Result<Vec<AssetInfo>, String> {
+        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
+
+        group
+            .into_iter()
+            .map(|handle| {
+                let path = source.resolve_handle_to_path(&handle)?;
+                let size = std::fs::metadata(&path)
+                    .map_err(|e| {
+                        format!("failed to read `{}` for `{handle}`: {e}", path.display())
+                    })?
+                    .len();
+
+                Ok(AssetInfo { handle, size })
+            })
+            .collect()
+    }
+
+    fn load_asset_info(&mut self, handles: AssetHandles) -> Result<AssetInfoHolder, String> {
+        Ok(AssetInfoHolder {
+            client: self.load_asset_group_info(handles.client)?,
+            server: self.load_asset_group_info(handles.server)?,
+            shared: self.load_asset_group_info(handles.shared)?,
+        })
+    }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
         if self.manifest_source.is_none() {
@@ -88,7 +111,9 @@ impl PackWriter {
 
         let mut asset_handles = self.collect_asset_handles()?;
 
-        asset_handles.validate();
+        if let Err(msg) = asset_handles.validate() {
+            return Err(format!("error while validating handles: {}", msg));
+        }
 
         let asset_info = self.load_asset_info(asset_handles)?;
 
