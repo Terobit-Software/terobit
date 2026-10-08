@@ -8,7 +8,7 @@ pub struct PackWriter {
     manifest_source: Option<ManifestSource>,
 }
 
-struct AssetEntries {
+struct AssetHandles {
     client: Vec<Handle>,
     server: Vec<Handle>,
     shared: Vec<Handle>,
@@ -30,7 +30,7 @@ impl PackWriter {
         Ok(())
     }
 
-    fn collect_asset_entries(&self) -> Result<AssetEntries, String> {
+    fn collect_asset_handles(&self) -> Result<AssetHandles, String> {
         let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
 
         let parse = |assets: &BTreeMap<String, String>| {
@@ -40,7 +40,7 @@ impl PackWriter {
                 .collect::<Result<Vec<_>, _>>()
         };
 
-        Ok(AssetEntries {
+        Ok(AssetHandles {
             client: parse(source.get_client().get_assets())?,
             server: parse(source.get_server().get_assets())?,
             shared: parse(source.get_assets())?,
@@ -54,7 +54,7 @@ impl PackWriter {
             );
         }
 
-        let asset_entries = self.collect_asset_entries()?;
+        let asset_handles = self.collect_asset_handles()?;
 
         Ok(())
     }
