@@ -30,6 +30,7 @@ serde = { version = "1.0", default-features = false }
 toml = "1.1.6"
 cap-std = "4.0.3"
 tracing-panic = "0.1.2"
+clap = { version = "4.6.7", features = ["derive"] }
 
 # Internal crates
 runtime_animation = { path = "crates/runtime/runtime_animation" }

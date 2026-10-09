@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 tracing.workspace = true
 runtime_logging.workspace = true
+clap.workspace = true
