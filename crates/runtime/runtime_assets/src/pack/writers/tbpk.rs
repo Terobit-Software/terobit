@@ -1,4 +1,5 @@
 use crate::pack::{Handle, writers::ManifestSource};
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -116,10 +117,10 @@ impl PackWriter {
         handles.client.extend_from_slice(&handles.shared);
 
         let mut cinfo = self.load_asset_group_info(handles.client)?;
-        cinfo.sort_by_key(|v| v.size);
+        cinfo.sort_by_key(|v| Reverse(v.size));
 
         let mut sinfo = self.load_asset_group_info(handles.server)?;
-        sinfo.sort_by_key(|v| v.size);
+        sinfo.sort_by_key(|v| Reverse(v.size));
 
         Ok(AssetInfoHolder {
             client: cinfo,
