@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use tracing::info;
 
 use crate::pack::Handle;
 
@@ -40,7 +41,9 @@ pub(crate) struct SideAssets {
 impl ManifestSource {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        tracing::info!("Read manifest at path: {}", path.to_string_lossy());
         let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
+        tracing::info!("Converted str source to manifest successfully");
         manifest.root = path.parent().map(Into::into).unwrap_or_default();
         Ok(manifest)
     }
@@ -79,7 +82,7 @@ impl ManifestSource {
         [&self.assets, &self.client.assets, &self.server.assets]
             .into_iter()
             .find_map(|assets| assets.get(&key))
-            .map(|relative| self.root.join(relative))
+            .map(|relative| self.root.join(relative).canonicalize().unwrap_or_default())
             .ok_or_else(|| format!("handle with name '{handle}' is not found in the manifest"))
     }
 }
