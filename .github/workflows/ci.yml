@@ -50,4 +50,4 @@ jobs:
           shared-key: test
           cache-on-failure: true
       - uses: taiki-e/install-action@nextest
-      - run: cargo nextest run --workspace --no-tests=pass --cargo-profile ci
+      - run: cargo nextest run --workspace --no-tests=pass --no-fail-fast --cargo-profile ci
