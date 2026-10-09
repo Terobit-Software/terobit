@@ -54,7 +54,19 @@ struct AssetInfo {
     size: u64,
 }
 
-struct FileChunkMap {}
+struct ChunkItem {
+    asset: AssetInfo,
+    /// in bytes
+    offset: u32,
+}
+
+struct ChunkSection {
+    items: Vec<ChunkItem>,
+}
+
+struct FileChunkMap {
+    map: Vec<ChunkSection>,
+}
 
 impl PackWriter {
     pub fn new() -> Self {
