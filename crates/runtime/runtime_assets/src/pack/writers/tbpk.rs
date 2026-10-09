@@ -1,6 +1,7 @@
 use crate::pack::{Handle, writers::ManifestSource};
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
+use tracing::info;
 
 #[derive(Default)]
 pub struct PackWriter {
@@ -32,6 +33,8 @@ impl AssetHandles {
 
         self.validated = true;
 
+        info!("Asset handles validated");
+
         Ok(())
     }
 }
@@ -55,6 +58,7 @@ impl PackWriter {
 
     pub fn read_manifest(&mut self, path: PathBuf) -> Result<(), String> {
         self.manifest_source = Some(ManifestSource::from_path(&path)?);
+        info!("Manifest read OK at path {}", path.to_string_lossy());
         Ok(())
     }
 
@@ -64,7 +68,15 @@ impl PackWriter {
         let parse = |assets: &BTreeMap<String, String>| {
             assets
                 .keys()
-                .map(|key| key.parse::<Handle>())
+                .map(|key| {
+                    let v = key.parse::<Handle>();
+
+                    if let Ok(val) = &v {
+                        info!("parsed asset handle value {}", val);
+                    }
+
+                    v
+                })
                 .collect::<Result<Vec<_>, _>>()
         };
 
@@ -89,6 +101,12 @@ impl PackWriter {
                     })?
                     .len();
 
+                info!(
+                    "loaded asset file info at path {} and with size {}",
+                    path.to_string_lossy(),
+                    size
+                );
+
                 Ok(AssetInfo { handle, size })
             })
             .collect()
@@ -111,11 +129,15 @@ impl PackWriter {
 
         let mut asset_handles = self.collect_asset_handles()?;
 
+        info!("Finished loading asset handles");
+
         if let Err(msg) = asset_handles.validate() {
             return Err(format!("error while validating handles: {}", msg));
         }
 
         let asset_info = self.load_asset_info(asset_handles)?;
+
+        info!("Finished loading asset info");
 
         Ok(())
     }

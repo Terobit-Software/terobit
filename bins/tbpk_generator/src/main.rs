@@ -17,7 +17,9 @@ fn main() {
                 Path::new(env!("CARGO_MANIFEST_DIR"))
                     .join("../../tests/examples/source_to_tbpk/basic1/manifest.toml"),
             );
-            let _assets = writer.prep_assets();
+            if let Err(msg) = writer.prep_assets() {
+                tracing::error!("error on prep assets: {}", msg);
+            }
         })
         .run();
 }
