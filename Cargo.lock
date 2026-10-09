@@ -4626,6 +4626,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "run_client_script"
+version = "0.1.0"
+dependencies = [
+ "runtime_logging",
+ "tracing",
+]
+
+[[package]]
 name = "runtime_animation"
 version = "0.1.0"
 dependencies = [
@@ -4674,6 +4682,7 @@ version = "0.1.0"
 dependencies = [
  "tracing",
  "tracing-appender",
+ "tracing-panic",
  "tracing-subscriber",
 ]
 
@@ -5424,6 +5433,16 @@ dependencies = [
  "cc",
  "cfg-if",
  "tracing-core",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "tracing-panic"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bf1298a179837099f9309243af3b554e840f7f67f65e9f55294913299bd4cc5"
+dependencies = [
+ "tracing",
  "tracing-subscriber",
 ]
 

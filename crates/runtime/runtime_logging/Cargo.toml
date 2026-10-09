@@ -7,3 +7,4 @@ edition = "2024"
 tracing-appender.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-panic.workspace = true

@@ -1,2 +1,5 @@
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-lc++"]
+
+[alias]
+rcl = "run --bin run_client_script --release"

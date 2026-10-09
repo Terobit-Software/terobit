@@ -46,6 +46,27 @@ fn get_log_directory(first_name: &'static str, last_name: &'static str) -> PathB
     }
 }
 
+fn panic_hook(info: &std::panic::PanicHookInfo<'_>) {
+    let payload = info.payload();
+
+    // Extract the panic message if it's a string slice or an owned String
+    let message = if let Some(s) = payload.downcast_ref::<&str>() {
+        *s
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.as_str()
+    } else {
+        "Box<dyn Any>"
+    };
+
+    let location = info
+        .location()
+        .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()))
+        .unwrap_or_else(|| "unknown location".to_string());
+
+    // Emit standard tracing error event
+    tracing::error!(target: "panic", message = %message, location = %location, "A PANIC occurred");
+}
+
 /// first name should be formated as `Name` NOT `name` or `NAME`. Only the first letter should be capitalized
 pub fn init_logging(first_name: &'static str, last_name: &'static str) -> WorkerGuard {
     let log_dir = get_log_directory(first_name, last_name);
@@ -67,6 +88,12 @@ pub fn init_logging(first_name: &'static str, last_name: &'static str) -> Worker
                 .with_ansi(false)
                 .with_filter(LevelFilter::INFO),
         );
+
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        panic_hook(panic_info);
+        prev_hook(panic_info);
+    }));
 
     // this should be the LAST unwrap in the entire project
     // except where err or none is fatal as a result, but an error!() should be thrown before unwrap
