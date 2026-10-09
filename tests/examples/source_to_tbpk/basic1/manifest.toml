@@ -5,7 +5,7 @@ access = "free"
 
 [assets]
 "self:cube" = "meshes/mesh.obj"
-"self:cube.material" = "meshes/mesh.mtl"
+"self:cube/material" = "meshes/mesh.mtl"
 
 [client.assets]
 "self:car" = "images/car.gif"
