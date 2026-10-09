@@ -152,6 +152,11 @@ mod tests {
             .join("../../../tests/examples/source_to_tbpk/basic1/manifest.toml")
     }
 
+    fn should_fail_example_manifest() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/examples/source_to_tbpk/basic1_should_fail/manifest.toml")
+    }
+
     #[test]
     fn prep_assets_without_manifest_is_error() {
         assert!(PackWriter::new().prep_assets().is_err());
@@ -161,7 +166,9 @@ mod tests {
     fn rejects_invalid_asset_handle() {
         // basic1 has `self:cube.material`, and `.` isn't allowed in handles
         let mut writer = PackWriter::new();
-        writer.read_manifest(example_manifest()).unwrap();
+        writer
+            .read_manifest(should_fail_example_manifest())
+            .unwrap();
 
         let err = writer.prep_assets().unwrap_err();
         assert!(err.contains("self:cube.material"), "{err}");

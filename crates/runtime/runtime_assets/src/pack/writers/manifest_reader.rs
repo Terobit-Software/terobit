@@ -130,7 +130,7 @@ mod struct_tests {
         assert_eq!(
             manifest
                 .assets
-                .get("self:cube.material")
+                .get("self:cube/material")
                 .map(String::as_str),
             Some("meshes/mesh.mtl")
         );

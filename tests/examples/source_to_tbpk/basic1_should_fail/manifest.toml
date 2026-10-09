@@ -1,0 +1,14 @@
+realm_id = 1
+owner_id = 1
+pack_version = 1
+access = "free"
+
+[assets]
+"self:cube" = "meshes/mesh.obj"
+"self:cube.material" = "meshes/mesh.mtl"
+
+[client.assets]
+"self:car" = "images/car.gif"
+
+[server.assets]
+"self:music" = "audio/music.mp3"
