@@ -42,7 +42,6 @@ impl AssetHandles {
 struct AssetInfoHolder {
     client: Vec<AssetInfo>,
     server: Vec<AssetInfo>,
-    shared: Vec<AssetInfo>,
 }
 
 struct AssetInfo {
@@ -112,11 +111,19 @@ impl PackWriter {
             .collect()
     }
 
-    fn load_asset_info(&mut self, handles: AssetHandles) -> Result<AssetInfoHolder, String> {
+    fn load_asset_info(&mut self, mut handles: AssetHandles) -> Result<AssetInfoHolder, String> {
+        handles.server.extend_from_slice(&handles.shared);
+        handles.client.extend_from_slice(&handles.shared);
+
+        let mut cinfo = self.load_asset_group_info(handles.client)?;
+        cinfo.sort_by_key(|v| v.size);
+
+        let mut sinfo = self.load_asset_group_info(handles.server)?;
+        sinfo.sort_by_key(|v| v.size);
+
         Ok(AssetInfoHolder {
-            client: self.load_asset_group_info(handles.client)?,
-            server: self.load_asset_group_info(handles.server)?,
-            shared: self.load_asset_group_info(handles.shared)?,
+            client: cinfo,
+            server: sinfo,
         })
     }
 
@@ -128,7 +135,6 @@ impl PackWriter {
         }
 
         let mut asset_handles = self.collect_asset_handles()?;
-
         info!("Finished loading asset handles");
 
         if let Err(msg) = asset_handles.validate() {
@@ -136,7 +142,6 @@ impl PackWriter {
         }
 
         let asset_info = self.load_asset_info(asset_handles)?;
-
         info!("Finished loading asset info");
 
         Ok(())
