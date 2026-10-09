@@ -1,3 +1,4 @@
+use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use crate::pack::{Handle, writers::ManifestSource};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashSet};
@@ -7,6 +8,8 @@ use tracing::info;
 #[derive(Default)]
 pub struct PackWriter {
     manifest_source: Option<ManifestSource>,
+    chunk_map: Option<FileChunkMap>,
+    chunk_size: u32,
 }
 
 struct AssetHandles {
@@ -51,9 +54,24 @@ struct AssetInfo {
     size: u64,
 }
 
+struct FileChunkMap {}
+
 impl PackWriter {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            chunk_size: DEFAULT_CHUNK_SIZE,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_chunk_size(mut self, bytes: u32) -> Self {
+        if bytes > MAX_CHUNK_SIZE || bytes < MIN_CHUNK_SIZE {
+            panic!(
+                "Chunk size is out of range, min: {MIN_CHUNK_SIZE}, max: {MAX_CHUNK_SIZE}, given: {bytes}"
+            );
+        }
+        self.chunk_size = bytes;
+        self
     }
 
     pub fn read_manifest(&mut self, path: PathBuf) -> Result<(), String> {
@@ -126,6 +144,10 @@ impl PackWriter {
             client: cinfo,
             server: sinfo,
         })
+    }
+
+    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMap {
+        let chunk_size = self.chunk_size;
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
