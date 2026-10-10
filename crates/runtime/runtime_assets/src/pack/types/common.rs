@@ -3,7 +3,7 @@ pub enum MagicValue {
     /// terobit pack file
     TBPK,
     /// terobit manifest file
-    TBMAN,
+    TBMN,
     /// terobit signature file
     TBSG,
     /// terobit license file
@@ -11,6 +11,9 @@ pub enum MagicValue {
     /// terobit resource file
     TBRS,
 }
+
+/// size of the common header in bytes. fixed width, so it never depends on the struct layout
+pub const HEADER_LEN: u32 = 24;
 
 pub struct CommonHeader {
     /// the magic value of the file

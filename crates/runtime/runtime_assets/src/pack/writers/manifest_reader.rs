@@ -1,9 +1,8 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
-use tracing::info;
+use std::path::{Path, PathBuf};
 
-use crate::pack::Handle;
+use crate::pack::{Handle, validate_path};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -17,7 +16,7 @@ pub(crate) enum ManifestAccessLevel {
 pub struct ManifestSource {
     realm_id: u64,
     owner_id: u64,
-    pack_version: u64,
+    pack_version: u32,
     access: ManifestAccessLevel,
     #[serde(default)]
     assets: BTreeMap<String, String>,
@@ -36,6 +35,8 @@ pub(crate) struct SideAssets {
     #[serde(default)]
     // btree instead of hashmap for determinism in builds
     assets: BTreeMap<String, String>,
+    #[serde(default)]
+    scripts: BTreeMap<String, String>,
 }
 
 impl ManifestSource {
@@ -45,7 +46,32 @@ impl ManifestSource {
         let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
         tracing::info!("Converted str source to manifest successfully");
         manifest.root = path.parent().map(Into::into).unwrap_or_default();
+        manifest.validate()?;
         Ok(manifest)
+    }
+
+    /// ids are never 0, and every path follows the path rules in the conventions doc
+    fn validate(&self) -> Result<(), String> {
+        if self.realm_id == 0 {
+            return Err("realm_id can't be 0".into());
+        }
+        if self.owner_id == 0 {
+            return Err("owner_id can't be 0".into());
+        }
+
+        for table in [
+            &self.assets,
+            &self.client.assets,
+            &self.client.scripts,
+            &self.server.assets,
+            &self.server.scripts,
+        ] {
+            for (id, path) in table {
+                validate_path(path).map_err(|e| format!("`{id}`: {e}"))?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_realm_id(&self) -> &u64 {
@@ -56,7 +82,7 @@ impl ManifestSource {
         &self.owner_id
     }
 
-    pub fn get_pack_version(&self) -> &u64 {
+    pub fn get_pack_version(&self) -> &u32 {
         &self.pack_version
     }
 
@@ -76,13 +102,24 @@ impl ManifestSource {
         &self.server
     }
 
-    pub(crate) fn resolve_handle_to_path(&self, handle: &Handle) -> Result<PathBuf, String> {
+    /// directory the manifest was read from, pack paths are relative to it
+    pub fn get_root(&self) -> &Path {
+        &self.root
+    }
+
+    /// the pack path of an asset on one side. the client and server namespaces are
+    /// separate, so only shared assets and that side's assets are searched
+    pub(crate) fn resolve_asset_path<'a>(
+        &'a self,
+        side: &'a SideAssets,
+        handle: &Handle,
+    ) -> Result<&'a str, String> {
         let key = handle.to_string();
 
-        [&self.assets, &self.client.assets, &self.server.assets]
+        [&self.assets, &side.assets]
             .into_iter()
             .find_map(|assets| assets.get(&key))
-            .map(|relative| self.root.join(relative).canonicalize().unwrap_or_default())
+            .map(String::as_str)
             .ok_or_else(|| format!("handle with name '{handle}' is not found in the manifest"))
     }
 }
@@ -90,6 +127,10 @@ impl ManifestSource {
 impl SideAssets {
     pub fn get_assets(&self) -> &BTreeMap<String, String> {
         &self.assets
+    }
+
+    pub fn get_scripts(&self) -> &BTreeMap<String, String> {
+        &self.scripts
     }
 }
 
@@ -239,6 +280,75 @@ mod struct_tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn reads_scripts() {
+        let manifest = parse(
+            "scripts",
+            "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
+             [client.scripts]\n\"self:main\" = \"scripts/client.wasm\"\n\
+             [server.scripts]\n\"self:main\" = \"scripts/server.wasm\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.client.scripts.get("self:main").map(String::as_str),
+            Some("scripts/client.wasm")
+        );
+        assert_eq!(
+            manifest.server.scripts.get("self:main").map(String::as_str),
+            Some("scripts/server.wasm")
+        );
+    }
+
+    #[test]
+    fn rejects_zero_id() {
+        assert!(
+            parse(
+                "zero_realm_id",
+                "realm_id = 0\nowner_id = 1\npack_version = 1\naccess = \"free\"\n",
+            )
+            .is_err()
+        );
+        assert!(
+            parse(
+                "zero_owner_id",
+                "realm_id = 1\nowner_id = 0\npack_version = 1\naccess = \"free\"\n",
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_pack_version_over_u32() {
+        assert!(
+            parse(
+                "big_pack_version",
+                "realm_id = 1\nowner_id = 1\npack_version = 4294967296\naccess = \"free\"\n",
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_path() {
+        for (name, table) in [
+            ("bad_shared_path", "[assets]"),
+            ("bad_client_path", "[client.assets]"),
+            ("bad_server_script_path", "[server.scripts]"),
+        ] {
+            let err = parse(
+                name,
+                &format!(
+                    "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
+                     {table}\n\"self:x\" = \"../outside.png\"\n"
+                ),
+            )
+            .err()
+            .expect("path should be rejected");
+            assert!(err.contains("../outside.png"), "{err}");
+        }
     }
 
     #[test]

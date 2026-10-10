@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::Path;
 use tracing::{error, info};
 
-use crate::pack::{CommonHeader, readers::RuntimePackConfig};
+use crate::pack::{CommonHeader, HEADER_LEN, readers::RuntimePackConfig};
 
 pub struct PackReader {}
 
@@ -24,7 +24,7 @@ impl PackReader {
                 magic: crate::pack::MagicValue::TBPK,
                 version: crate::pack::TBPK_CURRENT_VERSION,
                 flags: 0,
-                header_length: size_of::<CommonHeader>() as u32,
+                header_length: HEADER_LEN,
                 reserved: 0,
                 body_length: 0,
             };
@@ -48,7 +48,7 @@ impl PackReader {
         };
 
         let len = metadata.len();
-        if len < size_of::<CommonHeader>() as u64 {
+        if len < HEADER_LEN as u64 {
             error!("file is invalid, too short, len {} bytes", len);
         } else {
             info!(len);

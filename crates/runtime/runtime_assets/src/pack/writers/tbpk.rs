@@ -1,7 +1,7 @@
+use crate::pack::Handle;
+use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
-use crate::pack::{Handle, writers::ManifestSource};
-use std::cmp::Reverse;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
@@ -44,18 +44,33 @@ impl AssetHandles {
 }
 
 struct AssetInfoHolder {
-    client: Vec<AssetInfo>,
-    server: Vec<AssetInfo>,
+    client: SideInfo,
+    server: SideInfo,
 }
 
-struct AssetInfo {
-    handle: Handle,
+/// everything one side's pack holds
+struct SideInfo {
+    /// every path referenced by this side's entries, deduplicated and sorted by path
+    files: Vec<FileInfo>,
+    assets: Vec<AssetInfo>,
+}
+
+struct FileInfo {
+    /// path inside the pack, see path rules in conventions
+    path: String,
     /// on load, if they do not match panic
     size: u64,
 }
 
+struct AssetInfo {
+    handle: Handle,
+    /// index into the side's `files`
+    file: u32,
+}
+
 struct ChunkItem {
-    asset: AssetInfo,
+    /// index into the side's `files`
+    file: u32,
     /// in bytes
     offset: u32,
 }
@@ -118,43 +133,71 @@ impl PackWriter {
         })
     }
 
-    fn load_asset_group_info(&self, group: Vec<Handle>) -> Result<Vec<AssetInfo>, String> {
+    fn load_side_info(&self, side: &SideAssets, group: Vec<Handle>) -> Result<SideInfo, String> {
         let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
 
-        group
+        let asset_paths = group
             .into_iter()
             .map(|handle| {
-                let path = source.resolve_handle_to_path(&handle)?;
-                let size = std::fs::metadata(&path)
-                    .map_err(|e| {
-                        format!("failed to read `{}` for `{handle}`: {e}", path.display())
-                    })?
-                    .len();
+                let path = source.resolve_asset_path(side, &handle)?;
+                Ok((handle, path))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        // btree so files are deduplicated and sorted by path in byte order, like the manifest
+        let paths = asset_paths
+            .iter()
+            .map(|(_, path)| *path)
+            .collect::<BTreeSet<_>>();
+
+        let files = paths
+            .into_iter()
+            .map(|path| {
+                let full_path = source.get_root().join(path);
+                let metadata = std::fs::metadata(&full_path)
+                    .map_err(|e| format!("failed to read `{}`: {e}", full_path.display()))?;
+                if !metadata.is_file() {
+                    return Err(format!("`{}` is not a file", full_path.display()));
+                }
 
                 info!(
-                    "loaded asset file info at path {} and with size {}",
-                    path.to_string_lossy(),
-                    size
+                    "loaded file info at path {} and with size {}",
+                    full_path.to_string_lossy(),
+                    metadata.len()
                 );
 
-                Ok(AssetInfo { handle, size })
+                Ok(FileInfo {
+                    path: path.to_owned(),
+                    size: metadata.len(),
+                })
             })
-            .collect()
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let assets = asset_paths
+            .into_iter()
+            .map(|(handle, path)| {
+                let file = files
+                    .binary_search_by(|f| f.path.as_str().cmp(path))
+                    .expect("every asset path is in files");
+                AssetInfo {
+                    handle,
+                    file: file as u32,
+                }
+            })
+            .collect();
+
+        Ok(SideInfo { files, assets })
     }
 
-    fn load_asset_info(&mut self, mut handles: AssetHandles) -> Result<AssetInfoHolder, String> {
+    fn load_asset_info(&self, mut handles: AssetHandles) -> Result<AssetInfoHolder, String> {
+        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
+
         handles.server.extend_from_slice(&handles.shared);
         handles.client.extend_from_slice(&handles.shared);
 
-        let mut cinfo = self.load_asset_group_info(handles.client)?;
-        cinfo.sort_by_key(|v| Reverse(v.size));
-
-        let mut sinfo = self.load_asset_group_info(handles.server)?;
-        sinfo.sort_by_key(|v| Reverse(v.size));
-
         Ok(AssetInfoHolder {
-            client: cinfo,
-            server: sinfo,
+            client: self.load_side_info(source.get_client(), handles.client)?,
+            server: self.load_side_info(source.get_server(), handles.server)?,
         })
     }
 
@@ -200,6 +243,73 @@ mod tests {
     #[test]
     fn prep_assets_without_manifest_is_error() {
         assert!(PackWriter::new().prep_assets().is_err());
+    }
+
+    /// writes `manifest.toml` and empty files at `paths` into a fresh temp dir
+    fn temp_dev_dir(name: &str, manifest: &str, paths: &[&str]) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("terobit_writer_{}_{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&root);
+        for path in paths {
+            let full = root.join(path);
+            std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+            std::fs::write(full, path.as_bytes()).unwrap();
+        }
+        std::fs::write(root.join("manifest.toml"), manifest).unwrap();
+        root
+    }
+
+    #[test]
+    fn files_are_deduplicated_and_sorted_by_path() {
+        let root = temp_dev_dir(
+            "dedup",
+            "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
+             [assets]\n\"self:z\" = \"b/big.bin\"\n\"self:a\" = \"a.bin\"\n\
+             [client.assets]\n\"self:again\" = \"a.bin\"\n",
+            &["a.bin", "b/big.bin"],
+        );
+
+        let mut writer = PackWriter::new();
+        writer.read_manifest(root.join("manifest.toml")).unwrap();
+        let handles = writer.collect_asset_handles().unwrap();
+        let info = writer.load_asset_info(handles).unwrap();
+
+        let paths = |side: &SideInfo| {
+            side.files
+                .iter()
+                .map(|f| f.path.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(paths(&info.client), ["a.bin", "b/big.bin"]);
+        assert_eq!(paths(&info.server), ["a.bin", "b/big.bin"]);
+        assert_eq!(info.client.assets.len(), 3);
+        for asset in &info.client.assets {
+            let expected = if asset.handle.id() == "z" { 1 } else { 0 };
+            assert_eq!(asset.file, expected, "{}", asset.handle);
+        }
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn client_and_server_ids_resolve_separately() {
+        let root = temp_dev_dir(
+            "sides",
+            "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
+             [client.assets]\n\"self:x\" = \"client.bin\"\n\
+             [server.assets]\n\"self:x\" = \"server.bin\"\n",
+            &["client.bin", "server.bin"],
+        );
+
+        let mut writer = PackWriter::new();
+        writer.read_manifest(root.join("manifest.toml")).unwrap();
+        let handles = writer.collect_asset_handles().unwrap();
+        let info = writer.load_asset_info(handles).unwrap();
+
+        assert_eq!(info.client.files[0].path, "client.bin");
+        assert_eq!(info.server.files[0].path, "server.bin");
+
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
