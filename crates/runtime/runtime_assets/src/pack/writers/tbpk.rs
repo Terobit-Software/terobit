@@ -203,6 +203,7 @@ impl PackWriter {
 
     fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMap {
         let chunk_size = self.chunk_size;
+        todo!("need finishings");
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
