@@ -42,9 +42,17 @@ pub(crate) struct SideAssets {
 impl ManifestSource {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-        tracing::info!("Read manifest at path: {}", path.to_string_lossy());
+
+        if let Ok(canon) = path.canonicalize() {
+            tracing::info!("Read manifest at path: {}", canon.to_string_lossy());
+        } else {
+            tracing::error!("Failed to make manifest read path canon")
+        }
+
         let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
+
         tracing::info!("Converted str source to manifest successfully");
+
         manifest.root = path.parent().map(Into::into).unwrap_or_default();
         manifest.validate()?;
         Ok(manifest)

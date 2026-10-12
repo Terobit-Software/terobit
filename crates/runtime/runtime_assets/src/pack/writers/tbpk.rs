@@ -103,7 +103,11 @@ impl PackWriter {
 
     pub fn read_manifest(&mut self, path: PathBuf) -> Result<(), String> {
         self.manifest_source = Some(ManifestSource::from_path(&path)?);
-        info!("Manifest read OK at path {}", path.to_string_lossy());
+        if let Ok(canon) = path.canonicalize() {
+            info!("Manifest read OK at path {}", canon.to_string_lossy());
+        } else {
+            tracing::error!("Could not make OK manifest path canon")
+        }
         Ok(())
     }
 
