@@ -20,7 +20,7 @@ members = ["bins/tbpk_generator",
 ]
 
 [workspace.dependencies]
-bevy = { version = "0.19.1", default-features = false, features = ["debug"] }
+bevy = { version = "0.20.0", default-features = false, features = ["debug"] }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
