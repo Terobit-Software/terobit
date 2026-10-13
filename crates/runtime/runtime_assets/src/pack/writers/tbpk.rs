@@ -9,7 +9,7 @@ use tracing::info;
 #[derive(Default)]
 pub struct PackWriter {
     manifest_source: Option<ManifestSource>,
-    chunk_map: Option<FileChunkMap>,
+    chunk_map: Option<FileChunkMapSides>,
     chunk_size: u32,
 }
 
@@ -216,15 +216,42 @@ impl PackWriter {
         })
     }
 
-    fn get_side_partition(&self, asset_info: &AssetInfoHolder, side: ChunkSide) -> FileChunkMap {
+    fn get_side_partition(&self, asset_info: &SideInfo, side: ChunkSide) -> FileChunkMap {
         let chunk_size = self.chunk_size;
-        let mut oversized_chunks = Vec::new();
+        let mut oversized_chunks: Vec<ChunkSection> = Vec::new();
+
+        for asset in &asset_info.assets {
+            let file_id = asset.file;
+
+            if asset_info
+                .files
+                .get(file_id as usize)
+                .expect(&format!(
+                    "file id is out of range, id {}, max {}",
+                    file_id,
+                    asset_info.files.len() - 1
+                ))
+                .size
+                > chunk_size as u64
+            {
+                let section = ChunkSection {
+                    items: vec![ChunkItem {
+                        file: file_id.clone(),
+                        offset: 0,
+                    }],
+                };
+
+                oversized_chunks.push(section);
+            }
+        }
+
+        FileChunkMap { map: Vec::new() }
     }
 
     fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMapSides {
         FileChunkMapSides {
-            client: self.get_side_partition(&asset_info, ChunkSide::Client),
-            server: self.get_side_partition(&asset_info, ChunkSide::Server),
+            client: self.get_side_partition(&asset_info.client, ChunkSide::Client),
+            server: self.get_side_partition(&asset_info.server, ChunkSide::Server),
         }
     }
 
