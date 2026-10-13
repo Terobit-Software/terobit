@@ -3,6 +3,7 @@ use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
@@ -63,6 +64,7 @@ struct FileInfo {
     size: u64,
 }
 
+#[derive(Clone)]
 struct AssetInfo {
     handle: Handle,
     /// index into the side's `files`
@@ -219,6 +221,7 @@ impl PackWriter {
     fn get_side_partition(&self, asset_info: &SideInfo, side: ChunkSide) -> FileChunkMap {
         let chunk_size = self.chunk_size;
         let mut oversized_chunks: Vec<ChunkSection> = Vec::new();
+        let mut colocated_items: Vec<AssetInfo> = Vec::new();
 
         for asset in &asset_info.assets {
             let file_id = asset.file;
@@ -242,6 +245,8 @@ impl PackWriter {
                 };
 
                 oversized_chunks.push(section);
+            } else {
+                colocated_items.push(asset.clone());
             }
         }
 
