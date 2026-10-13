@@ -71,15 +71,25 @@ struct AssetInfo {
     file: u32,
 }
 
+#[derive(Copy, Clone)]
 struct ChunkItem {
     /// index into the side's `files`
     file: u32,
     /// in bytes
     offset: u32,
+    /// length
+    length: u64,
 }
 
+#[derive(Clone)]
 struct ChunkSection {
     items: Vec<ChunkItem>,
+}
+
+impl ChunkSection {
+    pub(crate) fn get_full_length(&self) -> u64 {
+        self.items.iter().map(|item| item.length).sum()
+    }
 }
 
 struct FileChunkMap {
@@ -219,14 +229,8 @@ impl PackWriter {
     }
 
     fn get_side_partition(&self, asset_info: &SideInfo, side: ChunkSide) -> FileChunkMap {
-        let chunk_size = self.chunk_size;
-        let mut oversized_chunks: Vec<ChunkSection> = Vec::new();
-        let mut colocated_items: Vec<AssetInfo> = Vec::new();
-
-        for asset in &asset_info.assets {
-            let file_id = asset.file;
-
-            if asset_info
+        let get_file_size = |file_id: u32| {
+            asset_info
                 .files
                 .get(file_id as usize)
                 .expect(&format!(
@@ -235,12 +239,22 @@ impl PackWriter {
                     asset_info.files.len() - 1
                 ))
                 .size
-                > chunk_size as u64
-            {
+        };
+
+        let chunk_size = self.chunk_size;
+        let mut oversized_chunks: Vec<ChunkSection> = Vec::new();
+        let mut colocated_items: Vec<AssetInfo> = Vec::new();
+
+        for asset in &asset_info.assets {
+            let file_id = asset.file;
+
+            let size = get_file_size(file_id);
+            if size > chunk_size as u64 {
                 let section = ChunkSection {
                     items: vec![ChunkItem {
                         file: file_id.clone(),
                         offset: 0,
+                        length: size as u64,
                     }],
                 };
 
@@ -250,7 +264,35 @@ impl PackWriter {
             }
         }
 
-        FileChunkMap { map: Vec::new() }
+        let mut colocated_chunks: Vec<ChunkSection> = Vec::new();
+        let mut chunk = ChunkSection { items: Vec::new() };
+        for item in colocated_items {
+            let size = get_file_size(item.file);
+            let used = chunk.get_full_length();
+
+            // start a new chunk when this file would overflow the current one
+            if used + size > chunk_size as u64 && !chunk.items.is_empty() {
+                colocated_chunks.push(std::mem::replace(
+                    &mut chunk,
+                    ChunkSection { items: Vec::new() },
+                ));
+            }
+
+            chunk.items.push(ChunkItem {
+                file: item.file,
+                offset: chunk.get_full_length() as u32,
+                length: size,
+            });
+        }
+        if !chunk.items.is_empty() {
+            colocated_chunks.push(chunk);
+        }
+
+        // combine them
+        oversized_chunks.extend(colocated_chunks);
+        FileChunkMap {
+            map: oversized_chunks,
+        }
     }
 
     fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMapSides {
