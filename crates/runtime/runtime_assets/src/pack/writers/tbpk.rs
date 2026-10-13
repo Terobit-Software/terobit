@@ -2,6 +2,7 @@ use crate::pack::Handle;
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
@@ -205,9 +206,13 @@ impl PackWriter {
         })
     }
 
-    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMap {
+    fn get_side_partition(&self, asset_info: &AssetInfoHolder) -> FileChunkMap {
         let chunk_size = self.chunk_size;
-        todo!("need finishings");
+        let mut oversized_chunks = Vec::new();
+    }
+
+    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> (FileChunkMap, FileChunkMap) {
+        (self.get_side_partition(&asset_info), self)
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
@@ -226,6 +231,8 @@ impl PackWriter {
 
         let asset_info = self.load_asset_info(asset_handles)?;
         info!("Finished loading asset info");
+
+        self.chunk_map = Some(self.partition_chunks(asset_info));
 
         Ok(())
     }
