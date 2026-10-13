@@ -1,5 +1,7 @@
-use crate::pack::{CommonHeader, Handle, TBPK_CURRENT_VERSION, TableOfContents, TbPack};
 use crate::pack::writers::{ManifestSource, SideAssets};
+use crate::pack::{
+    CommonHeader, FileEntry, HEADER_LEN, Handle, ManifestV1, TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
+};
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
@@ -351,20 +353,50 @@ impl PackWriter {
         Ok(())
     }
 
-    pub fn create_tbpk(&mut self) -> Result<TbPack, String> {
+    pub fn create_tbpk(&mut self, target: crate::pack::Target) -> Result<TbPack, String> {
+        let manifest_source = self
+            .manifest_source
+            .expect("manifest source does not exist");
+
         let mut header = CommonHeader {
             magic: crate::pack::MagicValue::TBPK,
             version: TBPK_CURRENT_VERSION,
             flags: 0,
-            header_length: 0,
+            header_length: HEADER_LEN,
             reserved: 0,
-            body_length: 0
-        };
-        let tbpk = TbPack {
-            header,
-            manifest: 
+            body_length: 0,
         };
 
+        let manifest_contents = ManifestV1 {
+            target,
+            realm_id: *manifest_source.get_realm_id(),
+            owner_id: *manifest_source.get_owner_id(),
+            access: *manifest_source.get_access(),
+            pack_version: 1,
+            files: vec![FileEntry {
+                path: 
+            }]
+        };
+
+        let man = TbManifest {
+            header: CommonHeader {
+                magic: crate::pack::MagicValue::TBMN,
+                version: TBMAN_CURRENT_VERSION,
+                flags: 0,
+                header_length: HEADER_LEN,
+                reserved: 0,
+                body_length: *&postcard::to_vec(&manifest_contents)
+                    .unwrap_or_default()
+                    .to_vec()
+                    .len() as u64,
+            },
+            body: manifest_contents,
+        };
+
+        let tbpk = TbPack {
+            header,
+            manifest: *&postcard::to_vec(&man).unwrap_or_default().to_vec(),
+        };
 
         Ok(tbpk)
     }

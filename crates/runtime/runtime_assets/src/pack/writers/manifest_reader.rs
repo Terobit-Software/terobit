@@ -2,14 +2,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use crate::pack::{Handle, validate_path};
-
-#[derive(Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum ManifestAccessLevel {
-    Free,
-    Licensed,
-}
+use crate::pack::{Access, Handle, validate_path};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,7 +10,7 @@ pub struct ManifestSource {
     realm_id: u64,
     owner_id: u64,
     pack_version: u32,
-    access: ManifestAccessLevel,
+    access: Access,
     #[serde(default)]
     assets: BTreeMap<String, String>,
     #[serde(default)]
@@ -94,7 +87,7 @@ impl ManifestSource {
         &self.pack_version
     }
 
-    pub(crate) fn get_access(&self) -> &ManifestAccessLevel {
+    pub(crate) fn get_access(&self) -> &Access {
         &self.access
     }
 
@@ -171,7 +164,7 @@ mod struct_tests {
         assert_eq!(manifest.realm_id, 1);
         assert_eq!(manifest.owner_id, 1);
         assert_eq!(manifest.pack_version, 1);
-        assert!(matches!(manifest.access, ManifestAccessLevel::Free));
+        assert!(matches!(manifest.access, Access::Free));
         assert_eq!(
             manifest.assets.get("self:cube").map(String::as_str),
             Some("meshes/mesh.obj")
@@ -207,7 +200,7 @@ mod struct_tests {
         assert_eq!(manifest.realm_id, 2);
         assert_eq!(manifest.owner_id, 3);
         assert_eq!(manifest.pack_version, 4);
-        assert!(matches!(manifest.access, ManifestAccessLevel::Licensed));
+        assert!(matches!(manifest.access, Access::Licensed));
         assert!(manifest.assets.is_empty());
         assert!(manifest.client.assets.is_empty());
         assert!(manifest.server.assets.is_empty());

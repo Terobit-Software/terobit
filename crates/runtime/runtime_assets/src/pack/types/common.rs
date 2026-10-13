@@ -1,4 +1,5 @@
 /// the magic value of the file
+#[derive(serde::Serialize)]
 pub enum MagicValue {
     /// terobit pack file
     TBPK,
@@ -15,6 +16,7 @@ pub enum MagicValue {
 /// size of the common header in bytes. fixed width, so it never depends on the struct layout
 pub const HEADER_LEN: u32 = 24;
 
+#[derive(serde::Serialize)]
 pub struct CommonHeader {
     /// the magic value of the file
     pub magic: MagicValue,
