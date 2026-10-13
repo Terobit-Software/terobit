@@ -84,6 +84,16 @@ struct FileChunkMap {
     map: Vec<ChunkSection>,
 }
 
+struct FileChunkMapSides {
+    client: FileChunkMap,
+    server: FileChunkMap,
+}
+
+enum ChunkSide {
+    Server,
+    Client,
+}
+
 impl PackWriter {
     pub fn new() -> Self {
         Self {
@@ -206,13 +216,16 @@ impl PackWriter {
         })
     }
 
-    fn get_side_partition(&self, asset_info: &AssetInfoHolder) -> FileChunkMap {
+    fn get_side_partition(&self, asset_info: &AssetInfoHolder, side: ChunkSide) -> FileChunkMap {
         let chunk_size = self.chunk_size;
         let mut oversized_chunks = Vec::new();
     }
 
-    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> (FileChunkMap, FileChunkMap) {
-        (self.get_side_partition(&asset_info), self)
+    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMapSides {
+        FileChunkMapSides {
+            client: self.get_side_partition(&asset_info, ChunkSide::Client),
+            server: self.get_side_partition(&asset_info, ChunkSide::Server),
+        }
     }
 
     pub fn prep_assets(&mut self) -> Result<(), String> {
