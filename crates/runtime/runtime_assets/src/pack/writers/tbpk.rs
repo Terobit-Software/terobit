@@ -79,6 +79,10 @@ struct ChunkItem {
     offset: u32,
     /// length
     length: u64,
+    /// end count, number of final item
+    end_number: u32,
+    /// current count, number of current item
+    number: u32,
 }
 
 #[derive(Clone)]
@@ -250,15 +254,21 @@ impl PackWriter {
 
             let size = get_file_size(file_id);
             if size > chunk_size as u64 {
-                let section = ChunkSection {
-                    items: vec![ChunkItem {
-                        file: file_id.clone(),
-                        offset: 0,
-                        length: size as u64,
-                    }],
-                };
+                let mut sections: Vec<ChunkSection> = Vec::new();
+                for i in 0..((size / chunk_size as u64) as usize) {
+                    let section = ChunkSection {
+                        items: vec![ChunkItem {
+                            file: file_id.clone(),
+                            offset: 0,
+                            length: size as u64,
+                            number: i as u32,
+                            end_number: size as u32 / chunk_size,
+                        }],
+                    };
+                    sections.push(section);
+                }
 
-                oversized_chunks.push(section);
+                oversized_chunks.extend(sections);
             } else {
                 colocated_items.push(asset.clone());
             }
@@ -282,6 +292,8 @@ impl PackWriter {
                 file: item.file,
                 offset: chunk.get_full_length() as u32,
                 length: size,
+                end_number: 0,
+                number: 0,
             });
         }
         if !chunk.items.is_empty() {
