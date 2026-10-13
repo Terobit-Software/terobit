@@ -19,7 +19,10 @@ fn main() {
             );
             if let Err(msg) = writer.prep_assets() {
                 tracing::error!("error on prep assets: {}", msg);
-            }
+            };
+            if let Err(msg) = writer.load_then_write() {
+                tracing::error!("error on load then write: {}", msg);
+            };
         })
         .run();
 }

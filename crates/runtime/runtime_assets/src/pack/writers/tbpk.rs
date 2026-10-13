@@ -1,4 +1,4 @@
-use crate::pack::Handle;
+use crate::pack::{CommonHeader, Handle, TBPK_CURRENT_VERSION, TableOfContents, TbPack};
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -349,6 +349,24 @@ impl PackWriter {
         self.chunk_map = Some(self.partition_chunks(asset_info));
 
         Ok(())
+    }
+
+    pub fn create_tbpk(&mut self) -> Result<TbPack, String> {
+        let mut header = CommonHeader {
+            magic: crate::pack::MagicValue::TBPK,
+            version: TBPK_CURRENT_VERSION,
+            flags: 0,
+            header_length: 0,
+            reserved: 0,
+            body_length: 0
+        };
+        let tbpk = TbPack {
+            header,
+            manifest: 
+        };
+
+
+        Ok(tbpk)
     }
 }
 
