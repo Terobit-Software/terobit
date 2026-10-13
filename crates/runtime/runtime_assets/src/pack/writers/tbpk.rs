@@ -1,6 +1,7 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    CommonHeader, FileEntry, HEADER_LEN, Handle, ManifestV1, TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
+    CommonHeader, FileEntry, HEADER_LEN, Handle, ManifestV1, TBMAN_CURRENT_VERSION,
+    TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -374,8 +375,8 @@ impl PackWriter {
             access: *manifest_source.get_access(),
             pack_version: 1,
             files: vec![FileEntry {
-                path: 
-            }]
+                path:
+            }],
         };
 
         let man = TbManifest {
