@@ -105,6 +105,7 @@ struct FileChunkMapSides {
     server: FileChunkMap,
 }
 
+#[derive(Debug)]
 enum ChunkSide {
     Server,
     Client,
@@ -233,6 +234,7 @@ impl PackWriter {
     }
 
     fn get_side_partition(&self, asset_info: &SideInfo, side: ChunkSide) -> FileChunkMap {
+        info!("Chunking for {:?}", side);
         let get_file_size = |file_id: u32| {
             asset_info
                 .files
@@ -268,15 +270,22 @@ impl PackWriter {
                     sections.push(section);
                 }
 
+                info!(
+                    "Created {} sections for oversized asset {}",
+                    sections.len(),
+                    asset.handle
+                );
+
                 oversized_chunks.extend(sections);
             } else {
                 colocated_items.push(asset.clone());
+                info!("Found colocatable item {}", asset.handle);
             }
         }
 
         let mut colocated_chunks: Vec<ChunkSection> = Vec::new();
         let mut chunk = ChunkSection { items: Vec::new() };
-        for item in colocated_items {
+        for item in &colocated_items {
             let size = get_file_size(item.file);
             let used = chunk.get_full_length();
 
@@ -299,6 +308,12 @@ impl PackWriter {
         if !chunk.items.is_empty() {
             colocated_chunks.push(chunk);
         }
+
+        info!(
+            "Created {} colocated chunks for {} items",
+            colocated_chunks.len(),
+            colocated_items.len()
+        );
 
         // combine them
         oversized_chunks.extend(colocated_chunks);
