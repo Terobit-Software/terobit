@@ -1,7 +1,7 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    CommonHeader, FileEntry, HEADER_LEN, Handle, IndexV1, ManifestV1, TBMAN_CURRENT_VERSION,
-    TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
+    ChunkEntry, CommonHeader, FileEntry, FileLocation, HEADER_LEN, Handle, IndexV1, ManifestV1,
+    TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -13,6 +13,8 @@ use tracing::info;
 pub struct PackWriter {
     tbpk: Option<TbPack>,
     chunk_size: u32,
+    chunk_entries: Vec<ChunkEntry>,
+    file_entries: Vec<FileLocation>,
 }
 
 impl Default for PackWriter {
@@ -20,6 +22,8 @@ impl Default for PackWriter {
         Self {
             tbpk: None,
             chunk_size: DEFAULT_CHUNK_SIZE,
+            chunk_entries: Vec::new(),
+            file_entries: Vec::new(),
         }
     }
 }
@@ -40,9 +44,19 @@ impl PackWriter {
         }
     }
 
+    fn get_chunk_entries(&self) -> &Vec<ChunkEntry> {
+        &self.chunk_entries
+    }
+
+    fn get_file_locations(&self) -> &Vec<FileLocation> {
+        &self.file_entries
+    }
+
     fn get_index(&self) -> Result<IndexV1, String> {
         let index = IndexV1 {
             chunk_size: self.chunk_size,
+            chunks: self.get_chunk_entries().clone(),
+            files: self.get_file_locations().clone(),
         };
 
         Ok(index)

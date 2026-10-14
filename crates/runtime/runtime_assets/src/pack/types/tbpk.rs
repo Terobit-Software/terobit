@@ -52,6 +52,7 @@ pub struct IndexV1 {
     pub files: Vec<FileLocation>,
 }
 
+#[derive(Clone)]
 pub struct ChunkEntry {
     /// where the stored bytes start, from the start of the data section
     pub offset: u64,
@@ -64,6 +65,7 @@ pub struct ChunkEntry {
     pub hash: [u8; 32],
 }
 
+#[derive(Clone, Copy)]
 pub enum Compression {
     /// stored bytes are the raw bytes. stored_len equals raw_len
     None = 0,
@@ -71,6 +73,7 @@ pub enum Compression {
     Zstd = 1,
 }
 
+#[derive(Clone, Copy)]
 pub struct FileLocation {
     /// the chunk the file starts in
     pub first_chunk: u32,
