@@ -14,7 +14,7 @@ pub struct PackWriter {
     tbpk: Option<TbPack>,
     chunk_size: u32,
     chunk_entries: Vec<ChunkEntry>,
-    file_entries: Vec<FileLocation>,
+    file_locations: Vec<FileLocation>,
 }
 
 impl Default for PackWriter {
@@ -23,7 +23,7 @@ impl Default for PackWriter {
             tbpk: None,
             chunk_size: DEFAULT_CHUNK_SIZE,
             chunk_entries: Vec::new(),
-            file_entries: Vec::new(),
+            file_locations: Vec::new(),
         }
     }
 }
@@ -49,7 +49,7 @@ impl PackWriter {
     }
 
     fn get_file_locations(&self) -> &Vec<FileLocation> {
-        &self.file_entries
+        &self.file_locations
     }
 
     fn get_index(&self) -> Result<IndexV1, String> {
