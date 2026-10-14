@@ -10,9 +10,18 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-#[derive(Default)]
 pub struct PackWriter {
     tbpk: Option<TbPack>,
+    chunk_size: u32,
+}
+
+impl Default for PackWriter {
+    fn default() -> Self {
+        Self {
+            tbpk: None,
+            chunk_size: DEFAULT_CHUNK_SIZE,
+        }
+    }
 }
 
 impl PackWriter {
@@ -31,7 +40,13 @@ impl PackWriter {
         }
     }
 
-    fn get_index(&self) -> Result<IndexV1, String> {}
+    fn get_index(&self) -> Result<IndexV1, String> {
+        let index = IndexV1 {
+            chunk_size: self.chunk_size,
+        };
+
+        Ok(index)
+    }
 
     fn get_table_of_contents(&self) -> Result<TableOfContents, String> {}
 
