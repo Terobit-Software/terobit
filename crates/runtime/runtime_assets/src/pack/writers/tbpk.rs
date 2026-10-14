@@ -103,7 +103,7 @@ impl PackWriter {
             toc: self.get_table_of_contents(target)?,
             index: self.get_index(target)?,
             manifest: self.get_manifest_u8_vec(target)?,
-            signature: self.get_signature_u8_vec(target),
+            signature: self.get_signature_u8_vec(target)?,
         };
 
         self.tbpk = Some(tbpk);
