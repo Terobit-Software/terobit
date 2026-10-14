@@ -68,7 +68,15 @@ impl PackWriter {
 
     fn get_table_of_contents(&self, target: Target) -> Result<TableOfContents, String> {}
 
-    fn get_manifest_u8_vec(&self, target: Target) -> Result<Vec<u8>, String> {}
+    fn get_manifest(&self, target: Target) -> Option<ManifestV1> {}
+
+    fn get_manifest_u8_vec(&self, target: Target) -> Result<Vec<u8>, String> {
+        let manifest = match self.get_manifest(target) {
+            None => return Err("no manifest exists, yet".into()),
+            Some(v) => v,
+        };
+        postcard::to_allocvec::<ManifestV1>(&manifest).map_err(|e| e.to_string())
+    }
 
     fn get_signature_u8_vec(&self, target: Target) -> Option<Vec<u8>> {}
 
