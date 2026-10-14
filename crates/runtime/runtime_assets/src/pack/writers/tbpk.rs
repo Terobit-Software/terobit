@@ -1,7 +1,8 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
     ChunkEntry, CommonHeader, FileEntry, FileLocation, HEADER_LEN, Handle, IndexV1, ManifestV1,
-    TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
+    SignatureV1, TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest,
+    TbPack,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -78,7 +79,21 @@ impl PackWriter {
         postcard::to_allocvec::<ManifestV1>(&manifest).map_err(|e| e.to_string())
     }
 
-    fn get_signature_u8_vec(&self, target: Target) -> Option<Vec<u8>> {}
+    fn get_signature(&self, target: Target) -> Option<SignatureV1> {}
+
+    // i fear for future me :sob:
+    // typeception bro
+    fn get_signature_u8_vec(&self, target: Target) -> Result<Option<Vec<u8>>, String> {
+        let signature = match self.get_signature(target) {
+            None => return Ok(None),
+            Some(v) => v,
+        };
+        let v = match postcard::to_allocvec::<SignatureV1>(&signature) {
+            Err(e) => return Err(e.to_string()),
+            Ok(v) => v,
+        };
+        Ok(Some(v))
+    }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
         let body_length = 0;

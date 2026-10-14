@@ -8,6 +8,7 @@ pub struct TbSignature {
     body: SignatureV1,
 }
 
+#[derive(serde::Serialize)]
 pub struct SignatureV1 {
     /// the key that made `signature`. purpose must be Pack
     cert: Certificate,
