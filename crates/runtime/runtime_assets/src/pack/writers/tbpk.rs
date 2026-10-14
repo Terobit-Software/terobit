@@ -1,7 +1,7 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
     ChunkEntry, CommonHeader, FileEntry, FileLocation, HEADER_LEN, Handle, IndexV1, ManifestV1,
-    TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
+    TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -11,9 +11,13 @@ use std::path::{Path, PathBuf};
 use tracing::info;
 
 pub struct PackWriter {
+    // implemented
     tbpk: Option<TbPack>,
+    // implemented
     chunk_size: u32,
+    // needs implementation
     chunk_entries: Vec<ChunkEntry>,
+    // needs implementation
     file_locations: Vec<FileLocation>,
 }
 
@@ -33,7 +37,7 @@ impl PackWriter {
         Self::default()
     }
 
-    fn header(&self, body_length: u64) -> CommonHeader {
+    fn header(&self, body_length: u64, target: Target) -> CommonHeader {
         CommonHeader {
             magic: crate::pack::MagicValue::TBMN,
             version: TBPK_CURRENT_VERSION,
@@ -44,39 +48,39 @@ impl PackWriter {
         }
     }
 
-    fn get_chunk_entries(&self) -> &Vec<ChunkEntry> {
+    fn get_chunk_entries(&self, target: Target) -> &Vec<ChunkEntry> {
         &self.chunk_entries
     }
 
-    fn get_file_locations(&self) -> &Vec<FileLocation> {
+    fn get_file_locations(&self, target: Target) -> &Vec<FileLocation> {
         &self.file_locations
     }
 
-    fn get_index(&self) -> Result<IndexV1, String> {
+    fn get_index(&self, target: Target) -> Result<IndexV1, String> {
         let index = IndexV1 {
             chunk_size: self.chunk_size,
-            chunks: self.get_chunk_entries().clone(),
-            files: self.get_file_locations().clone(),
+            chunks: self.get_chunk_entries(target).clone(),
+            files: self.get_file_locations(target).clone(),
         };
 
         Ok(index)
     }
 
-    fn get_table_of_contents(&self) -> Result<TableOfContents, String> {}
+    fn get_table_of_contents(&self, target: Target) -> Result<TableOfContents, String> {}
 
-    fn get_manifest_u8_vec(&self) -> Result<Vec<u8>, String> {}
+    fn get_manifest_u8_vec(&self, target: Target) -> Result<Vec<u8>, String> {}
 
-    fn get_signature_u8_vec(&self) -> Option<Vec<u8>> {}
+    fn get_signature_u8_vec(&self, target: Target) -> Option<Vec<u8>> {}
 
-    pub fn build_tbpk(&mut self) -> Result<(), String> {
+    pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
         let body_length = 0;
 
         let tbpk = TbPack {
-            header: self.header(body_length),
-            toc: self.get_table_of_contents()?,
-            index: self.get_index()?,
-            manifest: self.get_manifest_u8_vec()?,
-            signature: self.get_signature_u8_vec(),
+            header: self.header(body_length, target),
+            toc: self.get_table_of_contents(target)?,
+            index: self.get_index(target)?,
+            manifest: self.get_manifest_u8_vec(target)?,
+            signature: self.get_signature_u8_vec(target),
         };
 
         self.tbpk = Some(tbpk);

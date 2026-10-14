@@ -35,7 +35,7 @@ pub struct ManifestV1 {
     pub index: IndexRef,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Copy, Clone, Debug)]
 pub enum Target {
     Client = 0,
     Server = 1,
