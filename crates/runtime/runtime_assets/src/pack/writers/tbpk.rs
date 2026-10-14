@@ -1,6 +1,6 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    CommonHeader, FileEntry, HEADER_LEN, Handle, ManifestV1, TBMAN_CURRENT_VERSION,
+    CommonHeader, FileEntry, HEADER_LEN, Handle, IndexV1, ManifestV1, TBMAN_CURRENT_VERSION,
     TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
@@ -31,11 +31,23 @@ impl PackWriter {
         }
     }
 
+    fn get_index(&self) -> Result<IndexV1, String> {}
+
+    fn get_table_of_contents(&self) -> Result<TableOfContents, String> {}
+
+    fn get_manifest_u8_vec(&self) -> Result<Vec<u8>, String> {}
+
+    fn get_signature_u8_vec(&self) -> Option<Vec<u8>> {}
+
     pub fn build_tbpk(&mut self) -> Result<(), String> {
         let body_length = 0;
 
         let tbpk = TbPack {
             header: self.header(body_length),
+            toc: self.get_table_of_contents()?,
+            index: self.get_index()?,
+            manifest: self.get_manifest_u8_vec()?,
+            signature: self.get_signature_u8_vec(),
         };
 
         self.tbpk = Some(tbpk);
