@@ -64,6 +64,7 @@ impl Default for PackWriter {
             chunk_entries: Vec::new(),
             file_locations: Vec::new(),
             signer: None,
+            manifest_source: None,
         }
     }
 }

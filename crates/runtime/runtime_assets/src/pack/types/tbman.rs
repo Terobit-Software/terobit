@@ -51,7 +51,7 @@ pub enum Target {
     Server = 1,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
 pub enum Access {
     /// anyone can play
     Free = 0,

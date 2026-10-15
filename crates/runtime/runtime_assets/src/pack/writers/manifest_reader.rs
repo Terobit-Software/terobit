@@ -1,8 +1,10 @@
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::pack::{Access, Handle, validate_path};
+use crate::pack::{
+    Access, AssetEntry, FileEntry, Handle, IndexRef, ManifestV1, ScriptEntry, Target, validate_path,
+};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -122,6 +124,102 @@ impl ManifestSource {
             .find_map(|assets| assets.get(&key))
             .map(String::as_str)
             .ok_or_else(|| format!("handle with name '{handle}' is not found in the manifest"))
+    }
+
+    /// return is in form of (client, server). the index refs come from the caller since
+    /// they depend on the chunked file bytes, not the manifest
+    pub(crate) fn get_v1(
+        &self,
+        client_index: IndexRef,
+        server_index: IndexRef,
+    ) -> Result<(ManifestV1, ManifestV1), String> {
+        let client = self.side_v1(Target::Client, &self.client, client_index)?;
+        let server = self.side_v1(Target::Server, &self.server, server_index)?;
+        Ok((client, server))
+    }
+
+    /// one side's manifest. its files are the shared assets plus that side's assets and scripts
+    fn side_v1(
+        &self,
+        target: Target,
+        side: &SideAssets,
+        index: IndexRef,
+    ) -> Result<ManifestV1, String> {
+        for id in side.assets.keys() {
+            if self.assets.contains_key(id) {
+                return Err(format!("`{id}` is both a shared and a {target:?} asset"));
+            }
+        }
+        for (id, path) in &side.scripts {
+            if !path.ends_with(".wasm") {
+                return Err(format!("script `{id}`: `{path}` is not a .wasm file"));
+            }
+        }
+
+        // btreeset of strings sorts by byte order, which is what `files` needs
+        let paths: BTreeSet<&str> = self
+            .assets
+            .values()
+            .chain(side.assets.values())
+            .chain(side.scripts.values())
+            .map(String::as_str)
+            .collect();
+
+        let files = paths
+            .iter()
+            .map(|path| {
+                let size = std::fs::metadata(self.root.join(path))
+                    .map_err(|e| format!("`{path}`: {e}"))?
+                    .len();
+                Ok(FileEntry {
+                    path: (*path).to_owned(),
+                    size,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let file_index = |path: &str| -> Result<u32, String> {
+            let i = files
+                .binary_search_by(|f| f.path.as_str().cmp(path))
+                .map_err(|_| format!("`{path}` is missing from the file list"))?;
+            u32::try_from(i).map_err(|_| "too many files for one pack".to_string())
+        };
+
+        let mut assets = self
+            .assets
+            .iter()
+            .chain(&side.assets)
+            .map(|(id, path)| {
+                Ok(AssetEntry {
+                    id: id.clone(),
+                    file: file_index(path)?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        assets.sort_by(|a, b| a.id.cmp(&b.id));
+
+        let scripts = side
+            .scripts
+            .iter()
+            .map(|(id, path)| {
+                Ok(ScriptEntry {
+                    id: id.clone(),
+                    file: file_index(path)?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        Ok(ManifestV1 {
+            target,
+            realm_id: self.realm_id,
+            owner_id: self.owner_id,
+            access: self.access,
+            pack_version: self.pack_version,
+            files,
+            assets,
+            scripts,
+            index,
+        })
     }
 }
 
