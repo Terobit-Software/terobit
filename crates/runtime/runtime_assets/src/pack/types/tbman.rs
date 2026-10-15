@@ -52,6 +52,7 @@ pub enum Target {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum Access {
     /// anyone can play
     Free = 0,
