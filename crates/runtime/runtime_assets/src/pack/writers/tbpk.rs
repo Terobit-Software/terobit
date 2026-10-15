@@ -1,8 +1,8 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
     Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexV1, MagicValue,
-    ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
-    TbSignature,
+    ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target,
+    TbManifest, TbPack, TbSignature,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
 use ed25519_dalek::{Signer, SigningKey};
@@ -22,7 +22,10 @@ impl PackSigner {
     /// fails if the certificate isn't for packs or doesn't match the key
     pub fn new(key: SigningKey, cert: Certificate) -> Result<Self, String> {
         if cert.purpose() != Purpose::Pack {
-            return Err(format!("certificate purpose is {:?}, not Pack", cert.purpose()));
+            return Err(format!(
+                "certificate purpose is {:?}, not Pack",
+                cert.purpose()
+            ));
         }
         if cert.public_key() != key.verifying_key().as_bytes() {
             return Err("certificate public key doesn't match the signing key".into());
@@ -49,6 +52,8 @@ pub struct PackWriter {
     file_locations: Vec<FileLocation>,
     /// `None` writes an unsigned pack
     signer: Option<PackSigner>,
+    // implemented
+    manifest_source: Option<ManifestSource>,
 }
 
 impl Default for PackWriter {
@@ -71,6 +76,12 @@ impl PackWriter {
     pub fn with_signer(mut self, signer: PackSigner) -> Self {
         self.signer = Some(signer);
         self
+    }
+
+    pub fn load_manifest(&mut self, path: PathBuf) -> Result<(), String> {
+        let src = ManifestSource::from_path(&path)?;
+        self.manifest_source = Some(src);
+        Ok(())
     }
 
     fn header(&self, body_length: u64, target: Target) -> CommonHeader {
@@ -115,7 +126,9 @@ impl PackWriter {
         &self,
         manifest: &Signed<TbManifest>,
     ) -> Result<Option<TbSignature>, String> {
-        self.get_signature(manifest).map(TbSignature::new).transpose()
+        self.get_signature(manifest)
+            .map(TbSignature::new)
+            .transpose()
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {

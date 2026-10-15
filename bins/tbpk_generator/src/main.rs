@@ -17,6 +17,9 @@ fn main() -> AppExit {
             // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
             // until then packs are written unsigned
             let mut writer = PackWriter::new();
+            if let Err(msg) = writer.load_manifest(PathBuf::from("")) {
+                tracing::error!("error on build tbpk for {:?}: {}", target, msg);
+            }
             for target in [Target::Client, Target::Server] {
                 if let Err(msg) = writer.build_tbpk(target) {
                     tracing::error!("error on build tbpk for {:?}: {}", target, msg);
