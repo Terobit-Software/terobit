@@ -1,8 +1,8 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    ChunkEntry, CommonHeader, FileEntry, FileLocation, HEADER_LEN, Handle, IndexV1, ManifestV1,
-    SignatureV1, TBMAN_CURRENT_VERSION, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest,
-    TbPack,
+    ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexV1, MagicValue, ManifestV1,
+    SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
+    TbSignature,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -39,14 +39,7 @@ impl PackWriter {
     }
 
     fn header(&self, body_length: u64, target: Target) -> CommonHeader {
-        CommonHeader {
-            magic: crate::pack::MagicValue::TBMN,
-            version: TBPK_CURRENT_VERSION,
-            flags: 0,
-            header_length: HEADER_LEN,
-            reserved: 0,
-            body_length,
-        }
+        CommonHeader::new(MagicValue::TBPK, TBPK_CURRENT_VERSION, body_length)
     }
 
     fn get_chunk_entries(&self, target: Target) -> &Vec<ChunkEntry> {
@@ -71,28 +64,18 @@ impl PackWriter {
 
     fn get_manifest(&self, target: Target) -> Option<ManifestV1> {}
 
-    fn get_manifest_u8_vec(&self, target: Target) -> Result<Vec<u8>, String> {
+    fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, String> {
         let manifest = match self.get_manifest(target) {
             None => return Err("no manifest exists, yet".into()),
             Some(v) => v,
         };
-        postcard::to_allocvec::<ManifestV1>(&manifest).map_err(|e| e.to_string())
+        TbManifest::encode(manifest)
     }
 
     fn get_signature(&self, target: Target) -> Option<SignatureV1> {}
 
-    // i fear for future me :sob:
-    // typeception bro
-    fn get_signature_u8_vec(&self, target: Target) -> Result<Option<Vec<u8>>, String> {
-        let signature = match self.get_signature(target) {
-            None => return Ok(None),
-            Some(v) => v,
-        };
-        let v = match postcard::to_allocvec::<SignatureV1>(&signature) {
-            Err(e) => return Err(e.to_string()),
-            Ok(v) => v,
-        };
-        Ok(Some(v))
+    fn get_tb_signature(&self, target: Target) -> Result<Option<TbSignature>, String> {
+        self.get_signature(target).map(TbSignature::new).transpose()
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
@@ -102,8 +85,8 @@ impl PackWriter {
             header: self.header(body_length, target),
             toc: self.get_table_of_contents(target)?,
             index: self.get_index(target)?,
-            manifest: self.get_manifest_u8_vec(target)?,
-            signature: self.get_signature_u8_vec(target)?,
+            manifest: self.get_signed_manifest(target)?,
+            signature: self.get_tb_signature(target)?,
         };
 
         self.tbpk = Some(tbpk);

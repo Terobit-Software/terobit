@@ -1,4 +1,4 @@
-use crate::pack::CommonHeader;
+use crate::pack::{CommonHeader, TbManifest, TbSignature};
 
 /// size of the table of contents in bytes, right after the common header
 pub const TOC_LEN: u64 = 64;
@@ -22,11 +22,19 @@ pub struct TbPack {
     /// where each section is in the file
     pub toc: TableOfContents,
     /// the manifest section, a complete `.tbman` file
-    pub manifest: Vec<u8>,
+    pub manifest: Signed<TbManifest>,
     /// the signature section, a complete `.tbsig` file, `None` if unsigned
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<TbSignature>,
     /// the index section
     pub index: IndexV1,
+}
+
+/// a section a signature covers. `raw` is exactly what is on disk and what gets signed or
+/// verified, never re-encode `parsed` to check a signature. readers decode `parsed` only
+/// after `raw` verifies
+pub struct Signed<T> {
+    pub raw: Vec<u8>,
+    pub parsed: T,
 }
 
 /// fixed width little endian, right after the common header. offsets are from the start of the file

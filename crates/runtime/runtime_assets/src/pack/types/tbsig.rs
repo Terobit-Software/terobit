@@ -1,4 +1,4 @@
-use crate::pack::{Certificate, CommonHeader};
+use crate::pack::{Certificate, CommonHeader, MagicValue, encode_file};
 use serde_with::{Bytes, serde_as};
 
 /// a `.tbsig` file
@@ -7,6 +7,26 @@ pub struct TbSignature {
     header: CommonHeader,
     /// the body, postcard encoded
     body: SignatureV1,
+}
+
+impl TbSignature {
+    pub fn new(body: SignatureV1) -> Result<Self, String> {
+        let (header, _) = encode_file(MagicValue::TBSG, TBSIG_CURRENT_VERSION, &body)?;
+        Ok(Self { header, body })
+    }
+
+    /// the whole `.tbsig` file, header then body
+    pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        encode_file(MagicValue::TBSG, TBSIG_CURRENT_VERSION, &self.body).map(|(_, raw)| raw)
+    }
+
+    pub fn header(&self) -> &CommonHeader {
+        &self.header
+    }
+
+    pub fn body(&self) -> &SignatureV1 {
+        &self.body
+    }
 }
 
 #[serde_as]
