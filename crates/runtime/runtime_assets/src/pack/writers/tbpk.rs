@@ -4,7 +4,10 @@ use crate::pack::{
     MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents,
     Target, TbManifest, TbPack, TbSignature,
 };
-use crate::pack::{DEFAULT_CHUNK_SIZE, INDEX, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
+use crate::pack::{
+    DEFAULT_CHUNK_SIZE, HEADER_LEN, INDEX, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
+    MIN_CHUNK_SIZE, TOC_LEN, pack_digest,
+};
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
@@ -107,7 +110,55 @@ impl PackWriter {
         Ok(index)
     }
 
-    fn get_table_of_contents(&self, target: Target) -> Result<TableOfContents, String> {}
+    /// the index section's bytes. the manifest's index hash is over exactly these
+    fn encode_index(&self, target: Target) -> Result<Vec<u8>, String> {
+        postcard::to_allocvec(&self.get_index(target)?).map_err(|e| e.to_string())
+    }
+
+    /// sections go header, toc, manifest, signature, index, data, with no gaps
+    fn get_table_of_contents(
+        &self,
+        target: Target,
+        manifest: &Signed<TbManifest>,
+        signature: Option<&TbSignature>,
+    ) -> Result<TableOfContents, String> {
+        let manifest_offset = HEADER_LEN as u64 + TOC_LEN;
+        let manifest_len = manifest.raw.len() as u64;
+        if manifest_len > MAX_MANIFEST_LEN {
+            return Err(format!(
+                "manifest is {manifest_len} bytes, the most is {MAX_MANIFEST_LEN}"
+            ));
+        }
+
+        let signature_offset = manifest_offset + manifest_len;
+        let signature_len = signature.map_or(0, |sig| HEADER_LEN as u64 + sig.header().body_length);
+        if signature_len > MAX_SIGNATURE_LEN {
+            return Err(format!(
+                "signature is {signature_len} bytes, the most is {MAX_SIGNATURE_LEN}"
+            ));
+        }
+
+        let index_offset = signature_offset + signature_len;
+        let index_len = self.encode_index(target)?.len() as u64;
+
+        // chunks are in data section order, so the last one ends the section
+        let data_offset = index_offset + index_len;
+        let data_len = self
+            .get_chunk_entries(target)
+            .last()
+            .map_or(0, |chunk| chunk.offset + chunk.stored_len as u64);
+
+        Ok(TableOfContents {
+            manifest_offset,
+            manifest_len,
+            signature_offset,
+            signature_len,
+            index_offset,
+            index_len,
+            data_offset,
+            data_len,
+        })
+    }
 
     /// needs the index built first, since the manifest holds its length and hash
     fn get_manifest(&self, target: Target) -> Result<ManifestV1, String> {
@@ -116,7 +167,7 @@ impl PackWriter {
             .as_ref()
             .ok_or("no manifest has been loaded, yet")?;
 
-        let index = postcard::to_allocvec(&self.get_index(target)?).map_err(|e| e.to_string())?;
+        let index = self.encode_index(target)?;
         let index_ref = IndexRef {
             len: index.len() as u64,
             hash: blake3::derive_key(INDEX, &index),
@@ -151,7 +202,7 @@ impl PackWriter {
 
         let tbpk = TbPack {
             header: self.header(body_length, target),
-            toc: self.get_table_of_contents(target)?,
+            toc: self.get_table_of_contents(target, &manifest, signature.as_ref())?,
             index: self.get_index(target)?,
             manifest,
             signature,
