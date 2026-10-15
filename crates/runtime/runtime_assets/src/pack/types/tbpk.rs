@@ -96,7 +96,7 @@ pub struct ChunkEntry {
     pub hash: [u8; 32],
 }
 
-#[derive(serde::Serialize, Clone, Copy)]
+#[derive(serde::Serialize, Clone, Copy, Debug)]
 pub enum Compression {
     /// stored bytes are the raw bytes. stored_len equals raw_len
     None = 0,

@@ -5,6 +5,7 @@ use runtime_assets::pack::writers::PackWriter;
 use runtime_core::RuntimeCorePlugins;
 use runtime_run_flags::RuntimeFlags;
 use std::path::PathBuf;
+use tracing::info;
 
 /// folder the packs go in when `--out` isn't given
 const DEFAULT_OUT: &str = "out/tbpk_generator";
@@ -74,10 +75,20 @@ fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
             return;
         }
     };
+    info!("Manifest: {}", args.manifest.display());
+    info!("Output folder: {}", args.out.display());
+    info!("Targets: {:?}", args.targets);
 
+    let start = std::time::Instant::now();
     exit.write(match write_packs(&args) {
-        Ok(()) => AppExit::Success,
-        Err(()) => AppExit::error(),
+        Ok(()) => {
+            info!("Generated all packs in {:?}", start.elapsed());
+            AppExit::Success
+        }
+        Err(()) => {
+            tracing::error!("Pack generation failed after {:?}", start.elapsed());
+            AppExit::error()
+        }
     });
 }
 
@@ -85,6 +96,7 @@ fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
 fn write_packs(args: &Args) -> Result<(), ()> {
     // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
     // until then packs are written unsigned
+    info!("No signing key loaded, writing unsigned packs");
     let mut writer = PackWriter::new();
     if let Err(msg) = writer.load_manifest(args.manifest.clone()) {
         tracing::error!(
@@ -99,6 +111,7 @@ fn write_packs(args: &Args) -> Result<(), ()> {
         tracing::error!("error on create {}: {}", args.out.display(), e);
         return Err(());
     }
+    info!("Output folder {} is ready", args.out.display());
 
     // `<realm_id>-<pack_version>.<target>.tbpk`, as suggested in the tbpk doc
     let stem = match writer.get_manifest_source() {
@@ -109,8 +122,12 @@ fn write_packs(args: &Args) -> Result<(), ()> {
         }
     };
 
+    info!("Packs will be named {stem}.<target>.tbpk");
+
     let mut failed = false;
     for &target in args.targets {
+        let target_start = std::time::Instant::now();
+        info!("Generating {target:?} pack");
         if let Err(msg) = writer.build_tbpk(target) {
             tracing::error!("error on build tbpk for {:?}: {}", target, msg);
             failed = true;
@@ -125,7 +142,13 @@ fn write_packs(args: &Args) -> Result<(), ()> {
         if let Err(msg) = writer.write_tbpk_out(&path) {
             tracing::error!("error on write tbpk out for {:?}: {}", target, msg);
             failed = true;
+            continue;
         }
+        info!(
+            "Generated {target:?} pack at {} in {:?}",
+            path.display(),
+            target_start.elapsed()
+        );
     }
 
     if failed { Err(()) } else { Ok(()) }

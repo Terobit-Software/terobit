@@ -35,6 +35,10 @@ impl PackSigner {
         if cert.public_key() != key.verifying_key().as_bytes() {
             return Err("certificate public key doesn't match the signing key".into());
         }
+        info!(
+            "Created pack signer with public key {}",
+            hex(key.verifying_key().as_bytes())
+        );
         Ok(Self { key, cert })
     }
 
@@ -42,6 +46,11 @@ impl PackSigner {
     pub fn sign(&self, manifest: &Signed<TbManifest>) -> SignatureV1 {
         let digest = pack_digest(&manifest.raw);
         let signature = self.key.sign(&digest).to_bytes();
+        info!(
+            "Signed {} manifest bytes, digest {}",
+            manifest.raw.len(),
+            hex(&digest)
+        );
         SignatureV1::new(self.cert.clone(), signature)
     }
 }
@@ -77,12 +86,15 @@ impl PackWriter {
     }
 
     pub fn with_signer(mut self, signer: PackSigner) -> Self {
+        info!("Pack writer will sign packs");
         self.signer = Some(signer);
         self
     }
 
     pub fn load_manifest(&mut self, path: PathBuf) -> Result<(), String> {
+        info!("Loading manifest from {}", path.display());
         let src = ManifestSource::from_path(&path)?;
+        info!("Asset paths are relative to {}", src.get_root().display());
         self.manifest_source = Some(src);
         Ok(())
     }
@@ -99,6 +111,7 @@ impl PackWriter {
 
     /// reads and compresses every file on one side
     fn chunk(&mut self, target: Target) -> Result<(), String> {
+        info!("Chunking {target:?} files");
         let source = self.get_manifest_source()?;
         let files = source.get_side_files(target)?;
         let chunks = chunk_files(source.get_root(), &files, self.chunk_size)?;
@@ -163,6 +176,11 @@ impl PackWriter {
         let data_offset = index_offset + index_len;
         let data_len = self.get_chunks(target)?.data_len();
 
+        info!("{target:?} manifest section at {manifest_offset}, {manifest_len} bytes");
+        info!("{target:?} signature section at {signature_offset}, {signature_len} bytes");
+        info!("{target:?} index section at {index_offset}, {index_len} bytes");
+        info!("{target:?} data section at {data_offset}, {data_len} bytes");
+
         Ok(TableOfContents {
             manifest_offset,
             manifest_len,
@@ -184,12 +202,29 @@ impl PackWriter {
             len: index.len() as u64,
             hash: blake3::derive_key(INDEX, &index),
         };
+        info!(
+            "{target:?} index is {} bytes, hash {}",
+            index_ref.len,
+            hex(&index_ref.hash)
+        );
 
-        source.get_v1_side(target, index_ref)
+        let manifest = source.get_v1_side(target, index_ref)?;
+        info!(
+            "Built {target:?} manifest with {} files, {} assets, {} scripts",
+            manifest.files.len(),
+            manifest.assets.len(),
+            manifest.scripts.len()
+        );
+        Ok(manifest)
     }
 
     fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, String> {
-        TbManifest::encode(self.get_manifest(target)?)
+        let manifest = TbManifest::encode(self.get_manifest(target)?)?;
+        info!(
+            "Encoded {target:?} manifest to {} bytes",
+            manifest.raw.len()
+        );
+        Ok(manifest)
     }
 
     fn get_signature(&self, manifest: &Signed<TbManifest>) -> Option<SignatureV1> {
@@ -200,12 +235,16 @@ impl PackWriter {
         &self,
         manifest: &Signed<TbManifest>,
     ) -> Result<Option<TbSignature>, String> {
+        if self.signer.is_none() {
+            info!("No signer set, the pack will be unsigned");
+        }
         self.get_signature(manifest)
             .map(TbSignature::new)
             .transpose()
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
+        info!("Building {target:?} pack");
         // the index comes from the chunks, and the manifest holds the index's hash
         self.chunk(target)?;
 
@@ -227,6 +266,10 @@ impl PackWriter {
 
         self.tbpk = Some(tbpk);
 
+        info!(
+            "Built {target:?} pack, {} bytes total",
+            HEADER_LEN as u64 + body_length
+        );
         Ok(())
     }
 
@@ -237,7 +280,9 @@ impl PackWriter {
             Some(v) => v,
         };
         let toc = &tbpk_value.toc;
-        let chunks = self.get_chunks(tbpk_value.manifest.parsed.body.target)?;
+        let target = tbpk_value.manifest.parsed.body.target;
+        let chunks = self.get_chunks(target)?;
+        info!("Writing {target:?} pack to {}", path.display());
 
         let index = postcard::to_allocvec(&tbpk_value.index).map_err(|e| e.to_string())?;
         if index.len() as u64 != toc.index_len {
@@ -251,14 +296,15 @@ impl PackWriter {
 
         let file = File::create(path).map_err(|e| format!("`{}`: {e}", path.display()))?;
         let mut out = BufWriter::new(file);
-        for section in [
-            &tbpk_value.header.to_bytes()[..],
-            &toc.to_bytes(),
-            &tbpk_value.manifest.raw,
-            &signature,
-            &index,
+        for (name, section) in [
+            ("header", &tbpk_value.header.to_bytes()[..]),
+            ("table of contents", &toc.to_bytes()),
+            ("manifest", &tbpk_value.manifest.raw),
+            ("signature", &signature),
+            ("index", &index),
         ] {
             out.write_all(section).map_err(|e| e.to_string())?;
+            info!("Wrote {name} section, {} bytes", section.len());
         }
 
         let data_len =
@@ -266,9 +312,15 @@ impl PackWriter {
         if data_len != toc.data_len {
             return Err("data section length doesn't match the table of contents".into());
         }
+        info!("Wrote data section, {data_len} bytes");
         out.flush().map_err(|e| e.to_string())?;
 
         info!("Wrote tbpk to {}", path.display());
         Ok(())
     }
+}
+
+/// lowercase hex, for logging hashes and keys
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }

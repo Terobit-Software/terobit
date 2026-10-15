@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use tracing::info;
 
 use crate::pack::{
     Access, AssetEntry, FileEntry, Handle, IndexRef, ManifestV1, ScriptEntry, Target, validate_path,
@@ -39,17 +40,30 @@ impl ManifestSource {
         let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
 
         if let Ok(canon) = path.canonicalize() {
-            tracing::info!("Read manifest at path: {}", canon.to_string_lossy());
+            info!("Read manifest at path: {}", canon.to_string_lossy());
         } else {
             tracing::error!("Failed to make manifest read path canon")
         }
 
         let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
 
-        tracing::info!("Converted str source to manifest successfully");
+        info!("Converted str source to manifest successfully");
 
         manifest.root = path.parent().map(Into::into).unwrap_or_default();
         manifest.validate()?;
+
+        info!(
+            "Manifest is realm {}, owner {}, pack version {}, access {:?}",
+            manifest.realm_id, manifest.owner_id, manifest.pack_version, manifest.access
+        );
+        info!(
+            "Manifest has {} shared assets, {} client assets, {} client scripts, {} server assets, {} server scripts",
+            manifest.assets.len(),
+            manifest.client.assets.len(),
+            manifest.client.scripts.len(),
+            manifest.server.assets.len(),
+            manifest.server.scripts.len()
+        );
         Ok(manifest)
     }
 
@@ -172,6 +186,10 @@ impl ManifestSource {
             })
             .collect::<Result<Vec<_>, String>>()?;
 
+        for file in &files {
+            info!("{target:?} file `{}` is {} bytes", file.path, file.size);
+        }
+        info!("{target:?} side has {} files", files.len());
         Ok(files)
     }
 

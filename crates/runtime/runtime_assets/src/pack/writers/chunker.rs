@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use tracing::info;
 
 /// one side's chunked files. the stored chunk bytes live in a temp file, so memory use is
 /// bounded by the chunk size however big the pack is
@@ -44,6 +45,7 @@ impl SpoolFile {
             .create_new(true)
             .open(&path)
             .map_err(|e| format!("`{}`: {e}", path.display()))?;
+        info!("Spooling chunk data to {}", path.display());
         Ok((Self { path }, file))
     }
 
@@ -54,7 +56,9 @@ impl SpoolFile {
 
 impl Drop for SpoolFile {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
+        if std::fs::remove_file(&self.path).is_ok() {
+            info!("Removed chunk spool file {}", self.path.display());
+        }
     }
 }
 
@@ -65,6 +69,13 @@ pub(crate) fn chunk_files(
     files: &[FileEntry],
     chunk_size: u32,
 ) -> Result<SideChunks, String> {
+    let total: u64 = files.iter().map(|f| f.size).sum();
+    info!(
+        "Chunking {} files ({total} bytes) from {} with chunk size {chunk_size}",
+        files.len(),
+        root.display()
+    );
+
     let mut chunker = Chunker::new(chunk_size)?;
     let mut locations = Vec::with_capacity(files.len());
 
@@ -72,30 +83,41 @@ pub(crate) fn chunk_files(
         let path = root.join(&entry.path);
         let err = |e: String| format!("`{}`: {e}", entry.path);
 
-        let location = if entry.size == 0 {
-            FileLocation {
+        let (location, kind) = if entry.size == 0 {
+            let location = FileLocation {
                 first_chunk: 0,
                 offset_in_chunk: 0,
-            }
+            };
+            (location, "empty")
         } else {
             let file = File::open(&path).map_err(|e| err(e.to_string()))?;
             // a small file bigger than the chunk size can't fit in one chunk, so it's
             // chunked like a large file
             if entry.size >= LARGE_FILE_THRESHOLD || entry.size > chunk_size as u64 {
-                chunker.add_large(file, entry.size).map_err(err)?
+                (chunker.add_large(file, entry.size).map_err(err)?, "large")
             } else {
-                chunker.add_small(file, entry.size).map_err(err)?
+                (chunker.add_small(file, entry.size).map_err(err)?, "small")
             }
         };
+        info!(
+            "Packed {kind} file `{}` ({} bytes), starts in chunk {} at offset {}",
+            entry.path, entry.size, location.first_chunk, location.offset_in_chunk
+        );
         locations.push(location);
     }
 
     let (entries, data) = chunker.finish()?;
-    Ok(SideChunks {
+    let chunks = SideChunks {
         entries,
         locations,
         data,
-    })
+    };
+    info!(
+        "Chunked {total} bytes into {} chunks, {} bytes stored",
+        chunks.entries.len(),
+        chunks.data_len()
+    );
+    Ok(chunks)
 }
 
 struct Chunker {
@@ -187,6 +209,13 @@ impl Chunker {
         };
 
         self.out.write_all(stored).map_err(|e| e.to_string())?;
+        info!(
+            "Chunk {}: {} raw bytes, {} stored ({compression:?}) at data offset {}",
+            self.entries.len(),
+            raw.len(),
+            stored.len(),
+            self.offset
+        );
         self.entries.push(ChunkEntry {
             offset: self.offset,
             stored_len: stored.len() as u32,
