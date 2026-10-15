@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 
 use bevy::prelude::*;
 use client_dev::ClientDevPlugin;
@@ -6,6 +5,9 @@ use runtime_assets::pack::Target;
 use runtime_assets::pack::writers::PackWriter;
 use runtime_core::RuntimeCorePlugins;
 use std::path::Path;
+
+/// the example manifest the generator packs, relative to this crate
+const EXAMPLE_MANIFEST: &str = "../../tests/examples/source_to_tbpk/basic1/manifest.toml";
 
 fn main() -> AppExit {
     let _guard = runtime_logging::init_logging("Tbpk", "Generator");
@@ -17,8 +19,10 @@ fn main() -> AppExit {
             // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
             // until then packs are written unsigned
             let mut writer = PackWriter::new();
-            if let Err(msg) = writer.load_manifest(PathBuf::from("")) {
-                tracing::error!("error on build tbpk for {:?}: {}", target, msg);
+            let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(EXAMPLE_MANIFEST);
+            if let Err(msg) = writer.load_manifest(manifest_path.clone()) {
+                tracing::error!("error on load manifest {}: {}", manifest_path.display(), msg);
+                return;
             }
             for target in [Target::Client, Target::Server] {
                 if let Err(msg) = writer.build_tbpk(target) {
