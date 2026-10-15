@@ -194,15 +194,17 @@ impl PackWriter {
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
-        let body_length = 0;
-
         // the signature covers the manifest's bytes, so the manifest has to exist first
         let manifest = self.get_signed_manifest(target)?;
         let signature = self.get_tb_signature(&manifest)?;
+        let toc = self.get_table_of_contents(target, &manifest, signature.as_ref())?;
+
+        // the data section is last, so its end is the end of the file
+        let body_length = toc.data_offset + toc.data_len - HEADER_LEN as u64;
 
         let tbpk = TbPack {
             header: self.header(body_length, target),
-            toc: self.get_table_of_contents(target, &manifest, signature.as_ref())?,
+            toc,
             index: self.get_index(target)?,
             manifest,
             signature,
