@@ -4,7 +4,7 @@ use crate::pack::{
     MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents,
     Target, TbManifest, TbPack, TbSignature,
 };
-use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
+use crate::pack::{DEFAULT_CHUNK_SIZE, INDEX, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
@@ -54,8 +54,6 @@ pub struct PackWriter {
     signer: Option<PackSigner>,
     // implemented
     manifest_source: Option<ManifestSource>,
-    // implemented
-    v_ones: Option<(ManifestV1, ManifestV1)>,
 }
 
 impl Default for PackWriter {
@@ -67,7 +65,6 @@ impl Default for PackWriter {
             file_locations: Vec::new(),
             signer: None,
             manifest_source: None,
-            v_ones: None,
         }
     }
 }
@@ -112,37 +109,24 @@ impl PackWriter {
 
     fn get_table_of_contents(&self, target: Target) -> Result<TableOfContents, String> {}
 
-    fn get_manifest(&self, target: Target) -> Option<ManifestV1> {
-        match self.v_ones {
-            None => {
-                let client_index = self.get_index(Target::Client);
-                let server_index = self.get_index(Target::Server);
+    /// needs the index built first, since the manifest holds its length and hash
+    fn get_manifest(&self, target: Target) -> Result<ManifestV1, String> {
+        let source = self
+            .manifest_source
+            .as_ref()
+            .ok_or("no manifest has been loaded, yet")?;
 
-                let indexes = match (client_index, server_index) {
-                    (Ok(c), Ok(s)) => (c, s),
-                    _ => return None,
-                };
-
-                let v_ones = match self.manifest_source {
-                    None => return None,
-                    Some(v) => v.get_v1(indexes.0, indexes.1),
-                };
-
-                return None;
-            }
-            Some(v) => match target {
-                Target::Client => return Some(v.0),
-                Target::Server => return Some(v.1),
-            },
+        let index = postcard::to_allocvec(&self.get_index(target)?).map_err(|e| e.to_string())?;
+        let index_ref = IndexRef {
+            len: index.len() as u64,
+            hash: blake3::derive_key(INDEX, &index),
         };
+
+        source.get_v1_side(target, index_ref)
     }
 
     fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, String> {
-        let manifest = match self.get_manifest(target) {
-            None => return Err("no manifest exists, yet".into()),
-            Some(v) => v,
-        };
-        TbManifest::encode(manifest)
+        TbManifest::encode(self.get_manifest(target)?)
     }
 
     fn get_signature(&self, manifest: &Signed<TbManifest>) -> Option<SignatureV1> {

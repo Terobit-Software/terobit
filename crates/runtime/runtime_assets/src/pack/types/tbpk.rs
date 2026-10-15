@@ -50,6 +50,7 @@ pub struct TableOfContents {
 }
 
 /// the index section, postcard encoded. its length and hash are in the signed manifest
+#[derive(serde::Serialize)]
 pub struct IndexV1 {
     /// most raw bytes a chunk can hold. 1 mib when written by the v1 tool, readers accept
     /// any power of two from 64 kib to 16 mib
@@ -60,7 +61,7 @@ pub struct IndexV1 {
     pub files: Vec<FileLocation>,
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, Clone)]
 pub struct ChunkEntry {
     /// where the stored bytes start, from the start of the data section
     pub offset: u64,
@@ -73,7 +74,7 @@ pub struct ChunkEntry {
     pub hash: [u8; 32],
 }
 
-#[derive(Clone, Copy)]
+#[derive(serde::Serialize, Clone, Copy)]
 pub enum Compression {
     /// stored bytes are the raw bytes. stored_len equals raw_len
     None = 0,
@@ -81,7 +82,7 @@ pub enum Compression {
     Zstd = 1,
 }
 
-#[derive(Clone, Copy)]
+#[derive(serde::Serialize, Clone, Copy)]
 pub struct FileLocation {
     /// the chunk the file starts in
     pub first_chunk: u32,

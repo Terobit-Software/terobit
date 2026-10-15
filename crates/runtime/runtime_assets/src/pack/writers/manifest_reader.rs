@@ -133,18 +133,22 @@ impl ManifestSource {
         client_index: IndexRef,
         server_index: IndexRef,
     ) -> Result<(ManifestV1, ManifestV1), String> {
-        let client = self.side_v1(Target::Client, &self.client, client_index)?;
-        let server = self.side_v1(Target::Server, &self.server, server_index)?;
+        let client = self.get_v1_side(Target::Client, client_index)?;
+        let server = self.get_v1_side(Target::Server, server_index)?;
         Ok((client, server))
     }
 
     /// one side's manifest. its files are the shared assets plus that side's assets and scripts
-    fn side_v1(
+    pub(crate) fn get_v1_side(
         &self,
         target: Target,
-        side: &SideAssets,
         index: IndexRef,
     ) -> Result<ManifestV1, String> {
+        let side = match target {
+            Target::Client => &self.client,
+            Target::Server => &self.server,
+        };
+
         for id in side.assets.keys() {
             if self.assets.contains_key(id) {
                 return Err(format!("`{id}` is both a shared and a {target:?} asset"));
