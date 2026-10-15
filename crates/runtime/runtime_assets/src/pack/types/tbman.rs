@@ -3,8 +3,7 @@ use crate::pack::{CommonHeader, MagicValue, Signed, encode_file};
 /// zstd level used to compress chunks in packs whose manifest is v1
 pub const ZSTD_LEVEL: i32 = 19;
 
-/// a `.tbman` file
-#[derive(serde::Serialize)]
+/// a `.tbman` file. not serde, encode with `TbManifest::encode`
 pub struct TbManifest {
     /// the common header, magic `TBMN`
     pub header: CommonHeader,
