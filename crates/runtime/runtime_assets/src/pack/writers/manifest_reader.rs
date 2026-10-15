@@ -84,6 +84,7 @@ impl ManifestSource {
             &self.server.scripts,
         ] {
             for (id, path) in table {
+                id.parse::<Handle>()?;
                 validate_path(path).map_err(|e| format!("`{id}`: {e}"))?;
             }
         }
@@ -321,6 +322,15 @@ mod struct_tests {
             Some("audio/music.mp3")
         );
         assert_eq!(manifest.server.assets.len(), 1);
+    }
+
+    #[test]
+    fn rejects_invalid_handle_in_example_manifest() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../tests/examples/source_to_tbpk/basic1_should_fail/manifest.toml");
+
+        let err = ManifestSource::from_path(&path).err().unwrap();
+        assert!(err.contains("self:cube.material"), "{err}");
     }
 
     #[test]
