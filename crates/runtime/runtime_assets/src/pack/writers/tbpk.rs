@@ -91,7 +91,7 @@ impl PackWriter {
         CommonHeader::new(MagicValue::TBPK, TBPK_CURRENT_VERSION, body_length)
     }
 
-    fn get_manifest_source(&self) -> Result<&ManifestSource, String> {
+    pub fn get_manifest_source(&self) -> Result<&ManifestSource, String> {
         self.manifest_source
             .as_ref()
             .ok_or_else(|| "no manifest has been loaded, yet".into())

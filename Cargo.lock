@@ -5764,6 +5764,7 @@ dependencies = [
  "runtime_assets",
  "runtime_core",
  "runtime_logging",
+ "runtime_run_flags",
  "tracing",
 ]
 
