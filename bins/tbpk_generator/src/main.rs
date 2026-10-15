@@ -1,4 +1,3 @@
-
 use bevy::prelude::*;
 use client_dev::ClientDevPlugin;
 use runtime_assets::pack::Target;
@@ -21,11 +20,15 @@ fn main() -> AppExit {
             let mut writer = PackWriter::new();
             let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(EXAMPLE_MANIFEST);
             if let Err(msg) = writer.load_manifest(manifest_path.clone()) {
-                tracing::error!("error on load manifest {}: {}", manifest_path.display(), msg);
+                tracing::error!(
+                    "error on load manifest {}: {}",
+                    manifest_path.display(),
+                    msg
+                );
                 exit.write(AppExit::error());
                 return;
             }
-            // nonzero exit code if any target fails, so ci catches it
+
             let mut failed = false;
             for target in [Target::Client, Target::Server] {
                 if let Err(msg) = writer.build_tbpk(target) {
@@ -39,7 +42,11 @@ fn main() -> AppExit {
                 };
             }
 
-            exit.write(if failed { AppExit::error() } else { AppExit::Success });
+            exit.write(if failed {
+                AppExit::error()
+            } else {
+                AppExit::Success
+            });
         })
         .run()
 }
