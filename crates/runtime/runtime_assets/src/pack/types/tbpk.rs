@@ -49,6 +49,28 @@ pub struct TableOfContents {
     pub data_len: u64,
 }
 
+impl TableOfContents {
+    /// fixed width little endian, fields in declaration order
+    pub fn to_bytes(&self) -> [u8; TOC_LEN as usize] {
+        let fields = [
+            self.manifest_offset,
+            self.manifest_len,
+            self.signature_offset,
+            self.signature_len,
+            self.index_offset,
+            self.index_len,
+            self.data_offset,
+            self.data_len,
+        ];
+
+        let mut out = [0u8; TOC_LEN as usize];
+        for (i, field) in fields.iter().enumerate() {
+            out[i * 8..i * 8 + 8].copy_from_slice(&field.to_le_bytes());
+        }
+        out
+    }
+}
+
 /// the index section, postcard encoded. its length and hash are in the signed manifest
 #[derive(serde::Serialize)]
 pub struct IndexV1 {

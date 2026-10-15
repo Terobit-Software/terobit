@@ -11,6 +11,7 @@ use crate::pack::{
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -215,12 +216,43 @@ impl PackWriter {
         Ok(())
     }
 
-    pub fn write_tbpk_out(&self) -> Result<(), String> {
+    /// writes the built pack to `path`, sections in toc order with no gaps
+    pub fn write_tbpk_out(&self, path: &Path) -> Result<(), String> {
         let tbpk_value = match self.tbpk.as_ref() {
             None => return Err("TBPK must be built before calling write out".into()),
             Some(v) => v,
         };
+        let toc = &tbpk_value.toc;
 
+        // chunk bytes aren't kept anywhere yet, so a pack with data can't be written
+        if toc.data_len != 0 {
+            return Err("writing the data section isn't implemented, yet".into());
+        }
+
+        let index = postcard::to_allocvec(&tbpk_value.index).map_err(|e| e.to_string())?;
+        if index.len() as u64 != toc.index_len {
+            return Err("index length doesn't match the table of contents".into());
+        }
+
+        let signature = match tbpk_value.signature.as_ref() {
+            None => Vec::new(),
+            Some(sig) => sig.to_bytes()?,
+        };
+
+        let file = File::create(path).map_err(|e| format!("`{}`: {e}", path.display()))?;
+        let mut out = BufWriter::new(file);
+        for section in [
+            &tbpk_value.header.to_bytes()[..],
+            &toc.to_bytes(),
+            &tbpk_value.manifest.raw,
+            &signature,
+            &index,
+        ] {
+            out.write_all(section).map_err(|e| e.to_string())?;
+        }
+        out.flush().map_err(|e| e.to_string())?;
+
+        info!("Wrote tbpk to {}", path.display());
         Ok(())
     }
 }
