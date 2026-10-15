@@ -1,3 +1,4 @@
+use crate::pack::writers::chunker::{SideChunks, chunk_files};
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
     Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexRef, IndexV1,
@@ -50,10 +51,8 @@ pub struct PackWriter {
     tbpk: Option<TbPack>,
     // implemented
     chunk_size: u32,
-    // needs implementation
-    chunk_entries: Vec<ChunkEntry>,
-    // needs implementation
-    file_locations: Vec<FileLocation>,
+    /// each side's chunks, indexed by `Target as usize`. filled by `build_tbpk`
+    chunks: [Option<SideChunks>; 2],
     /// `None` writes an unsigned pack
     signer: Option<PackSigner>,
     // implemented
@@ -65,8 +64,7 @@ impl Default for PackWriter {
         Self {
             tbpk: None,
             chunk_size: DEFAULT_CHUNK_SIZE,
-            chunk_entries: Vec::new(),
-            file_locations: Vec::new(),
+            chunks: [None, None],
             signer: None,
             manifest_source: None,
         }
@@ -93,19 +91,39 @@ impl PackWriter {
         CommonHeader::new(MagicValue::TBPK, TBPK_CURRENT_VERSION, body_length)
     }
 
-    fn get_chunk_entries(&self, target: Target) -> &Vec<ChunkEntry> {
-        &self.chunk_entries
+    fn get_manifest_source(&self) -> Result<&ManifestSource, String> {
+        self.manifest_source
+            .as_ref()
+            .ok_or_else(|| "no manifest has been loaded, yet".into())
     }
 
-    fn get_file_locations(&self, target: Target) -> &Vec<FileLocation> {
-        &self.file_locations
+    /// reads and compresses every file on one side
+    fn chunk(&mut self, target: Target) -> Result<(), String> {
+        let source = self.get_manifest_source()?;
+        let files = source.get_side_files(target)?;
+        let chunks = chunk_files(source.get_root(), &files, self.chunk_size)?;
+
+        info!(
+            "Chunked {} files into {} chunks for {target:?}",
+            files.len(),
+            chunks.entries.len()
+        );
+        self.chunks[target as usize] = Some(chunks);
+        Ok(())
+    }
+
+    fn get_chunks(&self, target: Target) -> Result<&SideChunks, String> {
+        self.chunks[target as usize]
+            .as_ref()
+            .ok_or_else(|| format!("{target:?} files haven't been chunked, yet"))
     }
 
     fn get_index(&self, target: Target) -> Result<IndexV1, String> {
+        let chunks = self.get_chunks(target)?;
         let index = IndexV1 {
             chunk_size: self.chunk_size,
-            chunks: self.get_chunk_entries(target).clone(),
-            files: self.get_file_locations(target).clone(),
+            chunks: chunks.entries.clone(),
+            files: chunks.locations.clone(),
         };
 
         Ok(index)
@@ -142,12 +160,8 @@ impl PackWriter {
         let index_offset = signature_offset + signature_len;
         let index_len = self.encode_index(target)?.len() as u64;
 
-        // chunks are in data section order, so the last one ends the section
         let data_offset = index_offset + index_len;
-        let data_len = self
-            .get_chunk_entries(target)
-            .last()
-            .map_or(0, |chunk| chunk.offset + chunk.stored_len as u64);
+        let data_len = self.get_chunks(target)?.data_len();
 
         Ok(TableOfContents {
             manifest_offset,
@@ -163,10 +177,7 @@ impl PackWriter {
 
     /// needs the index built first, since the manifest holds its length and hash
     fn get_manifest(&self, target: Target) -> Result<ManifestV1, String> {
-        let source = self
-            .manifest_source
-            .as_ref()
-            .ok_or("no manifest has been loaded, yet")?;
+        let source = self.get_manifest_source()?;
 
         let index = self.encode_index(target)?;
         let index_ref = IndexRef {
@@ -195,6 +206,9 @@ impl PackWriter {
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
+        // the index comes from the chunks, and the manifest holds the index's hash
+        self.chunk(target)?;
+
         // the signature covers the manifest's bytes, so the manifest has to exist first
         let manifest = self.get_signed_manifest(target)?;
         let signature = self.get_tb_signature(&manifest)?;
@@ -223,11 +237,7 @@ impl PackWriter {
             Some(v) => v,
         };
         let toc = &tbpk_value.toc;
-
-        // chunk bytes aren't kept anywhere yet, so a pack with data can't be written
-        if toc.data_len != 0 {
-            return Err("writing the data section isn't implemented, yet".into());
-        }
+        let chunks = self.get_chunks(tbpk_value.manifest.parsed.body.target)?;
 
         let index = postcard::to_allocvec(&tbpk_value.index).map_err(|e| e.to_string())?;
         if index.len() as u64 != toc.index_len {
@@ -249,6 +259,12 @@ impl PackWriter {
             &index,
         ] {
             out.write_all(section).map_err(|e| e.to_string())?;
+        }
+
+        let data_len =
+            std::io::copy(&mut chunks.data.open()?, &mut out).map_err(|e| e.to_string())?;
+        if data_len != toc.data_len {
+            return Err("data section length doesn't match the table of contents".into());
         }
         out.flush().map_err(|e| e.to_string())?;
 

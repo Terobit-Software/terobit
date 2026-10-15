@@ -138,27 +138,17 @@ impl ManifestSource {
         Ok((client, server))
     }
 
-    /// one side's manifest. its files are the shared assets plus that side's assets and scripts
-    pub(crate) fn get_v1_side(
-        &self,
-        target: Target,
-        index: IndexRef,
-    ) -> Result<ManifestV1, String> {
-        let side = match target {
+    fn side(&self, target: Target) -> &SideAssets {
+        match target {
             Target::Client => &self.client,
             Target::Server => &self.server,
-        };
+        }
+    }
 
-        for id in side.assets.keys() {
-            if self.assets.contains_key(id) {
-                return Err(format!("`{id}` is both a shared and a {target:?} asset"));
-            }
-        }
-        for (id, path) in &side.scripts {
-            if !path.ends_with(".wasm") {
-                return Err(format!("script `{id}`: `{path}` is not a .wasm file"));
-            }
-        }
+    /// one side's files: the shared assets plus that side's assets and scripts, sorted by
+    /// path in byte order, with sizes read from disk
+    pub(crate) fn get_side_files(&self, target: Target) -> Result<Vec<FileEntry>, String> {
+        let side = self.side(target);
 
         // btreeset of strings sorts by byte order, which is what `files` needs
         let paths: BTreeSet<&str> = self
@@ -181,6 +171,30 @@ impl ManifestSource {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
+
+        Ok(files)
+    }
+
+    /// one side's manifest. its files are the shared assets plus that side's assets and scripts
+    pub(crate) fn get_v1_side(
+        &self,
+        target: Target,
+        index: IndexRef,
+    ) -> Result<ManifestV1, String> {
+        let side = self.side(target);
+
+        for id in side.assets.keys() {
+            if self.assets.contains_key(id) {
+                return Err(format!("`{id}` is both a shared and a {target:?} asset"));
+            }
+        }
+        for (id, path) in &side.scripts {
+            if !path.ends_with(".wasm") {
+                return Err(format!("script `{id}`: `{path}` is not a .wasm file"));
+            }
+        }
+
+        let files = self.get_side_files(target)?;
 
         let file_index = |path: &str| -> Result<u32, String> {
             let i = files
