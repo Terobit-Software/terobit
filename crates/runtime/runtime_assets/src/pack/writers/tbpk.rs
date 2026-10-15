@@ -1,8 +1,8 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexV1, MagicValue,
-    ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target,
-    TbManifest, TbPack, TbSignature,
+    Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexRef, IndexV1,
+    MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents,
+    Target, TbManifest, TbPack, TbSignature,
 };
 use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
 use ed25519_dalek::{Signer, SigningKey};
@@ -54,6 +54,8 @@ pub struct PackWriter {
     signer: Option<PackSigner>,
     // implemented
     manifest_source: Option<ManifestSource>,
+    // implemented
+    v_ones: Option<(ManifestV1, ManifestV1)>,
 }
 
 impl Default for PackWriter {
@@ -65,6 +67,7 @@ impl Default for PackWriter {
             file_locations: Vec::new(),
             signer: None,
             manifest_source: None,
+            v_ones: None,
         }
     }
 }
@@ -109,7 +112,30 @@ impl PackWriter {
 
     fn get_table_of_contents(&self, target: Target) -> Result<TableOfContents, String> {}
 
-    fn get_manifest(&self, target: Target) -> Option<ManifestV1> {}
+    fn get_manifest(&self, target: Target) -> Option<ManifestV1> {
+        match self.v_ones {
+            None => {
+                let client_index = self.get_index(Target::Client);
+                let server_index = self.get_index(Target::Server);
+
+                let indexes = match (client_index, server_index) {
+                    (Ok(c), Ok(s)) => (c, s),
+                    _ => return None,
+                };
+
+                let v_ones = match self.manifest_source {
+                    None => return None,
+                    Some(v) => v.get_v1(indexes.0, indexes.1),
+                };
+
+                return None;
+            }
+            Some(v) => match target {
+                Target::Client => return Some(v.0),
+                Target::Server => return Some(v.1),
+            },
+        };
+    }
 
     fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, String> {
         let manifest = match self.get_manifest(target) {
