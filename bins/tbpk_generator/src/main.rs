@@ -7,13 +7,13 @@ use runtime_assets::pack::writers::PackWriter;
 use runtime_core::RuntimeCorePlugins;
 use std::path::Path;
 
-fn main() {
+fn main() -> AppExit {
     let _guard = runtime_logging::init_logging("Tbpk", "Generator");
 
     App::new()
         .add_plugins(RuntimeCorePlugins)
         .add_plugins(ClientDevPlugin)
-        .add_systems(Update, || {
+        .add_systems(Startup, || {
             // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
             // until then packs are written unsigned
             let mut writer = PackWriter::new();
@@ -27,5 +27,5 @@ fn main() {
                 };
             }
         })
-        .run();
+        .run()
 }
