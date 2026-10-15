@@ -16,7 +16,7 @@ members = ["bins/tbpk_generator",
     "crates/runtime/runtime_sandbox",
     "crates/runtime/runtime_scene",
     "crates/runtime/runtime_ui",
-    "crates/runtime/runtime_window", "scripts/run_client_script",
+    "crates/runtime/runtime_window", "scripts/run_client_script", "scripts/example_generator",
 ]
 
 [workspace.dependencies]

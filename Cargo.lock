@@ -2850,6 +2850,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "example_generator"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "runtime_logging",
+ "runtime_run_flags",
+ "tracing",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
