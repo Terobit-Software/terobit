@@ -14,7 +14,7 @@ pub const PACK: &str = "terobit 2026-10-01 pack signature";
 pub const LICENSE: &str = "terobit 2026-10-01 license signature";
 
 #[serde_as]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 pub struct Certificate {
     /// what this key may sign
     purpose: Purpose,
@@ -29,7 +29,36 @@ pub struct Certificate {
     root_signature: [u8; 64],
 }
 
-#[derive(serde::Serialize)]
+impl Certificate {
+    pub fn new(
+        purpose: Purpose,
+        public_key: [u8; 32],
+        root_key_id: [u8; 8],
+        root_signature: [u8; 64],
+    ) -> Self {
+        Self {
+            purpose,
+            public_key,
+            root_key_id,
+            root_signature,
+        }
+    }
+
+    pub fn purpose(&self) -> Purpose {
+        self.purpose
+    }
+
+    pub fn public_key(&self) -> &[u8; 32] {
+        &self.public_key
+    }
+}
+
+/// what a pack signing key signs, hash(PACK, manifest bytes)
+pub fn pack_digest(manifest_raw: &[u8]) -> [u8; 32] {
+    blake3::derive_key(PACK, manifest_raw)
+}
+
+#[derive(serde::Serialize, Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Purpose {
     Pack = 0,
     License = 1,

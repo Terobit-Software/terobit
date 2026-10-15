@@ -1,15 +1,42 @@
 use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
-    ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexV1, MagicValue, ManifestV1,
-    SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
+    Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexV1, MagicValue,
+    ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents, Target, TbManifest, TbPack,
     TbSignature,
 };
-use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
+use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, pack_digest};
+use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::info;
+
+/// a pack signing key and the certificate the root key issued for it
+pub struct PackSigner {
+    key: SigningKey,
+    cert: Certificate,
+}
+
+impl PackSigner {
+    /// fails if the certificate isn't for packs or doesn't match the key
+    pub fn new(key: SigningKey, cert: Certificate) -> Result<Self, String> {
+        if cert.purpose() != Purpose::Pack {
+            return Err(format!("certificate purpose is {:?}, not Pack", cert.purpose()));
+        }
+        if cert.public_key() != key.verifying_key().as_bytes() {
+            return Err("certificate public key doesn't match the signing key".into());
+        }
+        Ok(Self { key, cert })
+    }
+
+    /// signs exactly the bytes that get written, never a re-encoding of `parsed`
+    pub fn sign(&self, manifest: &Signed<TbManifest>) -> SignatureV1 {
+        let digest = pack_digest(&manifest.raw);
+        let signature = self.key.sign(&digest).to_bytes();
+        SignatureV1::new(self.cert.clone(), signature)
+    }
+}
 
 pub struct PackWriter {
     // implemented
@@ -20,6 +47,8 @@ pub struct PackWriter {
     chunk_entries: Vec<ChunkEntry>,
     // needs implementation
     file_locations: Vec<FileLocation>,
+    /// `None` writes an unsigned pack
+    signer: Option<PackSigner>,
 }
 
 impl Default for PackWriter {
@@ -29,6 +58,7 @@ impl Default for PackWriter {
             chunk_size: DEFAULT_CHUNK_SIZE,
             chunk_entries: Vec::new(),
             file_locations: Vec::new(),
+            signer: None,
         }
     }
 }
@@ -36,6 +66,11 @@ impl Default for PackWriter {
 impl PackWriter {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_signer(mut self, signer: PackSigner) -> Self {
+        self.signer = Some(signer);
+        self
     }
 
     fn header(&self, body_length: u64, target: Target) -> CommonHeader {
@@ -72,21 +107,30 @@ impl PackWriter {
         TbManifest::encode(manifest)
     }
 
-    fn get_signature(&self, target: Target) -> Option<SignatureV1> {}
+    fn get_signature(&self, manifest: &Signed<TbManifest>) -> Option<SignatureV1> {
+        self.signer.as_ref().map(|signer| signer.sign(manifest))
+    }
 
-    fn get_tb_signature(&self, target: Target) -> Result<Option<TbSignature>, String> {
-        self.get_signature(target).map(TbSignature::new).transpose()
+    fn get_tb_signature(
+        &self,
+        manifest: &Signed<TbManifest>,
+    ) -> Result<Option<TbSignature>, String> {
+        self.get_signature(manifest).map(TbSignature::new).transpose()
     }
 
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
         let body_length = 0;
 
+        // the signature covers the manifest's bytes, so the manifest has to exist first
+        let manifest = self.get_signed_manifest(target)?;
+        let signature = self.get_tb_signature(&manifest)?;
+
         let tbpk = TbPack {
             header: self.header(body_length, target),
             toc: self.get_table_of_contents(target)?,
             index: self.get_index(target)?,
-            manifest: self.get_signed_manifest(target)?,
-            signature: self.get_tb_signature(target)?,
+            manifest,
+            signature,
         };
 
         self.tbpk = Some(tbpk);

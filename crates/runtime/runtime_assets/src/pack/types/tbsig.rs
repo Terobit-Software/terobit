@@ -39,4 +39,18 @@ pub struct SignatureV1 {
     signature: [u8; 64],
 }
 
+impl SignatureV1 {
+    pub fn new(cert: Certificate, signature: [u8; 64]) -> Self {
+        Self { cert, signature }
+    }
+
+    pub fn cert(&self) -> &Certificate {
+        &self.cert
+    }
+
+    pub fn signature(&self) -> &[u8; 64] {
+        &self.signature
+    }
+}
+
 pub const TBSIG_CURRENT_VERSION: u16 = 1;
