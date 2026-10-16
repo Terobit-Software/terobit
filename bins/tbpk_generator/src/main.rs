@@ -1,9 +1,7 @@
 use bevy::prelude::*;
-use client_dev::ClientDevPlugin;
 use runtime_assets::pack::Target;
 use runtime_assets::pack::writers::PackWriter;
-use runtime_core::RuntimeCorePlugins;
-use runtime_run_flags::RuntimeFlags;
+use runtime_run_flags::{RuntimeFlags, RuntimeRunFlagsPlugin};
 use std::path::PathBuf;
 use tracing::info;
 
@@ -60,8 +58,8 @@ fn main() -> AppExit {
     let _guard = runtime_logging::init_logging("Tbpk", "Generator");
 
     App::new()
-        .add_plugins(RuntimeCorePlugins)
-        .add_plugins(ClientDevPlugin)
+        .add_plugins(MinimalPlugins)
+        .add_plugins(RuntimeRunFlagsPlugin)
         .add_systems(Startup, generate)
         .run()
 }

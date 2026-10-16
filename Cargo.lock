@@ -5770,9 +5770,7 @@ name = "tbpk_generator"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "client_dev",
  "runtime_assets",
- "runtime_core",
  "runtime_logging",
  "runtime_run_flags",
  "tracing",

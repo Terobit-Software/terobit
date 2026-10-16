@@ -5,9 +5,7 @@ edition = "2024"
 
 [dependencies]
 tracing.workspace = true
-runtime_core.workspace = true
 bevy.workspace = true
-client_dev.workspace = true
 runtime_assets = { workspace = true, features = ["writer"]}
 runtime_logging.workspace = true
 runtime_run_flags.workspace = true
