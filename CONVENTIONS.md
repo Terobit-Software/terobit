@@ -19,6 +19,34 @@ bevy.workspace = true
 ## Logging
 All logging should be done through tracing. Use `info!`, `error!`, and `warn!`.
 
+## Errors
+Errors are typed with [SNAFU](https://docs.rs/snafu). Never return `Result<_, String>` or `Result<_, ()>`.
+
+- Each module that can fail gets its own error enum (`PathError`, `ManifestLoadError`, `PackWriterError`, ...) next to the code that returns it. Don't grow one crate-wide enum.
+- Every variant says what was being done and carries the values needed to understand it: paths, ids, sizes, targets. Display messages are lowercase, have no trailing period, and don't repeat the source's message.
+- Wrap lower errors with `.context(...)` instead of `map_err(|e| e.to_string())`, so the whole cause chain is kept.
+- Use `ensure!` for checks and `.context(...)` on `Option`s instead of `if ... { return Err(...) }` and `ok_or_else`.
+- Where an error is finally handled, log the whole chain with `snafu::Report`:
+
+```rust
+if let Err(e) = writer.build_tbpk(target) {
+    error!("Skipping the {target:?} pack: {}", snafu::Report::from_error(&e));
+}
+```
+
+```
+Skipping the Client pack: failed to load manifest `basic1/manifest.toml`
+
+Caused by these errors (recent errors listed first):
+  1: manifest `basic1/manifest.toml` was parsed but failed validation
+  2: asset id `self:cube.material` in [assets] is not a valid handle
+  3: handle `self:cube.material` has id `cube.material`, but an id must ...
+```
+
+- Warnings say what happened, what it means, and what to do about it if anything.
+- Add `#[tracing::instrument(skip_all, fields(...))]` to entry points like `build_tbpk` or `read_pack`, so every log inside them carries the target, path, etc.
+- `bevy::prelude::*` brings in a `context` method that clashes with SNAFU's. In files that use SNAFU, import only the bevy items you need.
+
 ## Unrwap
 Minimize the use of unwrap or expect in any code.
 

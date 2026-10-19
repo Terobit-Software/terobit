@@ -1,4 +1,4 @@
-use crate::pack::{CommonHeader, MagicValue, Signed, encode_file};
+use crate::pack::{CommonHeader, EncodeError, MagicValue, Signed, encode_file};
 
 /// zstd level used to compress chunks in packs whose manifest is v1
 pub const ZSTD_LEVEL: i32 = 5;
@@ -13,7 +13,7 @@ pub struct TbManifest {
 
 impl TbManifest {
     /// encodes the whole file once, so the bytes that get signed are the bytes that get written
-    pub fn encode(body: ManifestV1) -> Result<Signed<TbManifest>, String> {
+    pub fn encode(body: ManifestV1) -> Result<Signed<TbManifest>, EncodeError> {
         let (header, raw) = encode_file(MagicValue::TBMN, TBMAN_CURRENT_VERSION, &body)?;
         Ok(Signed {
             raw,

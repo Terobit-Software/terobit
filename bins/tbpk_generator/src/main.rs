@@ -1,12 +1,84 @@
-use bevy::prelude::*;
-use runtime_assets::pack::writers::PackWriter;
+use bevy::prelude::{App, AppExit, MessageWriter, MinimalPlugins, Res, Startup};
+use runtime_assets::pack::writers::{PackWriter, PackWriterError};
 use runtime_assets::pack::{Target, ZSTD_LEVEL};
 use runtime_run_flags::{RuntimeFlags, RuntimeRunFlagsPlugin};
-use std::path::PathBuf;
-use tracing::info;
+use snafu::{OptionExt, Report, ResultExt, Snafu, ensure};
+use std::path::{Path, PathBuf};
+use tracing::{error, info, warn};
 
 /// folder the packs go in when `--out` isn't given
 const DEFAULT_OUT: &str = "out/tbpk_generator";
+
+/// run flags that don't make a valid set of `Args`
+#[derive(Debug, Snafu)]
+enum ArgsError {
+    #[snafu(display("{flag} takes exactly one value, but was given {}: {values:?}", values.len()))]
+    ValueCount { flag: String, values: Vec<String> },
+
+    #[snafu(display(
+        "--manifest <path to manifest.toml> is required, it is the dev directory's manifest and asset paths are relative to its folder"
+    ))]
+    MissingManifest,
+
+    #[snafu(display("--target is `{value}`, expected client, server or both"))]
+    UnknownTarget { value: String },
+
+    #[snafu(display("--zstd-level is `{value}`, expected a whole number or `none`"))]
+    InvalidZstdLevel {
+        value: String,
+        source: std::num::ParseIntError,
+    },
+}
+
+/// pack generation stopped or one of the targets failed
+#[derive(Debug, Snafu)]
+enum GenerateError {
+    #[snafu(display("failed to set up the pack writer"))]
+    SetupWriter {
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display("failed to load manifest `{}`", path.display()))]
+    LoadManifest {
+        path: PathBuf,
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display("failed to create the output folder `{}`", path.display()))]
+    CreateOutDir {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to name the packs from the loaded manifest"))]
+    NamePacks {
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display("failed to build the {target:?} pack"))]
+    BuildPack {
+        target: Target,
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display("failed to write the {target:?} pack to `{}`", path.display()))]
+    WritePack {
+        target: Target,
+        path: PathBuf,
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display(
+        "{} of {total} targets failed ({failed:?}), see the errors above for why",
+        failed.len()
+    ))]
+    TargetsFailed { failed: Vec<Target>, total: usize },
+}
 
 /// read from the run flags:
 /// `--manifest <path>` the dev directory's manifest.toml, asset paths are relative to its folder
@@ -23,41 +95,40 @@ struct Args {
 }
 
 impl Args {
-    fn from_flags(flags: &RuntimeFlags) -> Result<Self, String> {
+    fn from_flags(flags: &RuntimeFlags) -> Result<Self, ArgsError> {
         let flags = flags.get_flags();
-        let value = |flag: &str| -> Result<Option<&String>, String> {
+        let value = |flag: &str| -> Result<Option<&String>, ArgsError> {
             match flags.get(flag) {
                 None => Ok(None),
                 Some(values) => match values.as_slice() {
                     [value] => Ok(Some(value)),
-                    _ => Err(format!("{flag} takes exactly one value")),
+                    _ => ValueCountSnafu {
+                        flag,
+                        values: values.clone(),
+                    }
+                    .fail(),
                 },
             }
         };
 
-        let manifest = value("--manifest")?
-            .ok_or("--manifest <path to manifest.toml> is required")?
-            .into();
+        let manifest = value("--manifest")?.context(MissingManifestSnafu)?.into();
         let out = value("--out")?.map_or(DEFAULT_OUT, String::as_str).into();
         let targets: &[Target] = match value("--target")?.map(String::as_str) {
             None | Some("both") => &[Target::Client, Target::Server],
             Some("client") => &[Target::Client],
             Some("server") => &[Target::Server],
-            Some(other) => {
-                return Err(format!(
-                    "--target is `{other}`, expected client, server or both"
-                ));
-            }
+            Some(other) => return UnknownTargetSnafu { value: other }.fail(),
         };
 
-        let zstd_level =
-            match value("--zstd-level")? {
-                None => Some(ZSTD_LEVEL),
-                Some(level) if level == "none" => None,
-                Some(level) => Some(level.parse().map_err(|_| {
-                    format!("--zstd-level is `{level}`, expected a number or none")
-                })?),
-            };
+        let zstd_level = match value("--zstd-level")? {
+            None => Some(ZSTD_LEVEL),
+            Some(level) if level == "none" => None,
+            Some(level) => Some(
+                level
+                    .parse()
+                    .context(InvalidZstdLevelSnafu { value: level })?,
+            ),
+        };
 
         Ok(Self {
             manifest,
@@ -81,8 +152,8 @@ fn main() -> AppExit {
 fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
     let args = match Args::from_flags(&flags) {
         Ok(args) => args,
-        Err(msg) => {
-            tracing::error!("{msg}");
+        Err(e) => {
+            error!("Invalid pack generator flags: {}", Report::from_error(&e));
             exit.write(AppExit::error());
             return;
         }
@@ -98,69 +169,52 @@ fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
             info!("Generated all packs in {:?}", start.elapsed());
             AppExit::Success
         }
-        Err(()) => {
-            tracing::error!("Pack generation failed after {:?}", start.elapsed());
+        Err(e) => {
+            error!(
+                "Pack generation failed after {:?}: {}",
+                start.elapsed(),
+                Report::from_error(&e)
+            );
             AppExit::error()
         }
     });
 }
 
-/// errors are logged as they happen, so one failed target doesn't stop the other
-fn write_packs(args: &Args) -> Result<(), ()> {
+/// a failed target is logged and doesn't stop the other, the error only says which failed
+fn write_packs(args: &Args) -> Result<(), GenerateError> {
     // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
     // until then packs are written unsigned
-    info!("No signing key loaded, writing unsigned packs");
-    let mut writer = match PackWriter::new().with_zstd_level(args.zstd_level) {
-        Ok(writer) => writer,
-        Err(msg) => {
-            tracing::error!("{msg}");
-            return Err(());
-        }
-    };
-    if let Err(msg) = writer.load_manifest(args.manifest.clone()) {
-        tracing::error!(
-            "error on load manifest {}: {}",
-            args.manifest.display(),
-            msg
-        );
-        return Err(());
-    }
+    warn!("No signing key loaded, writing unsigned packs");
+    let mut writer = PackWriter::new()
+        .with_zstd_level(args.zstd_level)
+        .context(SetupWriterSnafu)?;
+    writer
+        .load_manifest(args.manifest.clone())
+        .context(LoadManifestSnafu {
+            path: &args.manifest,
+        })?;
 
-    if let Err(e) = std::fs::create_dir_all(&args.out) {
-        tracing::error!("error on create {}: {}", args.out.display(), e);
-        return Err(());
-    }
+    std::fs::create_dir_all(&args.out).context(CreateOutDirSnafu { path: &args.out })?;
     info!("Output folder {} is ready", args.out.display());
 
     // `<realm_id>-<pack_version>.<target>.tbpk`, as suggested in the tbpk doc
-    let stem = match writer.get_manifest_source() {
-        Ok(source) => format!("{}-{}", source.get_realm_id(), source.get_pack_version()),
-        Err(msg) => {
-            tracing::error!("{msg}");
-            return Err(());
-        }
-    };
+    let source = writer.get_manifest_source().context(NamePacksSnafu)?;
+    let stem = format!("{}-{}", source.get_realm_id(), source.get_pack_version());
 
     info!("Packs will be named {stem}.<target>.tbpk");
 
-    let mut failed = false;
+    let mut failed = Vec::new();
     for &target in args.targets {
         let target_start = std::time::Instant::now();
         info!("Generating {target:?} pack");
-        if let Err(msg) = writer.build_tbpk(target) {
-            tracing::error!("error on build tbpk for {:?}: {}", target, msg);
-            failed = true;
-            continue;
-        }
-
-        let side = match target {
-            Target::Client => "client",
-            Target::Server => "server",
-        };
-        let path = args.out.join(format!("{stem}.{side}.tbpk"));
-        if let Err(msg) = writer.write_tbpk_out(&path) {
-            tracing::error!("error on write tbpk out for {:?}: {}", target, msg);
-            failed = true;
+        let path = args.out.join(format!("{stem}.{}.tbpk", side_name(target)));
+        if let Err(e) = write_pack(&mut writer, target, &path) {
+            error!(
+                "Skipping the {target:?} pack after {:?}: {}",
+                target_start.elapsed(),
+                Report::from_error(&e)
+            );
+            failed.push(target);
             continue;
         }
         info!(
@@ -170,5 +224,28 @@ fn write_packs(args: &Args) -> Result<(), ()> {
         );
     }
 
-    if failed { Err(()) } else { Ok(()) }
+    ensure!(
+        failed.is_empty(),
+        TargetsFailedSnafu {
+            failed,
+            total: args.targets.len()
+        }
+    );
+    Ok(())
+}
+
+fn write_pack(writer: &mut PackWriter, target: Target, path: &Path) -> Result<(), GenerateError> {
+    writer
+        .build_tbpk(target)
+        .context(BuildPackSnafu { target })?;
+    writer
+        .write_tbpk_out(path)
+        .context(WritePackSnafu { target, path })
+}
+
+fn side_name(target: Target) -> &'static str {
+    match target {
+        Target::Client => "client",
+        Target::Server => "server",
+    }
 }

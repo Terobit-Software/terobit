@@ -1,9 +1,10 @@
 use std::fs;
 use std::io;
-use std::path::Path;
-use std::process::{Command, ExitCode};
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitCode, ExitStatus};
 
 use clap::Parser;
+use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info, warn};
 
 /// Build and run the terobit client
@@ -47,13 +48,77 @@ impl BuildProfile {
 
 const BIN_NAME: &str = "terobit_client";
 
+/// the client couldn't be built, staged or run
+#[derive(Debug, Snafu)]
+enum RunError {
+    #[snafu(display("failed to read the current directory, run this from the workspace root"))]
+    CurrentDir { source: io::Error },
+
+    #[snafu(display(
+        "failed to start `cargo build --profile {profile} -p {BIN_NAME}`, is cargo on PATH?"
+    ))]
+    StartBuild {
+        profile: &'static str,
+        source: io::Error,
+    },
+
+    #[snafu(display(
+        "`cargo build --profile {profile} -p {BIN_NAME}` failed with {status}, not running the client, see the cargo output above"
+    ))]
+    BuildFailed {
+        profile: &'static str,
+        status: ExitStatus,
+    },
+
+    #[snafu(display("failed to clean the old output folder `{}`", path.display()))]
+    CleanOut { path: PathBuf, source: io::Error },
+
+    #[snafu(display("failed to create the output folder `{}`", path.display()))]
+    CreateOut { path: PathBuf, source: io::Error },
+
+    #[snafu(display("failed to copy assets from `{}` to `{}`", from.display(), to.display()))]
+    CopyAssets {
+        from: PathBuf,
+        to: PathBuf,
+        source: io::Error,
+    },
+
+    #[snafu(display("failed to copy the built client from `{}` to `{}`", from.display(), to.display()))]
+    CopyBin {
+        from: PathBuf,
+        to: PathBuf,
+        source: io::Error,
+    },
+
+    #[snafu(display("failed to start the client `{}` with flags {flags:?}", bin.display()))]
+    StartClient {
+        bin: PathBuf,
+        flags: Vec<String>,
+        source: io::Error,
+    },
+
+    #[snafu(display("the client `{}` exited with {status}", bin.display()))]
+    ClientFailed { bin: PathBuf, status: ExitStatus },
+}
+
 fn main() -> ExitCode {
     // returning ExitCode (instead of process::exit) lets the guard drop and flush logs
     let _guard = runtime_logging::init_logging("Tbrun", "Client");
 
-    let args = Args::parse();
+    match run(Args::parse()) {
+        Ok(()) => {
+            info!("Run succeeded");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            error!("Run client failed: {}", Report::from_error(&e));
+            ExitCode::FAILURE
+        }
+    }
+}
 
-    let cwd = std::env::current_dir().unwrap();
+fn run(args: Args) -> Result<(), RunError> {
+    let cwd = std::env::current_dir().context(CurrentDirSnafu)?;
     info!("cwd: {:?}", cwd);
 
     let client_dir = cwd.join("bins/terobit_client");
@@ -92,44 +157,43 @@ fn main() -> ExitCode {
 
     // Build the client
     info!("Building client with profile {}...", profile.name());
-    let build_status = match Command::new("cargo")
+    let build_status = Command::new("cargo")
         .args(["build", "--profile", profile.name(), "-p", BIN_NAME])
         .status()
-    {
-        Ok(status) => status,
-        Err(e) => {
-            error!("Failed to start cargo: {e}");
-            return ExitCode::FAILURE;
+        .context(StartBuildSnafu {
+            profile: profile.name(),
+        })?;
+    ensure!(
+        build_status.success(),
+        BuildFailedSnafu {
+            profile: profile.name(),
+            status: build_status
         }
-    };
-    if !build_status.success() {
-        error!("Build failed with {build_status} - not running client");
-        return ExitCode::FAILURE;
-    }
+    );
     info!("Build succeeded");
 
     // Recreate the output directory so stale files don't linger
     info!("Copying assets...");
     if out_dir.exists() {
         info!("Folder {:?} already exists, cleaning...", out_dir);
-        if let Err(e) = fs::remove_dir_all(&out_dir) {
-            error!("Failed to clean {:?}: {e}", out_dir);
-            return ExitCode::FAILURE;
-        }
+        fs::remove_dir_all(&out_dir).context(CleanOutSnafu { path: &out_dir })?;
     } else {
         info!("Folder {:?} does not exist, creating...", out_dir);
     }
-    if let Err(e) = fs::create_dir_all(&out_dir) {
-        error!("Failed to create {:?}: {e}", out_dir);
-        return ExitCode::FAILURE;
-    }
+    fs::create_dir_all(&out_dir).context(CreateOutSnafu { path: &out_dir })?;
 
     // Copy the assets to the output directory
+    let out_assets = out_dir.join("assets");
     if !assets_dir.exists() {
-        warn!("Assets folder {:?} does not exist, skipping...", assets_dir);
-    } else if let Err(e) = copy_dir_all(&assets_dir, &out_dir.join("assets")) {
-        error!("Failed to copy assets: {e}");
-        return ExitCode::FAILURE;
+        warn!(
+            "Assets folder {:?} does not exist, the client will run without any of its bundled assets",
+            assets_dir
+        );
+    } else {
+        copy_dir_all(&assets_dir, &out_assets).context(CopyAssetsSnafu {
+            from: &assets_dir,
+            to: &out_assets,
+        })?;
     }
 
     // Copy the binary to the output directory
@@ -137,31 +201,30 @@ fn main() -> ExitCode {
     info!("Copying {bin}...");
     let built_bin = cwd.join("target").join(profile.target_dir()).join(&bin);
     let out_bin = out_dir.join(&bin);
-    if let Err(e) = fs::copy(&built_bin, &out_bin) {
-        error!("Failed to copy {:?} to {:?}: {e}", built_bin, out_bin);
-        return ExitCode::FAILURE;
-    }
+    fs::copy(&built_bin, &out_bin).context(CopyBinSnafu {
+        from: &built_bin,
+        to: &out_bin,
+    })?;
 
     // Start run
     info!("Running {bin}...");
-    let run_status = match Command::new(&out_bin)
+    let run_status = Command::new(&out_bin)
         .args(&flags)
         .current_dir(&out_dir)
         .status()
-    {
-        Ok(status) => status,
-        Err(e) => {
-            error!("Failed to start {bin}: {e}");
-            return ExitCode::FAILURE;
+        .context(StartClientSnafu {
+            bin: &out_bin,
+            flags: flags.iter().map(|f| f.to_string()).collect::<Vec<_>>(),
+        })?;
+    ensure!(
+        run_status.success(),
+        ClientFailedSnafu {
+            bin: &out_bin,
+            status: run_status
         }
-    };
-    if !run_status.success() {
-        error!("Run exited with {run_status}");
-        return ExitCode::FAILURE;
-    }
+    );
 
-    info!("Run succeeded");
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 /// Recursively copy `src` into `dst`, creating `dst` if needed

@@ -1,3 +1,5 @@
+use snafu::{Snafu, ensure};
+
 /// most bytes a whole path can take
 pub const MAX_PATH_LEN: usize = 255;
 /// most segments a path can have
@@ -11,48 +13,102 @@ const RESERVED_NAMES: [&str; 22] = [
     "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
 ];
 
+/// why a path inside a pack broke the path rules in the conventions doc
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum PathError {
+    #[snafu(display(
+        "pack path `{path}` is {len} bytes long, but must be 1 to {MAX_PATH_LEN} bytes"
+    ))]
+    Length { path: String, len: usize },
+
+    #[snafu(display(
+        "pack path `{path}` has {segments} `/` separated segments, but at most {MAX_PATH_SEGMENTS} are allowed"
+    ))]
+    TooManySegments { path: String, segments: usize },
+
+    #[snafu(display(
+        "pack path `{path}` has segment #{index} (`{segment}`) that is {len} bytes long, but each segment must be 1 to {MAX_SEGMENT_LEN} bytes (empty segments come from a leading, trailing or doubled `/`)"
+    ))]
+    SegmentLength {
+        path: String,
+        index: usize,
+        segment: String,
+        len: usize,
+    },
+
+    #[snafu(display(
+        "pack path `{path}` segment `{segment}` contains {bad:?}, but only lowercase `a-z`, `0-9`, `.`, `_` and `-` are allowed"
+    ))]
+    InvalidChar {
+        path: String,
+        segment: String,
+        bad: char,
+    },
+
+    #[snafu(display(
+        "pack path `{path}` segment `{segment}` starts or ends with `.`, which would make it hidden, relative (`.`/`..`) or ambiguous on windows"
+    ))]
+    DotEdge { path: String, segment: String },
+
+    #[snafu(display(
+        "pack path `{path}` segment `{segment}` uses the windows reserved name `{stem}`, which can't be extracted on windows"
+    ))]
+    ReservedName {
+        path: String,
+        segment: String,
+        stem: String,
+    },
+}
+
 /// checks a path inside a pack against the path rules in the conventions doc
-pub fn validate_path(path: &str) -> Result<(), String> {
-    if path.is_empty() || path.len() > MAX_PATH_LEN {
-        return Err(format!(
-            "path `{path}` must be 1-{MAX_PATH_LEN} bytes, is {}",
-            path.len()
-        ));
-    }
+pub fn validate_path(path: &str) -> Result<(), PathError> {
+    ensure!(
+        !path.is_empty() && path.len() <= MAX_PATH_LEN,
+        LengthSnafu {
+            path,
+            len: path.len()
+        }
+    );
 
     let segments = path.split('/').collect::<Vec<_>>();
-    if segments.len() > MAX_PATH_SEGMENTS {
-        return Err(format!(
-            "path `{path}` has {} segments, at most {MAX_PATH_SEGMENTS} allowed",
-            segments.len()
-        ));
-    }
-
-    for segment in segments {
-        if segment.is_empty() || segment.len() > MAX_SEGMENT_LEN {
-            return Err(format!(
-                "path `{path}` has a segment that isn't 1-{MAX_SEGMENT_LEN} bytes"
-            ));
+    ensure!(
+        segments.len() <= MAX_PATH_SEGMENTS,
+        TooManySegmentsSnafu {
+            path,
+            segments: segments.len()
         }
+    );
+
+    for (index, segment) in segments.into_iter().enumerate() {
+        ensure!(
+            !segment.is_empty() && segment.len() <= MAX_SEGMENT_LEN,
+            SegmentLengthSnafu {
+                path,
+                index,
+                segment,
+                len: segment.len()
+            }
+        );
         let allowed = |c: char| {
             c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-'
         };
-        if !segment.chars().all(allowed) {
-            return Err(format!(
-                "path `{path}` segment `{segment}` may only use `a-z`, `0-9`, `.`, `_`, `-`"
-            ));
+        if let Some(bad) = segment.chars().find(|&c| !allowed(c)) {
+            return InvalidCharSnafu { path, segment, bad }.fail();
         }
-        if segment.starts_with('.') || segment.ends_with('.') {
-            return Err(format!(
-                "path `{path}` segment `{segment}` can't start or end with `.`"
-            ));
-        }
+        ensure!(
+            !segment.starts_with('.') && !segment.ends_with('.'),
+            DotEdgeSnafu { path, segment }
+        );
         let stem = segment.split('.').next().unwrap_or(segment);
-        if RESERVED_NAMES.contains(&stem) {
-            return Err(format!(
-                "path `{path}` segment `{segment}` is a windows reserved name"
-            ));
-        }
+        ensure!(
+            !RESERVED_NAMES.contains(&stem),
+            ReservedNameSnafu {
+                path,
+                segment,
+                stem
+            }
+        );
     }
 
     Ok(())

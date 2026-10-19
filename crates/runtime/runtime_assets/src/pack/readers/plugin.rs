@@ -31,11 +31,11 @@ impl RuntimePackReaderPlugin {
 
         match PackReader::read_pack(&mut commands, path, &config) {
             Err(e) => tracing::error!(
-                "failed to read pack: e = {}, path = {}",
-                e,
-                path.to_str().expect("couldnt convert to str")
+                "Failed to read pack `{}`, nothing from it was loaded: {}",
+                path.display(),
+                snafu::Report::from_error(&e)
             ),
-            Ok(()) => tracing::info!("read pack successfully"),
+            Ok(()) => tracing::info!("Read pack `{}` successfully", path.display()),
         }
     }
 }

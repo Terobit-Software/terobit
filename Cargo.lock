@@ -2953,6 +2953,7 @@ dependencies = [
  "blake3",
  "runtime_logging",
  "runtime_run_flags",
+ "snafu",
  "tracing",
 ]
 
@@ -5315,6 +5316,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "runtime_logging",
+ "snafu",
  "tracing",
 ]
 
@@ -5336,6 +5338,7 @@ dependencies = [
  "postcard",
  "serde",
  "serde_with",
+ "snafu",
  "toml",
  "tracing",
  "zstd",
@@ -5368,6 +5371,7 @@ dependencies = [
 name = "runtime_logging"
 version = "0.1.0"
 dependencies = [
+ "snafu",
  "tracing",
  "tracing-appender",
  "tracing-panic",
@@ -5770,6 +5774,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "snafu"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e45cb604038abb7b926b679887b3226d8d0f23874b66623625a0454be425a4b7"
+dependencies = [
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "287f59010008f0d7cf5e3b03196d666c1acc46c8d3e9cf34c28a1a7157601e72"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5930,6 +5955,7 @@ dependencies = [
  "runtime_assets",
  "runtime_logging",
  "runtime_run_flags",
+ "snafu",
  "tracing",
 ]
 

@@ -1,4 +1,7 @@
+use snafu::{ResultExt, Snafu};
+
 /// the magic value of the file
+#[derive(Clone, Copy, Debug)]
 pub enum MagicValue {
     /// terobit pack file
     TBPK,
@@ -42,6 +45,33 @@ impl MagicValue {
             MagicValue::TBRS => *b"TBRS",
         }
     }
+
+    /// the magic as text, for logs and errors
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MagicValue::TBPK => "TBPK",
+            MagicValue::TBMN => "TBMN",
+            MagicValue::TBSG => "TBSG",
+            MagicValue::TBLC => "TBLC",
+            MagicValue::TBRS => "TBRS",
+        }
+    }
+}
+
+impl std::fmt::Display for MagicValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// a file body that postcard couldn't encode
+#[derive(Debug, Snafu)]
+#[snafu(display("failed to postcard encode the body of a {magic} v{version} file ({body_type})"))]
+pub struct EncodeError {
+    magic: MagicValue,
+    version: u16,
+    body_type: &'static str,
+    source: postcard::Error,
 }
 
 impl CommonHeader {
@@ -74,8 +104,12 @@ pub fn encode_file<T: serde::Serialize>(
     magic: MagicValue,
     version: u16,
     body: &T,
-) -> Result<(CommonHeader, Vec<u8>), String> {
-    let body_bytes = postcard::to_allocvec(body).map_err(|e| e.to_string())?;
+) -> Result<(CommonHeader, Vec<u8>), EncodeError> {
+    let body_bytes = postcard::to_allocvec(body).context(EncodeSnafu {
+        magic,
+        version,
+        body_type: std::any::type_name::<T>(),
+    })?;
     let header = CommonHeader::new(magic, version, body_bytes.len() as u64);
 
     let mut out = Vec::with_capacity(HEADER_LEN as usize + body_bytes.len());

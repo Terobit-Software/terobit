@@ -1,10 +1,12 @@
 use serde::Deserialize;
+use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::pack::{
-    Access, AssetEntry, FileEntry, Handle, IndexRef, ManifestV1, ScriptEntry, Target, validate_path,
+    Access, AssetEntry, FileEntry, Handle, HandleError, IndexRef, ManifestV1, PathError,
+    ScriptEntry, Target, validate_path,
 };
 
 #[derive(Deserialize)]
@@ -35,22 +37,136 @@ pub(crate) struct SideAssets {
     scripts: BTreeMap<String, String>,
 }
 
-impl ManifestSource {
-    pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+/// a manifest.toml that couldn't be loaded
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ManifestLoadError {
+    #[snafu(display("failed to read manifest file `{}`", path.display()))]
+    ReadFile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 
-        if let Ok(canon) = path.canonicalize() {
-            info!("Read manifest at path: {}", canon.to_string_lossy());
-        } else {
-            tracing::error!("Failed to make manifest read path canon")
+    #[snafu(display(
+        "manifest `{}` is not a valid manifest, check its toml syntax, field names and value types",
+        path.display()
+    ))]
+    Parse {
+        path: PathBuf,
+        source: toml::de::Error,
+    },
+
+    #[snafu(display("manifest `{}` was parsed but failed validation", path.display()))]
+    Invalid {
+        path: PathBuf,
+        #[snafu(source(from(ManifestValidateError, Box::new)))]
+        source: Box<ManifestValidateError>,
+    },
+}
+
+/// a parsed manifest that breaks the manifest or conventions rules
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ManifestValidateError {
+    #[snafu(display("`realm_id` is 0, but realm ids start at 1"))]
+    ZeroRealmId,
+
+    #[snafu(display("`owner_id` is 0, but owner ids start at 1"))]
+    ZeroOwnerId,
+
+    #[snafu(display("asset id `{id}` in [{table}] is not a valid handle"))]
+    InvalidHandle {
+        table: &'static str,
+        id: String,
+        #[snafu(source(from(HandleError, Box::new)))]
+        source: Box<HandleError>,
+    },
+
+    #[snafu(display("`{id}` in [{table}] points to `{path}`, which is not a valid pack path"))]
+    InvalidPath {
+        table: &'static str,
+        id: String,
+        path: String,
+        #[snafu(source(from(PathError, Box::new)))]
+        source: Box<PathError>,
+    },
+}
+
+/// one side's manifest or file list couldn't be built from the source manifest
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ManifestSideError {
+    #[snafu(display(
+        "`{id}` is declared in both [assets] and [{}.assets], a handle can only be declared once per side",
+        side_table(*target)
+    ))]
+    SharedAndSide { id: String, target: Target },
+
+    #[snafu(display(
+        "{target:?} script `{id}` points to `{path}`, but scripts must be `.wasm` files"
+    ))]
+    ScriptNotWasm {
+        id: String,
+        path: String,
+        target: Target,
+    },
+
+    #[snafu(display(
+        "failed to read the size of {target:?} file `{pack_path}` at `{}`, check that it exists and is readable",
+        full_path.display()
+    ))]
+    FileMetadata {
+        target: Target,
+        pack_path: String,
+        full_path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "{target:?} file `{path}` is referenced by an asset or script but missing from the sorted file list, this is a bug in the pack writer"
+    ))]
+    MissingFromFileList { target: Target, path: String },
+
+    #[snafu(display(
+        "{target:?} side has {count} files, but a pack can index at most {} files",
+        u32::MAX
+    ))]
+    TooManyFiles { target: Target, count: usize },
+
+    #[snafu(display(
+        "handle `{handle}` is not declared in [assets] or [{}.assets] of the manifest",
+        side_table(*target)
+    ))]
+    AssetNotFound { handle: String, target: Target },
+}
+
+/// the manifest table a side's assets and scripts live under
+fn side_table(target: Target) -> &'static str {
+    match target {
+        Target::Client => "client",
+        Target::Server => "server",
+    }
+}
+
+impl ManifestSource {
+    #[tracing::instrument(skip_all, fields(manifest = %path.display()))]
+    pub fn from_path(path: &std::path::Path) -> Result<Self, ManifestLoadError> {
+        let text = std::fs::read_to_string(path).context(ReadFileSnafu { path })?;
+
+        match path.canonicalize() {
+            Ok(canon) => info!("Read manifest at path: {}", canon.display()),
+            Err(e) => warn!(
+                "Read manifest at path {}, but couldn't canonicalize it ({e}), asset paths will be resolved relative to it as given",
+                path.display()
+            ),
         }
 
-        let mut manifest = toml::from_str::<Self>(&text).map_err(|e| e.to_string())?;
+        let mut manifest = toml::from_str::<Self>(&text).context(ParseSnafu { path })?;
 
         info!("Converted str source to manifest successfully");
 
         manifest.root = path.parent().map(Into::into).unwrap_or_default();
-        manifest.validate()?;
+        manifest.validate().context(InvalidSnafu { path })?;
 
         info!(
             "Manifest is realm {}, owner {}, pack version {}, access {:?}",
@@ -68,24 +184,21 @@ impl ManifestSource {
     }
 
     /// ids are never 0, and every path follows the path rules in the conventions doc
-    fn validate(&self) -> Result<(), String> {
-        if self.realm_id == 0 {
-            return Err("realm_id can't be 0".into());
-        }
-        if self.owner_id == 0 {
-            return Err("owner_id can't be 0".into());
-        }
+    fn validate(&self) -> Result<(), ManifestValidateError> {
+        ensure!(self.realm_id != 0, ZeroRealmIdSnafu);
+        ensure!(self.owner_id != 0, ZeroOwnerIdSnafu);
 
-        for table in [
-            &self.assets,
-            &self.client.assets,
-            &self.client.scripts,
-            &self.server.assets,
-            &self.server.scripts,
+        for (table, entries) in [
+            ("assets", &self.assets),
+            ("client.assets", &self.client.assets),
+            ("client.scripts", &self.client.scripts),
+            ("server.assets", &self.server.assets),
+            ("server.scripts", &self.server.scripts),
         ] {
-            for (id, path) in table {
-                id.parse::<Handle>()?;
-                validate_path(path).map_err(|e| format!("`{id}`: {e}"))?;
+            for (id, path) in entries {
+                id.parse::<Handle>()
+                    .context(InvalidHandleSnafu { table, id })?;
+                validate_path(path).context(InvalidPathSnafu { table, id, path })?;
             }
         }
 
@@ -127,18 +240,22 @@ impl ManifestSource {
 
     /// the pack path of an asset on one side. the client and server namespaces are
     /// separate, so only shared assets and that side's assets are searched
-    pub(crate) fn resolve_asset_path<'a>(
-        &'a self,
-        side: &'a SideAssets,
+    pub(crate) fn resolve_asset_path(
+        &self,
+        target: Target,
         handle: &Handle,
-    ) -> Result<&'a str, String> {
+    ) -> Result<&str, ManifestSideError> {
         let key = handle.to_string();
+        let side = self.side(target);
 
         [&self.assets, &side.assets]
             .into_iter()
             .find_map(|assets| assets.get(&key))
             .map(String::as_str)
-            .ok_or_else(|| format!("handle with name '{handle}' is not found in the manifest"))
+            .context(AssetNotFoundSnafu {
+                handle: key.as_str(),
+                target,
+            })
     }
 
     /// return is in form of (client, server). the index refs come from the caller since
@@ -147,7 +264,7 @@ impl ManifestSource {
         &self,
         client_index: IndexRef,
         server_index: IndexRef,
-    ) -> Result<(ManifestV1, ManifestV1), String> {
+    ) -> Result<(ManifestV1, ManifestV1), ManifestSideError> {
         let client = self.get_v1_side(Target::Client, client_index)?;
         let server = self.get_v1_side(Target::Server, server_index)?;
         Ok((client, server))
@@ -162,7 +279,10 @@ impl ManifestSource {
 
     /// one side's files: the shared assets plus that side's assets and scripts, sorted by
     /// path in byte order, with sizes read from disk
-    pub(crate) fn get_side_files(&self, target: Target) -> Result<Vec<FileEntry>, String> {
+    pub(crate) fn get_side_files(
+        &self,
+        target: Target,
+    ) -> Result<Vec<FileEntry>, ManifestSideError> {
         let side = self.side(target);
 
         // btreeset of strings sorts by byte order, which is what `files` needs
@@ -177,15 +297,20 @@ impl ManifestSource {
         let files = paths
             .iter()
             .map(|path| {
-                let size = std::fs::metadata(self.root.join(path))
-                    .map_err(|e| format!("`{path}`: {e}"))?
+                let full_path = self.root.join(path);
+                let size = std::fs::metadata(&full_path)
+                    .context(FileMetadataSnafu {
+                        target,
+                        pack_path: *path,
+                        full_path: &full_path,
+                    })?
                     .len();
                 Ok(FileEntry {
                     path: (*path).to_owned(),
                     size,
                 })
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect::<Result<Vec<_>, ManifestSideError>>()?;
 
         for file in &files {
             info!("{target:?} file `{}` is {} bytes", file.path, file.size);
@@ -199,27 +324,38 @@ impl ManifestSource {
         &self,
         target: Target,
         index: IndexRef,
-    ) -> Result<ManifestV1, String> {
+    ) -> Result<ManifestV1, ManifestSideError> {
         let side = self.side(target);
 
         for id in side.assets.keys() {
-            if self.assets.contains_key(id) {
-                return Err(format!("`{id}` is both a shared and a {target:?} asset"));
-            }
+            ensure!(
+                !self.assets.contains_key(id),
+                SharedAndSideSnafu { id, target }
+            );
         }
         for (id, path) in &side.scripts {
-            if !path.ends_with(".wasm") {
-                return Err(format!("script `{id}`: `{path}` is not a .wasm file"));
-            }
+            ensure!(
+                path.ends_with(".wasm"),
+                ScriptNotWasmSnafu { id, path, target }
+            );
         }
 
         let files = self.get_side_files(target)?;
+        ensure!(
+            u32::try_from(files.len()).is_ok(),
+            TooManyFilesSnafu {
+                target,
+                count: files.len()
+            }
+        );
 
-        let file_index = |path: &str| -> Result<u32, String> {
+        let file_index = |path: &str| -> Result<u32, ManifestSideError> {
             let i = files
                 .binary_search_by(|f| f.path.as_str().cmp(path))
-                .map_err(|_| format!("`{path}` is missing from the file list"))?;
-            u32::try_from(i).map_err(|_| "too many files for one pack".to_string())
+                .ok()
+                .context(MissingFromFileListSnafu { target, path })?;
+            // fits, the file count was checked above
+            Ok(i as u32)
         };
 
         let mut assets = self
@@ -232,7 +368,7 @@ impl ManifestSource {
                     file: file_index(path)?,
                 })
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect::<Result<Vec<_>, ManifestSideError>>()?;
         assets.sort_by(|a, b| a.id.cmp(&b.id));
 
         let scripts = side
@@ -244,7 +380,7 @@ impl ManifestSource {
                     file: file_index(path)?,
                 })
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect::<Result<Vec<_>, ManifestSideError>>()?;
 
         Ok(ManifestV1 {
             target,
@@ -280,7 +416,7 @@ mod struct_tests {
             .join("../../../tests/examples/source_to_tbpk/basic1/manifest.toml")
     }
 
-    fn parse(name: &str, text: &str) -> Result<ManifestSource, String> {
+    fn parse(name: &str, text: &str) -> Result<ManifestSource, ManifestLoadError> {
         let path = std::env::temp_dir().join(format!(
             "terobit_manifest_{}_{}.toml",
             std::process::id(),
@@ -330,7 +466,13 @@ mod struct_tests {
             .join("../../../tests/examples/source_to_tbpk/basic1_should_fail/manifest.toml");
 
         let err = ManifestSource::from_path(&path).err().unwrap();
-        assert!(err.contains("self:cube.material"), "{err}");
+        assert!(
+            matches!(&err, ManifestLoadError::Invalid { source, .. }
+                if matches!(**source, ManifestValidateError::InvalidHandle { .. })),
+            "{err:?}"
+        );
+        let report = snafu::Report::from_error(&err).to_string();
+        assert!(report.contains("self:cube.material"), "{report}");
     }
 
     #[test]
@@ -492,18 +634,25 @@ mod struct_tests {
             )
             .err()
             .expect("path should be rejected");
-            assert!(err.contains("../outside.png"), "{err}");
+            let report = snafu::Report::from_error(&err).to_string();
+            assert!(report.contains("../outside.png"), "{report}");
         }
     }
 
     #[test]
     fn rejects_invalid_toml() {
-        assert!(parse("invalid_toml", "realm_id = \n").is_err());
+        assert!(matches!(
+            parse("invalid_toml", "realm_id = \n"),
+            Err(ManifestLoadError::Parse { .. })
+        ));
     }
 
     #[test]
     fn missing_file_is_error() {
         let path = std::env::temp_dir().join("terobit_manifest_does_not_exist.toml");
-        assert!(ManifestSource::from_path(&path).is_err());
+        assert!(matches!(
+            ManifestSource::from_path(&path),
+            Err(ManifestLoadError::ReadFile { .. })
+        ));
     }
 }
