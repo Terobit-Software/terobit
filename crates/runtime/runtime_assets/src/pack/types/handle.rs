@@ -1,3 +1,4 @@
+use snafu::{OptionExt, Snafu, ensure};
 use std::fmt;
 use std::str::FromStr;
 
@@ -9,24 +10,48 @@ pub struct Handle {
     id: String,
 }
 
+/// why a string isn't a valid `namespace:id` handle
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum HandleError {
+    #[snafu(display(
+        "handle `{handle}` is missing a `namespace:` prefix, expected something like `self:{handle}`"
+    ))]
+    MissingNamespace { handle: String },
+
+    #[snafu(display(
+        "handle `{namespace}:{id}` has namespace `{namespace}`, but a namespace must be non-empty and only use lowercase `a-z`, `0-9`, `_` and `-`"
+    ))]
+    InvalidNamespace { namespace: String, id: String },
+
+    #[snafu(display(
+        "handle `{namespace}:{id}` uses namespace `{namespace}`, but only `self` is supported for now"
+    ))]
+    UnsupportedNamespace { namespace: String, id: String },
+
+    #[snafu(display(
+        "handle `{namespace}:{id}` has id `{id}`, but an id must be non-empty and only use lowercase `a-z`, `0-9`, `_`, `-` and `/`"
+    ))]
+    InvalidId { namespace: String, id: String },
+}
+
 impl Handle {
-    pub fn new(namespace: &str, id: &str) -> Result<Self, String> {
+    pub fn new(namespace: &str, id: &str) -> Result<Self, HandleError> {
         let allowed =
             |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
 
-        if namespace.is_empty() || !namespace.chars().all(allowed) {
-            return Err(format!(
-                "handle `{namespace}:{id}` has an invalid namespace"
-            ));
-        }
-        if namespace != "self" {
-            return Err(format!(
-                "handle `{namespace}:{id}` uses namespace `{namespace}`, only `self` is supported"
-            ));
-        }
-        if id.is_empty() || !id.chars().all(|c| allowed(c) || c == '/') {
-            return Err(format!("handle `{namespace}:{id}` has an invalid id"));
-        }
+        ensure!(
+            !namespace.is_empty() && namespace.chars().all(allowed),
+            InvalidNamespaceSnafu { namespace, id }
+        );
+        ensure!(
+            namespace == "self",
+            UnsupportedNamespaceSnafu { namespace, id }
+        );
+        ensure!(
+            !id.is_empty() && id.chars().all(|c| allowed(c) || c == '/'),
+            InvalidIdSnafu { namespace, id }
+        );
 
         Ok(Self {
             namespace: namespace.to_owned(),
@@ -44,12 +69,12 @@ impl Handle {
 }
 
 impl FromStr for Handle {
-    type Err = String;
+    type Err = HandleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (namespace, id) = s
             .split_once(':')
-            .ok_or_else(|| format!("handle `{s}` is missing a `namespace:` prefix"))?;
+            .context(MissingNamespaceSnafu { handle: s })?;
         Self::new(namespace, id)
     }
 }

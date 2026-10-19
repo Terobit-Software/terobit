@@ -6,7 +6,111 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use runtime_run_flags::RuntimeFlags;
+use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info};
+
+/// run flags that don't make a valid set of `Args`
+#[derive(Debug, Snafu)]
+enum ArgsError {
+    #[snafu(display(
+        "unknown flag {flag}, expected --type, --count, --min, --max, --entropy or --auto"
+    ))]
+    UnknownFlag { flag: String },
+
+    #[snafu(display("{flag} takes exactly one value, but was given {}: {values:?}", values.len()))]
+    ValueCount { flag: String, values: Vec<String> },
+
+    #[snafu(display("{flag} is `{value}`, expected a whole number"))]
+    NotANumber {
+        flag: String,
+        value: String,
+        source: std::num::ParseIntError,
+    },
+
+    #[snafu(display("--auto doesn't take a value, but was given {values:?}"))]
+    AutoTakesValue { values: Vec<String> },
+
+    #[snafu(display("--count is {count}, expected at least 1"))]
+    InvalidCount { count: u64 },
+
+    #[snafu(display("--count, --min and --max need a --type to apply to"))]
+    NeedsType,
+
+    #[snafu(display("--entropy is `{value}`, expected low, med or high"))]
+    UnknownEntropy { value: String },
+
+    #[snafu(display(
+        "--type is `{value}`, expected small, large, xsmall, xlarge, mix, xmix or random"
+    ))]
+    UnknownType { value: String },
+
+    #[snafu(display("--min {min} is bigger than --max {max}"))]
+    MinOverMax { min: u64, max: u64 },
+
+    #[snafu(display("--min and --max only work with --type random, not --type {kind}"))]
+    MinMaxNeedRandom { kind: &'static str },
+}
+
+/// an example folder couldn't be written
+#[derive(Debug, Snafu)]
+enum GenerateError {
+    #[snafu(display("failed to remove the half written example `{}` left by an earlier run", path.display()))]
+    RemoveTmp {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to create folder `{}`", path.display()))]
+    CreateFolder {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to write example file `{pack_path}` to `{}`", full_path.display()))]
+    WriteFile {
+        pack_path: String,
+        full_path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to write manifest `{}`", path.display()))]
+    WriteManifest {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "failed to move the finished example from `{}` to `{}`",
+        from.display(),
+        to.display()
+    ))]
+    Rename {
+        from: PathBuf,
+        to: PathBuf,
+        source: std::io::Error,
+    },
+}
+
+/// `cargo pkgen` couldn't pack an example
+#[derive(Debug, Snafu)]
+enum PkgenError {
+    #[snafu(display("failed to start `{cargo} pkgen` for {name}, is cargo on PATH?"))]
+    StartCargo {
+        cargo: String,
+        name: String,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "`cargo pkgen --manifest {}` for {name} failed with {status}, see its output above",
+        manifest.display()
+    ))]
+    PkgenFailed {
+        name: String,
+        manifest: PathBuf,
+        status: std::process::ExitStatus,
+    },
+}
 
 /// generated examples go here, relative to the workspace root. the folder is gitignored
 const EXAMPLES_DIR: &str = "tests/examples/source_to_tbpk/generated";
@@ -41,12 +145,12 @@ enum Entropy {
 }
 
 impl Entropy {
-    fn parse(name: &str) -> Result<Self, String> {
+    fn parse(name: &str) -> Result<Self, ArgsError> {
         match name {
             "low" => Ok(Entropy::Low),
             "med" => Ok(Entropy::Med),
             "high" => Ok(Entropy::High),
-            other => Err(format!("--entropy is `{other}`, expected low, med or high")),
+            other => UnknownEntropySnafu { value: other }.fail(),
         }
     }
 }
@@ -73,7 +177,7 @@ enum Kind {
 }
 
 impl Kind {
-    fn parse(name: &str, min: Option<u64>, max: Option<u64>) -> Result<Self, String> {
+    fn parse(name: &str, min: Option<u64>, max: Option<u64>) -> Result<Self, ArgsError> {
         let kind = match name {
             "xsmall" => Kind::XSmall,
             "small" => Kind::Small,
@@ -84,20 +188,15 @@ impl Kind {
             "random" => {
                 let min = min.unwrap_or(DEFAULT_RANDOM_MIN);
                 let max = max.unwrap_or(DEFAULT_RANDOM_MAX);
-                if min > max {
-                    return Err(format!("--min {min} is bigger than --max {max}"));
-                }
+                ensure!(min <= max, MinOverMaxSnafu { min, max });
                 return Ok(Kind::Random { min, max });
             }
-            other => {
-                return Err(format!(
-                    "--type is `{other}`, expected small, large, xsmall, xlarge, mix, xmix or random"
-                ));
-            }
+            other => return UnknownTypeSnafu { value: other }.fail(),
         };
-        if min.is_some() || max.is_some() {
-            return Err("--min and --max only work with --type random".into());
-        }
+        ensure!(
+            min.is_none() && max.is_none(),
+            MinMaxNeedRandomSnafu { kind: kind.name() }
+        );
         Ok(kind)
     }
 
@@ -195,45 +294,49 @@ struct Args {
 }
 
 impl Args {
-    fn from_flags(flags: &RuntimeFlags) -> Result<Self, String> {
+    fn from_flags(flags: &RuntimeFlags) -> Result<Self, ArgsError> {
         let flags = flags.get_flags();
         for flag in flags.keys() {
-            if !["--type", "--count", "--min", "--max", "--entropy", "--auto"]
-                .contains(&flag.as_str())
-            {
-                return Err(format!("unknown flag {flag}"));
-            }
+            ensure!(
+                ["--type", "--count", "--min", "--max", "--entropy", "--auto"]
+                    .contains(&flag.as_str()),
+                UnknownFlagSnafu { flag }
+            );
         }
 
-        let value = |flag: &str| -> Result<Option<&String>, String> {
+        let value = |flag: &str| -> Result<Option<&String>, ArgsError> {
             match flags.get(flag) {
                 None => Ok(None),
                 Some(values) => match values.as_slice() {
                     [value] => Ok(Some(value)),
-                    _ => Err(format!("{flag} takes exactly one value")),
+                    _ => ValueCountSnafu {
+                        flag,
+                        values: values.clone(),
+                    }
+                    .fail(),
                 },
             }
         };
-        let number = |flag: &str| -> Result<Option<u64>, String> {
+        let number = |flag: &str| -> Result<Option<u64>, ArgsError> {
             value(flag)?
-                .map(|v| {
-                    v.parse::<u64>()
-                        .map_err(|_| format!("{flag} is `{v}`, expected a whole number"))
-                })
+                .map(|v| v.parse::<u64>().context(NotANumberSnafu { flag, value: v }))
                 .transpose()
         };
 
         let auto = match flags.get("--auto") {
             None => false,
             Some(values) if values.is_empty() => true,
-            Some(_) => return Err("--auto doesn't take a value".into()),
+            Some(values) => {
+                return AutoTakesValueSnafu {
+                    values: values.clone(),
+                }
+                .fail();
+            }
         };
         let count = number("--count")?
-            .map(|count| {
-                usize::try_from(count)
-                    .ok()
-                    .filter(|&count| count > 0)
-                    .ok_or_else(|| format!("--count is {count}, expected at least 1"))
+            .map(|count| match usize::try_from(count) {
+                Ok(count) if count > 0 => Ok(count),
+                _ => InvalidCountSnafu { count }.fail(),
             })
             .transpose()?;
         let min = number("--min")?;
@@ -241,9 +344,10 @@ impl Args {
         let entropy = value("--entropy")?.map_or(Ok(Entropy::High), |e| Entropy::parse(e))?;
 
         let Some(kind) = value("--type")? else {
-            if count.is_some() || min.is_some() || max.is_some() {
-                return Err("--count, --min and --max need a --type".into());
-            }
+            ensure!(
+                count.is_none() && min.is_none() && max.is_none(),
+                NeedsTypeSnafu
+            );
             return Ok(Self {
                 examples: presets(entropy),
                 auto,
@@ -291,8 +395,11 @@ fn main() -> ExitCode {
 
     let args = match Args::from_flags(&RuntimeFlags::read()) {
         Ok(args) => args,
-        Err(msg) => {
-            error!("{msg}");
+        Err(e) => {
+            error!(
+                "Invalid example generator flags: {}",
+                Report::from_error(&e)
+            );
             return ExitCode::FAILURE;
         }
     };
@@ -310,15 +417,22 @@ fn main() -> ExitCode {
         } else {
             let start = std::time::Instant::now();
             info!("Generating {name} at {}", dir.display());
-            if let Err(msg) = generate(example, &root.join(&dir)) {
-                error!("error on generate {name}: {msg}");
+            if let Err(e) = generate(example, &root.join(&dir)) {
+                error!(
+                    "Failed to generate example {name} after {:?}, skipping it: {}",
+                    start.elapsed(),
+                    Report::from_error(&e)
+                );
                 failed = true;
                 continue;
             }
             info!("Generated {name} in {:?}", start.elapsed());
         }
 
-        if args.auto && !pkgen(&root, &name, &dir) {
+        if args.auto
+            && let Err(e) = pkgen(&root, &name, &dir)
+        {
+            error!("Failed to pack example {name}: {}", Report::from_error(&e));
             failed = true;
         }
     }
@@ -332,10 +446,10 @@ fn main() -> ExitCode {
 
 /// writes into a temp folder and renames it at the end, so a half written example is
 /// never mistaken for a finished one
-fn generate(example: &Example, dir: &Path) -> Result<(), String> {
+fn generate(example: &Example, dir: &Path) -> Result<(), GenerateError> {
     let tmp = dir.with_extension("tmp");
     if tmp.exists() {
-        fs::remove_dir_all(&tmp).map_err(|e| format!("`{}`: {e}", tmp.display()))?;
+        fs::remove_dir_all(&tmp).context(RemoveTmpSnafu { path: &tmp })?;
     }
 
     let name = example.name();
@@ -352,16 +466,25 @@ fn generate(example: &Example, dir: &Path) -> Result<(), String> {
             let path = format!("{side}/{group}/{item}.bin");
 
             let folder = tmp.join(side).join(&group);
-            fs::create_dir_all(&folder).map_err(|e| format!("`{}`: {e}", folder.display()))?;
-            total += write_file(example, &seed, &path, &tmp.join(&path))
-                .map_err(|e| format!("`{path}`: {e}"))?;
+            fs::create_dir_all(&folder).context(CreateFolderSnafu { path: &folder })?;
+            let full_path = tmp.join(&path);
+            total += write_file(example, &seed, &path, &full_path).context(WriteFileSnafu {
+                pack_path: &path,
+                full_path: &full_path,
+            })?;
 
             manifest.push_str(&format!("\"self:{side}/{group}/{item}\" = \"{path}\"\n"));
         }
     }
 
-    fs::write(tmp.join("manifest.toml"), manifest).map_err(|e| e.to_string())?;
-    fs::rename(&tmp, dir).map_err(|e| format!("`{}`: {e}", dir.display()))?;
+    let manifest_path = tmp.join("manifest.toml");
+    fs::write(&manifest_path, manifest).context(WriteManifestSnafu {
+        path: &manifest_path,
+    })?;
+    fs::rename(&tmp, dir).context(RenameSnafu {
+        from: &tmp,
+        to: dir,
+    })?;
     info!("{name} has {} bytes of files", total);
     Ok(())
 }
@@ -485,7 +608,7 @@ impl Content {
 }
 
 /// `cargo pkgen` with the example's manifest. later flags win, so these replace the alias's
-fn pkgen(root: &Path, name: &str, dir: &Path) -> bool {
+fn pkgen(root: &Path, name: &str, dir: &Path) -> Result<(), PkgenError> {
     let manifest = dir.join("manifest.toml");
     let out: PathBuf = Path::new(PACKS_DIR).join(name);
     info!(
@@ -494,7 +617,7 @@ fn pkgen(root: &Path, name: &str, dir: &Path) -> bool {
     );
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    match Command::new(cargo)
+    let status = Command::new(&cargo)
         .current_dir(root)
         .arg("pkgen")
         .arg("--manifest")
@@ -502,24 +625,26 @@ fn pkgen(root: &Path, name: &str, dir: &Path) -> bool {
         .arg("--out")
         .arg(&out)
         .status()
-    {
-        Ok(status) if status.success() => true,
-        Ok(status) => {
-            error!("cargo pkgen on {name} failed with {status}");
-            false
+        .context(StartCargoSnafu {
+            cargo: &cargo,
+            name,
+        })?;
+    ensure!(
+        status.success(),
+        PkgenFailedSnafu {
+            name,
+            manifest: &manifest,
+            status
         }
-        Err(e) => {
-            error!("Failed to start cargo: {e}");
-            false
-        }
-    }
+    );
+    Ok(())
 }
 
 #[cfg(test)]
 mod fn_tests {
     use super::*;
 
-    fn args(args: &[&str]) -> Result<Args, String> {
+    fn args(args: &[&str]) -> Result<Args, ArgsError> {
         Args::from_flags(&RuntimeFlags::from_args(args.iter().map(|a| a.to_string())))
     }
 

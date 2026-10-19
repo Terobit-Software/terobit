@@ -8,3 +8,4 @@ tracing.workspace = true
 blake3.workspace = true
 runtime_logging.workspace = true
 runtime_run_flags.workspace = true
+snafu.workspace = true

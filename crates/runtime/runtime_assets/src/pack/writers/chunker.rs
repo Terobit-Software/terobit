@@ -1,10 +1,105 @@
 use crate::pack::{CHUNK, ChunkEntry, Compression, FileEntry, FileLocation, LARGE_FILE_THRESHOLD};
+use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::info;
+
+/// one side's files couldn't be chunked
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ChunkError {
+    #[snafu(display(
+        "failed to create the temp spool file `{}` that holds chunk data while packing",
+        path.display()
+    ))]
+    CreateSpool {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "failed to open source file `{pack_path}` at `{}` for chunking",
+        full_path.display()
+    ))]
+    OpenSource {
+        pack_path: String,
+        full_path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "failed to chunk {kind} file `{pack_path}` ({size} bytes), file {number} of {total}"
+    ))]
+    AddFile {
+        pack_path: String,
+        kind: &'static str,
+        size: u64,
+        number: usize,
+        total: usize,
+        #[snafu(source(from(ChunkerError, Box::new)))]
+        source: Box<ChunkerError>,
+    },
+
+    #[snafu(display("failed to finish the last chunk and flush the spool file"))]
+    Finish {
+        #[snafu(source(from(ChunkerError, Box::new)))]
+        source: Box<ChunkerError>,
+    },
+}
+
+/// the chunker failed while adding bytes or writing a chunk
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ChunkerError {
+    #[snafu(display(
+        "failed to read {len} bytes at offset {offset} of the source file, it may have shrunk since its size was read"
+    ))]
+    ReadSource {
+        offset: u64,
+        len: usize,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to check the source file ended after {size} bytes"))]
+    CheckEof { size: u64, source: std::io::Error },
+
+    #[snafu(display(
+        "source file is longer than the {size} bytes its size was read as, it changed while packing"
+    ))]
+    FileGrew { size: u64 },
+
+    #[snafu(display("chunk {index} would be past the most a pack can index ({})", u32::MAX))]
+    TooManyChunks { index: usize },
+
+    #[snafu(display("failed to zstd compress chunk {index} ({len} raw bytes) at level {level}"))]
+    Compress {
+        index: usize,
+        len: usize,
+        level: i32,
+        source: std::io::Error,
+    },
+
+    #[snafu(display(
+        "failed to write chunk {index} ({len} stored bytes) to spool file `{}` at data offset {offset}",
+        path.display()
+    ))]
+    WriteChunk {
+        index: usize,
+        len: usize,
+        offset: u64,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("failed to flush spool file `{}`", path.display()))]
+    FlushSpool {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+}
 
 /// MiB/s for `bytes` over `elapsed`, for the timing logs
 fn throughput(bytes: u64, elapsed: Duration) -> f64 {
@@ -41,7 +136,7 @@ pub(crate) struct SpoolFile {
 }
 
 impl SpoolFile {
-    fn create() -> Result<(Self, File), String> {
+    fn create() -> Result<(Self, File), ChunkError> {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
             "terobit_pack_{}_{}.data",
@@ -52,20 +147,29 @@ impl SpoolFile {
             .write(true)
             .create_new(true)
             .open(&path)
-            .map_err(|e| format!("`{}`: {e}", path.display()))?;
+            .context(CreateSpoolSnafu { path: &path })?;
         info!("Spooling chunk data to {}", path.display());
         Ok((Self { path }, file))
     }
 
-    pub fn open(&self) -> Result<File, String> {
-        File::open(&self.path).map_err(|e| format!("`{}`: {e}", self.path.display()))
+    pub fn open(&self) -> std::io::Result<File> {
+        File::open(&self.path)
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 }
 
 impl Drop for SpoolFile {
     fn drop(&mut self) {
-        if std::fs::remove_file(&self.path).is_ok() {
-            info!("Removed chunk spool file {}", self.path.display());
+        match std::fs::remove_file(&self.path) {
+            Ok(()) => info!("Removed chunk spool file {}", self.path.display()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => tracing::warn!(
+                "Failed to remove chunk spool file {}, it is left in the temp directory and can be deleted by hand: {e}",
+                self.path.display()
+            ),
         }
     }
 }
@@ -77,7 +181,7 @@ pub(crate) fn chunk_files(
     files: &[FileEntry],
     chunk_size: u32,
     zstd_level: Option<i32>,
-) -> Result<SideChunks, String> {
+) -> Result<SideChunks, ChunkError> {
     let started = Instant::now();
     let total: u64 = files.iter().map(|f| f.size).sum();
     info!(
@@ -96,7 +200,6 @@ pub(crate) fn chunk_files(
     for (index, entry) in files.iter().enumerate() {
         let file_started = Instant::now();
         let path = root.join(&entry.path);
-        let err = |e: String| format!("`{}`: {e}", entry.path);
         info!(
             "File {}/{}: starting `{}` ({} bytes), chunks so far {}, open chunk has {} bytes",
             index + 1,
@@ -115,7 +218,10 @@ pub(crate) fn chunk_files(
             (location, "empty")
         } else {
             let open_started = Instant::now();
-            let file = File::open(&path).map_err(|e| err(e.to_string()))?;
+            let file = File::open(&path).context(OpenSourceSnafu {
+                pack_path: &entry.path,
+                full_path: &path,
+            })?;
             let opened = open_started.elapsed();
             open_time += opened;
             info!("File `{}`: open took {opened:?}", entry.path);
@@ -123,11 +229,23 @@ pub(crate) fn chunk_files(
             let add_started = Instant::now();
             // a small file bigger than the chunk size can't fit in one chunk, so it's
             // chunked like a large file
-            let result = if entry.size >= LARGE_FILE_THRESHOLD || entry.size > chunk_size as u64 {
-                (chunker.add_large(file, entry.size).map_err(err)?, "large")
+            let large = entry.size >= LARGE_FILE_THRESHOLD || entry.size > chunk_size as u64;
+            let kind = if large { "large" } else { "small" };
+            let added = if large {
+                chunker.add_large(file, entry.size)
             } else {
-                (chunker.add_small(file, entry.size).map_err(err)?, "small")
+                chunker.add_small(file, entry.size)
             };
+            let result = (
+                added.context(AddFileSnafu {
+                    pack_path: &entry.path,
+                    kind,
+                    size: entry.size,
+                    number: index + 1,
+                    total: files.len(),
+                })?,
+                kind,
+            );
             let added = add_started.elapsed();
             add_time += added;
             info!(
@@ -151,7 +269,7 @@ pub(crate) fn chunk_files(
     }
 
     let finish_started = Instant::now();
-    let (entries, data, stats) = chunker.finish()?;
+    let (entries, data, stats) = chunker.finish().context(FinishSnafu)?;
     info!("Chunker finish took {:?}", finish_started.elapsed());
     let chunks = SideChunks {
         entries,
@@ -214,7 +332,7 @@ struct ChunkStats {
 }
 
 impl Chunker {
-    fn new(chunk_size: u32, zstd_level: Option<i32>) -> Result<Self, String> {
+    fn new(chunk_size: u32, zstd_level: Option<i32>) -> Result<Self, ChunkError> {
         let (spool, file) = SpoolFile::create()?;
         Ok(Self {
             chunk_size,
@@ -235,12 +353,15 @@ impl Chunker {
     }
 
     /// the index the next pushed chunk gets
-    fn next_chunk(&self) -> Result<u32, String> {
-        u32::try_from(self.entries.len()).map_err(|_| "too many chunks for one pack".into())
+    fn next_chunk(&self) -> Result<u32, ChunkerError> {
+        let index = self.entries.len();
+        u32::try_from(index)
+            .ok()
+            .context(TooManyChunksSnafu { index })
     }
 
     /// starts its own chunks and fills as many as it needs, never sharing the last one
-    fn add_large(&mut self, mut file: File, size: u64) -> Result<FileLocation, String> {
+    fn add_large(&mut self, mut file: File, size: u64) -> Result<FileLocation, ChunkerError> {
         self.close_open()?;
         let location = FileLocation {
             first_chunk: self.next_chunk()?,
@@ -256,7 +377,10 @@ impl Chunker {
             let len = remaining.min(self.chunk_size as u64) as usize;
             buf.resize(len, 0);
             let read_started = Instant::now();
-            file.read_exact(&mut buf).map_err(|e| e.to_string())?;
+            file.read_exact(&mut buf).context(ReadSourceSnafu {
+                offset: size - remaining,
+                len,
+            })?;
             let read = read_started.elapsed();
             self.stats.read += read;
             info!(
@@ -281,7 +405,7 @@ impl Chunker {
     }
 
     /// goes into the open chunk, closing it first if the file doesn't fit
-    fn add_small(&mut self, mut file: File, size: u64) -> Result<FileLocation, String> {
+    fn add_small(&mut self, mut file: File, size: u64) -> Result<FileLocation, ChunkerError> {
         if self.open.len() as u64 + size > self.chunk_size as u64 {
             info!(
                 "Small file ({size} bytes) doesn't fit in open chunk ({} bytes used of {}), closing it",
@@ -305,7 +429,10 @@ impl Chunker {
         let resized = resize_started.elapsed();
         let read_started = Instant::now();
         file.read_exact(&mut self.open[start..])
-            .map_err(|e| e.to_string())?;
+            .context(ReadSourceSnafu {
+                offset: 0u64,
+                len: size as usize,
+            })?;
         let read = read_started.elapsed();
         let eof_started = Instant::now();
         check_eof(&mut file, size)?;
@@ -323,7 +450,7 @@ impl Chunker {
         Ok(location)
     }
 
-    fn close_open(&mut self) -> Result<(), String> {
+    fn close_open(&mut self) -> Result<(), ChunkerError> {
         if !self.open.is_empty() {
             let raw = std::mem::take(&mut self.open);
             let files = std::mem::take(&mut self.open_files);
@@ -346,7 +473,7 @@ impl Chunker {
 
     /// compresses one chunk and appends it to the data section. stored uncompressed if zstd
     /// saves less than 20%, or if there's no zstd level
-    fn push_chunk(&mut self, raw: &[u8]) -> Result<(), String> {
+    fn push_chunk(&mut self, raw: &[u8]) -> Result<(), ChunkerError> {
         let started = Instant::now();
         let index = self.entries.len();
         info!("Chunk {index}: pushing {} raw bytes", raw.len());
@@ -354,7 +481,11 @@ impl Chunker {
         let compress_started = Instant::now();
         let compressed = match self.zstd_level {
             Some(level) => {
-                let compressed = zstd::bulk::compress(raw, level).map_err(|e| e.to_string())?;
+                let compressed = zstd::bulk::compress(raw, level).context(CompressSnafu {
+                    index,
+                    len: raw.len(),
+                    level,
+                })?;
                 let elapsed = compress_started.elapsed();
                 info!(
                     "Chunk {index}: zstd level {level} compress took {elapsed:?} ({:.2} MiB/s), {} -> {} bytes ({:.1}%)",
@@ -383,7 +514,12 @@ impl Chunker {
         };
 
         let write_started = Instant::now();
-        self.out.write_all(stored).map_err(|e| e.to_string())?;
+        self.out.write_all(stored).context(WriteChunkSnafu {
+            index,
+            len: stored.len(),
+            offset: self.offset,
+            path: self.spool.path(),
+        })?;
         let write = write_started.elapsed();
         info!(
             "Chunk {index}: write of {} bytes took {write:?} ({:.2} MiB/s)",
@@ -433,10 +569,12 @@ impl Chunker {
         Ok(())
     }
 
-    fn finish(mut self) -> Result<(Vec<ChunkEntry>, SpoolFile, ChunkStats), String> {
+    fn finish(mut self) -> Result<(Vec<ChunkEntry>, SpoolFile, ChunkStats), ChunkerError> {
         self.close_open()?;
         let flush_started = Instant::now();
-        self.out.flush().map_err(|e| e.to_string())?;
+        self.out.flush().context(FlushSpoolSnafu {
+            path: self.spool.path(),
+        })?;
         self.stats.flush = flush_started.elapsed();
         info!("Spool flush took {:?}", self.stats.flush);
         Ok((self.entries, self.spool, self.stats))
@@ -444,12 +582,11 @@ impl Chunker {
 }
 
 /// a file that grew since its size was read would make the manifest's size wrong
-fn check_eof(file: &mut File, size: u64) -> Result<(), String> {
+fn check_eof(file: &mut File, size: u64) -> Result<(), ChunkerError> {
     let mut byte = [0u8; 1];
-    match file.read(&mut byte).map_err(|e| e.to_string())? {
-        0 => Ok(()),
-        _ => Err(format!("file changed while packing, expected {size} bytes")),
-    }
+    let read = file.read(&mut byte).context(CheckEofSnafu { size })?;
+    ensure!(read == 0, FileGrewSnafu { size });
+    Ok(())
 }
 
 #[cfg(test)]
@@ -632,9 +769,23 @@ mod chunker_tests {
     fn file_size_mismatch_is_error() {
         let (root, mut files) = setup("mismatch", &[("a", vec![1; 10])]);
         files[0].size = 5;
-        assert!(chunk_files(&root, &files, CHUNK_SIZE, Some(ZSTD_LEVEL)).is_err());
+        let err = chunk_files(&root, &files, CHUNK_SIZE, Some(ZSTD_LEVEL))
+            .err()
+            .expect("a file longer than its size should be rejected");
+        assert!(
+            matches!(&err, ChunkError::AddFile { source, .. }
+                if matches!(**source, ChunkerError::FileGrew { size: 5 })),
+            "{err:?}"
+        );
         files[0].size = 20;
-        assert!(chunk_files(&root, &files, CHUNK_SIZE, Some(ZSTD_LEVEL)).is_err());
+        let err = chunk_files(&root, &files, CHUNK_SIZE, Some(ZSTD_LEVEL))
+            .err()
+            .expect("a file shorter than its size should be rejected");
+        assert!(
+            matches!(&err, ChunkError::AddFile { source, .. }
+                if matches!(**source, ChunkerError::ReadSource { .. })),
+            "{err:?}"
+        );
     }
 
     #[test]

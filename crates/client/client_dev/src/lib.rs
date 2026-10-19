@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use runtime_assets::pack::readers::RuntimePackConfig;
 use std::path::PathBuf;
-use tracing::warn;
+use tracing::{error, warn};
 
 pub struct ClientDevPlugin;
 
@@ -24,9 +24,24 @@ impl Plugin for ClientDevPlugin {
                 .resource::<runtime_run_flags::RuntimeFlags>()
                 .get_flags();
 
-            let pack_file = flags.get("--pack-file").map(|values| {
-                PathBuf::from(values.first().expect("No pack file given in --pack-file"))
-                    .into_boxed_path()
+            let pack_file = flags.get("--pack-file").and_then(|values| {
+                match values.as_slice() {
+                    [] => {
+                        error!(
+                            "--pack-file was given without a path, expected `--pack-file <path to .tbpk or dev directory>`. No pack will be loaded"
+                        );
+                        None
+                    }
+                    [first, rest @ ..] => {
+                        if !rest.is_empty() {
+                            warn!(
+                                "--pack-file was given {} paths, only the first (`{first}`) is loaded, ignoring {rest:?}",
+                                values.len()
+                            );
+                        }
+                        Some(PathBuf::from(first).into_boxed_path())
+                    }
+                }
             });
 
             (flags.contains_key("--dev"), pack_file)
@@ -43,7 +58,7 @@ impl Plugin for ClientDevPlugin {
                 config.set_allow_dir_read(true);
             } else {
                 warn!(
-                    "Failed to set RuntimePackConfig allow_dir_read to true, config does not exist"
+                    "Developer mode couldn't allow reading dev directories as packs, the RuntimePackConfig resource doesn't exist. Is RuntimePackReaderPlugin added before ClientDevPlugin?"
                 )
             }
 
@@ -51,7 +66,9 @@ impl Plugin for ClientDevPlugin {
                 app.world_mut()
                     .trigger(runtime_assets::pack::readers::LoadPackFileEvent { path });
             } else {
-                warn!("Failed to fire LoadPackFileEvent, event does not exist")
+                warn!(
+                    "Developer mode is on but no pack will be loaded, pass `--pack-file <path to .tbpk or dev directory>` to load one"
+                )
             }
 
             return;
@@ -173,8 +190,10 @@ mod plugin_tests {
     }
 
     #[test]
-    #[should_panic(expected = "No pack file given in --pack-file")]
-    fn pack_file_flag_without_value_panics() {
-        dev_status(&["--dev", "--pack-file"]);
+    fn pack_file_flag_without_value_loads_nothing() {
+        let app = app_with_pack_config(&["--dev", "--pack-file"]);
+
+        assert!(*app.world().resource::<DeveloperModeStatus>().get_value());
+        assert!(app.world().resource::<LoadedPacks>().0.is_empty());
     }
 }

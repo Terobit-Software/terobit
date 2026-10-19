@@ -7,3 +7,4 @@ edition = "2024"
 tracing.workspace = true
 runtime_logging.workspace = true
 clap.workspace = true
+snafu.workspace = true

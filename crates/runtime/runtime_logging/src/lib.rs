@@ -1,3 +1,4 @@
+use snafu::{Report, ResultExt, Snafu};
 use std::path::PathBuf;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling;
@@ -5,44 +6,67 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{Layer, fmt};
 
+/// the log file couldn't be set up, logging falls back to the terminal only
+#[derive(Debug, Snafu)]
+pub enum LoggingError {
+    #[snafu(display(
+        "environment variable `{var}` is needed to find the log directory, but it isn't set or isn't valid unicode"
+    ))]
+    MissingEnv {
+        var: &'static str,
+        source: std::env::VarError,
+    },
+
+    #[snafu(display("failed to create log directory `{}`", path.display()))]
+    CreateLogDir {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+}
+
+fn env(var: &'static str) -> Result<String, LoggingError> {
+    std::env::var(var).context(MissingEnvSnafu { var })
+}
+
 #[inline]
 /// Returns the directory where log files should be stored
-fn get_log_directory(first_name: &'static str, last_name: &'static str) -> PathBuf {
+fn get_log_directory(
+    first_name: &'static str,
+    last_name: &'static str,
+) -> Result<PathBuf, LoggingError> {
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from(format!(
+        Ok(PathBuf::from(format!(
             "/Users/{}/Library/Logs/{}{}/",
-            std::env::var("USER").unwrap(),
+            env("USER")?,
             first_name,
             last_name
-        ))
+        )))
     }
     // $XDG_DATA_HOME, falling back to ~/.local/share per the XDG base directory spec
     #[cfg(target_os = "linux")]
     {
-        std::env::var("XDG_DATA_HOME")
+        let base = match std::env::var("XDG_DATA_HOME")
             .ok()
             .filter(|dir| !dir.is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                PathBuf::from(std::env::var("HOME").expect("HOME not set"))
-                    .join(".local")
-                    .join("share")
-            })
+        {
+            Some(dir) => PathBuf::from(dir),
+            None => PathBuf::from(env("HOME")?).join(".local").join("share"),
+        };
+        Ok(base
             .join(format!(
                 "{}{}",
                 first_name.to_lowercase(),
                 last_name.to_lowercase()
             ))
-            .join("logs")
+            .join("logs"))
     }
     #[cfg(target_os = "windows")]
     {
-        let base = std::env::var("LOCALAPPDATA").expect("LOCALAPPDATA not set");
-        PathBuf::from(base)
+        Ok(PathBuf::from(env("LOCALAPPDATA")?)
             .join(first_name.to_lowercase())
             .join(last_name.to_lowercase())
-            .join("logs")
+            .join("logs"))
     }
 }
 
@@ -67,27 +91,53 @@ fn panic_hook(info: &std::panic::PanicHookInfo<'_>) {
     tracing::error!(target: "panic", message = %message, location = %location, "A PANIC occurred");
 }
 
-/// first name should be formated as `Name` NOT `name` or `NAME`. Only the first letter should be capitalized
-pub fn init_logging(first_name: &'static str, last_name: &'static str) -> WorkerGuard {
-    let log_dir = get_log_directory(first_name, last_name);
-    std::fs::create_dir_all(&log_dir).unwrap();
+/// creates the log directory and a daily rolling, non blocking writer into it
+fn file_writer(
+    first_name: &'static str,
+    last_name: &'static str,
+) -> Result<
+    (
+        tracing_appender::non_blocking::NonBlocking,
+        WorkerGuard,
+        PathBuf,
+    ),
+    LoggingError,
+> {
+    let log_dir = get_log_directory(first_name, last_name)?;
+    std::fs::create_dir_all(&log_dir).context(CreateLogDirSnafu { path: &log_dir })?;
 
     // daily rotation: creates terobit-client.log.2026-09-04, etc.
     let file_appender = rolling::daily(&log_dir, "terobit-client.log");
-    // _guard must stay alive for the whole program or buffered logs get dropped
-    let (writer, _guard) = tracing_appender::non_blocking(file_appender);
+    let (writer, guard) = tracing_appender::non_blocking(file_appender);
+    Ok((writer, guard, log_dir))
+}
+
+/// first name should be formated as `Name` NOT `name` or `NAME`. Only the first letter should be capitalized
+///
+/// never fails: if the log file can't be set up, logs only go to the terminal and a warning
+/// says why. the returned guard must stay alive for the whole program or buffered file logs
+/// get dropped, it is `None` when there is no log file
+pub fn init_logging(first_name: &'static str, last_name: &'static str) -> Option<WorkerGuard> {
+    let (file_layer, guard, file_result) = match file_writer(first_name, last_name) {
+        Ok((writer, guard, log_dir)) => (
+            // no color in the file
+            Some(
+                fmt::layer()
+                    .with_writer(writer)
+                    .with_ansi(false)
+                    .with_filter(LevelFilter::INFO),
+            ),
+            Some(guard),
+            Ok(log_dir),
+        ),
+        Err(e) => (None, None, Err(e)),
+    };
 
     // init subscriber
     let subscriber = tracing_subscriber::registry()
         // this one for terminal, color
         .with(fmt::layer().with_filter(LevelFilter::INFO))
-        // this one for file, no color
-        .with(
-            fmt::layer()
-                .with_writer(writer)
-                .with_ansi(false)
-                .with_filter(LevelFilter::INFO),
-        );
+        .with(file_layer);
 
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
@@ -95,11 +145,23 @@ pub fn init_logging(first_name: &'static str, last_name: &'static str) -> Worker
         prev_hook(panic_info);
     }));
 
-    // this should be the LAST unwrap in the entire project
-    // except where err or none is fatal as a result, but an error!() should be thrown before unwrap
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+    // only fails if a subscriber is already set, which then gets these logs instead
+    if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
+        tracing::warn!(
+            "Logging for {first_name}{last_name} wasn't set up because a global tracing subscriber is already set, logs go to that one instead: {}",
+            Report::from_error(&e)
+        );
+    }
 
-    _guard
+    match file_result {
+        Ok(log_dir) => tracing::info!("Logging to the terminal and {}", log_dir.display()),
+        Err(e) => tracing::warn!(
+            "Logging to the terminal only, logs from this run won't be saved to a file: {}",
+            Report::from_error(&e)
+        ),
+    }
+
+    guard
 }
 
 #[cfg(test)]
@@ -112,7 +174,7 @@ mod fn_tests {
         let user = std::env::var("USER").unwrap();
 
         assert_eq!(
-            get_log_directory("Terobit", "Client"),
+            get_log_directory("Terobit", "Client").unwrap(),
             PathBuf::from(format!("/Users/{}/Library/Logs/TerobitClient/", user))
         );
     }
@@ -125,7 +187,7 @@ mod fn_tests {
             .filter(|dir| !dir.is_empty())
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap()).join(".local/share"));
-        let dir = get_log_directory("Terobit", "Client");
+        let dir = get_log_directory("Terobit", "Client").unwrap();
 
         assert!(dir.is_absolute());
         assert!(!dir.to_string_lossy().contains('~'));
@@ -138,7 +200,7 @@ mod fn_tests {
         let base = std::env::var("LOCALAPPDATA").unwrap();
 
         assert_eq!(
-            get_log_directory("Terobit", "Client"),
+            get_log_directory("Terobit", "Client").unwrap(),
             PathBuf::from(base)
                 .join("terobit")
                 .join("client")
@@ -149,8 +211,8 @@ mod fn_tests {
     #[test]
     fn log_directory_differs_per_app() {
         assert_ne!(
-            get_log_directory("Terobit", "Client"),
-            get_log_directory("Tbpk", "Generator")
+            get_log_directory("Terobit", "Client").unwrap(),
+            get_log_directory("Tbpk", "Generator").unwrap()
         );
     }
 }
