@@ -1,0 +1,63 @@
+name: Nightly release branch
+
+# Creates release/nightly/MM.DD.YYYY from main at midnight Central and deletes
+# every other release/nightly/* branch.
+
+on:
+  schedule:
+    # GitHub cron runs in UTC. Midnight Central is 05:00 UTC during CDT and 06:00 UTC
+    # during CST, so run at both and let the script decide which one counts.
+    - cron: '0 5 * * *'
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read   # GITHUB_TOKEN stays read-only; pushes and deletes use the deploy key
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    # The deploy key lives in this environment, which only allows the default branch,
+    # so a workflow someone adds on another branch can't read it.
+    environment: Nightly Release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ssh-key: ${{ secrets.NIGHTLY_DEPLOY_KEY }}
+
+      - name: Create today's nightly branch
+        run: |
+          set -euo pipefail
+
+          # The 05:00 UTC run lands at 23:00 the previous day during CST; skip it.
+          if [ "${{ github.event_name }}" = "schedule" ] && \
+             [ "$(TZ=America/Chicago date +%H)" = "23" ]; then
+            echo "Still the previous day in Central time; skipping."
+            exit 0
+          fi
+
+          stamp=$(TZ=America/Chicago date +%m.%d.%Y)     # e.g. 10.19.2026
+          branch="release/nightly/${stamp}"
+
+          # Whichever of the two runs comes second finds the branch and skips the push,
+          # but still prunes in case the first run failed partway.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "${branch} already exists."
+          else
+            git push origin "HEAD:refs/heads/${branch}"
+            echo "Created ${branch}"
+          fi
+
+          # Delete every other nightly branch, only after today's exists.
+          git ls-remote --heads origin 'refs/heads/release/nightly/*' \
+            | awk '{ print $2 }' \
+            | while read -r ref; do
+                if [ "$ref" != "refs/heads/${branch}" ]; then
+                  git push origin --delete "$ref"
+                  echo "Deleted ${ref#refs/heads/}"
+                fi
+              done
