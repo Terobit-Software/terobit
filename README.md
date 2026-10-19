@@ -1,3 +1,6 @@
+# Terobit
+The engine repo for the Terobit project. 
+
 ## Commands
 
 ### cargo rcl
@@ -29,6 +32,25 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 |--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
 |--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
 |--auto|runs pkgen on each example afterwards, packs go to `out/tbpk_generator/<example>`|
+
+## Layout
+Here is the outline of the layout for the project:
+
+### /.cargo
+Contains the alias configs in [config.toml](.cargo/config.toml). The aliases are outlined in [Commands](#commands)
+
+### /.github
+Contains dependabot config and CI config for github.
+
+<details>
+<summary>Click here to expand</summary>
+
+### Section Title
+* Item one
+* Item two
+* Item three
+
+</details>
 
 ## License
 
