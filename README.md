@@ -64,6 +64,9 @@ Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit
 ### Server (terobit_server)
 Runs .server.tbpk files, and handles client connections for realm servers. Currently does nothing due to the primitive state of the project. Runs and parses .tbpk files. See [README](bins/terobit_server/README.md).
 
+## Editing
+For those who edit this repo, please read [CONVENTIONS](CONVENTIONS.md) to read about rules and conventions set in place.
+
 ## License
 
 This repository is **source-available, not open source**. You're welcome to read the code, but you may not use, copy, modify, or redistribute it for any purpose without explicit written permission. See [LICENSE](LICENSE) for details.
