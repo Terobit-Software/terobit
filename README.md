@@ -1,5 +1,5 @@
 # Terobit
-The engine repo for the Terobit project. 
+The engine repo for the Terobit project. This does NOT contain the website. That is hosted on a seperate repo for security reasons.
 
 ## Commands
 
@@ -36,26 +36,36 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 ## Layout
 Here is the outline of the layout for the project:
 
+<details>
+<summary>Click here to expand</summary>
+
 ### /.cargo
 Contains the alias configs in [config.toml](.cargo/config.toml). The aliases are outlined in [Commands](#commands)
 
 ### /.github
 Contains dependabot config and CI config for github.
 
-<details>
-<summary>Click here to expand</summary>
-
-### Section Title
-* Item one
-* Item two
-* Item three
+### /bins
+Contains binaries for the repo. See [binaries](#binaries).
 
 </details>
 
+## Binaries
+
+### Pack Generator (tbpk_generator)
+Generates .tbpk files from a manifest and asset directory. See [README](bins/tbpk_generator/README.md).
+
+### Client (terobit_client)
+Runs and parses .client.tbpk files. See [README](bins/terobit_client/README.md).
+
+### Editor (terobit_editor)
+Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Current replacement is tbpk_generator due to the primitive state of the project. See [README](bins/terobit_editor/README.md).
+
+### Server (terobit_server)
+Runs .server.tbpk files, and handles client connections for realm servers. Currently does nothing due to the primitive state of the project. Runs and parses .tbpk files. See [README](bins/terobit_server/README.md).
+
 ## License
 
-This repository is **source-available, not open source**. You're welcome to
-read the code, but you may not use, copy, modify, or redistribute it for any
-purpose without written permission. See [LICENSE](LICENSE) for details.
+This repository is **source-available, not open source**. You're welcome to read the code, but you may not use, copy, modify, or redistribute it for any purpose without explicit written permission. See [LICENSE](LICENSE) for details.
 
 For permission requests, contact [contact@terobit.io](mailto:contact@terobit.io).
