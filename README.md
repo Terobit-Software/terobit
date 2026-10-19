@@ -29,3 +29,11 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 |--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
 |--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
 |--auto|runs pkgen on each example afterwards, packs go to `out/tbpk_generator/<example>`|
+
+## License
+
+This repository is **source-available, not open source**. You're welcome to
+read the code, but you may not use, copy, modify, or redistribute it for any
+purpose without written permission. See [LICENSE](LICENSE) for details.
+
+For permission requests, contact [contact@terobit.io](mailto:contact@terobit.io).
