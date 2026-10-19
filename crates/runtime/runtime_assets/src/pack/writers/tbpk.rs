@@ -1,5 +1,5 @@
+use crate::pack::readers::{ManifestSource, SideAssets};
 use crate::pack::writers::chunker::{SideChunks, chunk_files};
-use crate::pack::writers::{ManifestSource, SideAssets};
 use crate::pack::{
     Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexRef, IndexV1,
     MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents,
