@@ -1,0 +1,56 @@
+name: Version check
+
+# Every PR into main must carry one shared version across client, editor and server,
+# and that version must differ from what main currently has.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare versions with main
+        run: |
+          set -euo pipefail
+
+          crates="terobit_client terobit_editor terobit_server"
+
+          # Prints the version from the [package] table of the Cargo.toml read on stdin.
+          package_version() {
+            awk '/^\[/ { p = ($0 == "[package]") }
+                 p && /^version[[:space:]]*=/ { gsub(/^[^"]*"|".*$/, ""); print; exit }'
+          }
+
+          pr_version=""
+          for crate in $crates; do
+            v=$(package_version < "bins/${crate}/Cargo.toml")
+            if [ -z "$v" ]; then
+              echo "::error file=bins/${crate}/Cargo.toml::No [package] version found"
+              exit 1
+            fi
+            echo "${crate}: ${v}"
+            if [ -z "$pr_version" ]; then
+              pr_version="$v"
+            elif [ "$v" != "$pr_version" ]; then
+              echo "::error file=bins/${crate}/Cargo.toml::Version ${v} doesn't match ${pr_version}; client, editor and server must share one version"
+              exit 1
+            fi
+          done
+
+          git fetch --no-tags --depth=1 origin main
+          main_version=$(git show "origin/main:bins/terobit_client/Cargo.toml" | package_version)
+          echo "main: ${main_version}"
+
+          if [ "$pr_version" = "$main_version" ]; then
+            echo "::error::Version is still ${main_version}, same as main; bump it in client, editor and server"
+            exit 1
+          fi
+
+          echo "Version ${main_version} -> ${pr_version}"
