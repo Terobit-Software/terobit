@@ -7,7 +7,7 @@ use crate::pack::{
 };
 use crate::pack::{
     DEFAULT_CHUNK_SIZE, HEADER_LEN, INDEX, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
-    MIN_CHUNK_SIZE, TOC_LEN, pack_digest,
+    MIN_CHUNK_SIZE, TOC_LEN, ZSTD_LEVEL, pack_digest,
 };
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -60,6 +60,8 @@ pub struct PackWriter {
     tbpk: Option<TbPack>,
     // implemented
     chunk_size: u32,
+    /// zstd level chunks are compressed at. defaults to the manifest version's pinned level
+    zstd_level: Option<i32>,
     /// each side's chunks, indexed by `Target as usize`. filled by `build_tbpk`
     chunks: [Option<SideChunks>; 2],
     /// `None` writes an unsigned pack
@@ -73,6 +75,7 @@ impl Default for PackWriter {
         Self {
             tbpk: None,
             chunk_size: DEFAULT_CHUNK_SIZE,
+            zstd_level: Some(ZSTD_LEVEL),
             chunks: [None, None],
             signer: None,
             manifest_source: None,
@@ -89,6 +92,35 @@ impl PackWriter {
         info!("Pack writer will sign packs");
         self.signer = Some(signer);
         self
+    }
+
+    /// overrides the zstd level, `None` stores every chunk uncompressed. anything other than
+    /// `ZSTD_LEVEL` makes chunk bytes and hashes differ from what the manifest version pins,
+    /// so it's for testing speed and size
+    pub fn with_zstd_level(mut self, level: Option<i32>) -> Result<Self, String> {
+        match level {
+            Some(level) => {
+                let range = zstd::compression_level_range();
+                if !range.contains(&level) {
+                    return Err(format!(
+                        "zstd level {level} is out of range {}..={}",
+                        range.start(),
+                        range.end()
+                    ));
+                }
+                if level != ZSTD_LEVEL {
+                    tracing::warn!(
+                        "Pack writer zstd level is {level}, not the pinned {ZSTD_LEVEL}"
+                    );
+                }
+                info!("Pack writer will compress chunks at zstd level {level}");
+            }
+            None => {
+                tracing::warn!("Pack writer compression is off, not the pinned {ZSTD_LEVEL}");
+            }
+        }
+        self.zstd_level = level;
+        Ok(self)
     }
 
     pub fn load_manifest(&mut self, path: PathBuf) -> Result<(), String> {
@@ -114,7 +146,7 @@ impl PackWriter {
         info!("Chunking {target:?} files");
         let source = self.get_manifest_source()?;
         let files = source.get_side_files(target)?;
-        let chunks = chunk_files(source.get_root(), &files, self.chunk_size)?;
+        let chunks = chunk_files(source.get_root(), &files, self.chunk_size, self.zstd_level)?;
 
         info!(
             "Chunked {} files into {} chunks for {target:?}",

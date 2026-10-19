@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use runtime_assets::pack::Target;
 use runtime_assets::pack::writers::PackWriter;
+use runtime_assets::pack::{Target, ZSTD_LEVEL};
 use runtime_run_flags::{RuntimeFlags, RuntimeRunFlagsPlugin};
 use std::path::PathBuf;
 use tracing::info;
@@ -12,10 +12,14 @@ const DEFAULT_OUT: &str = "out/tbpk_generator";
 /// `--manifest <path>` the dev directory's manifest.toml, asset paths are relative to its folder
 /// `--out <dir>` folder the packs are written to, created if missing
 /// `--target <client|server|both>` which packs to build, defaults to both
+/// `--zstd-level <level|none>` zstd level chunks are compressed at, `none` stores them
+/// uncompressed. defaults to `ZSTD_LEVEL`
 struct Args {
     manifest: PathBuf,
     out: PathBuf,
     targets: &'static [Target],
+    /// `None` is no compression
+    zstd_level: Option<i32>,
 }
 
 impl Args {
@@ -46,10 +50,20 @@ impl Args {
             }
         };
 
+        let zstd_level =
+            match value("--zstd-level")? {
+                None => Some(ZSTD_LEVEL),
+                Some(level) if level == "none" => None,
+                Some(level) => Some(level.parse().map_err(|_| {
+                    format!("--zstd-level is `{level}`, expected a number or none")
+                })?),
+            };
+
         Ok(Self {
             manifest,
             out,
             targets,
+            zstd_level,
         })
     }
 }
@@ -76,6 +90,7 @@ fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
     info!("Manifest: {}", args.manifest.display());
     info!("Output folder: {}", args.out.display());
     info!("Targets: {:?}", args.targets);
+    info!("Zstd level: {:?}", args.zstd_level);
 
     let start = std::time::Instant::now();
     exit.write(match write_packs(&args) {
@@ -95,7 +110,13 @@ fn write_packs(args: &Args) -> Result<(), ()> {
     // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
     // until then packs are written unsigned
     info!("No signing key loaded, writing unsigned packs");
-    let mut writer = PackWriter::new();
+    let mut writer = match PackWriter::new().with_zstd_level(args.zstd_level) {
+        Ok(writer) => writer,
+        Err(msg) => {
+            tracing::error!("{msg}");
+            return Err(());
+        }
+    };
     if let Err(msg) = writer.load_manifest(args.manifest.clone()) {
         tracing::error!(
             "error on load manifest {}: {}",

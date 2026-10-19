@@ -1,30 +1,31 @@
 ## Commands
 
 ### cargo rcl
-Run client.
+Build and run the client. builds `terobit_client`, copies it and `bins/terobit_client/assets` into a fresh `out/client`, and runs it from there with `--dev --pack-file .`.
 
 |args|desc|
 |----|----|
-|--final|builds client as final, using release profile instead of dev|
-|--strip-defaults|removes default developer flags from client. removes --dev, and --pack-file at '.' which needs to be updated|
+|--final, -f|builds with the release profile instead of release-dev, and runs without the dev flags|
+|--strip-defaults, -s|runs without the default dev flags (`--dev`, `--pack-file .`)|
 
 ### cargo pkgen
-Build .TBPK file from manifest.
+Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`.
 
 |args|desc|
 |--|--|
-|--manifest|the path to the manifest.toml|
-|--out|the path to the out directory for the packages|
-|--targets|client, server, or both|
-
+|--manifest|path to the manifest.toml, required. asset paths are relative to its folder|
+|--out|folder the packs are written to, created if missing. defaults to `out/tbpk_generator`|
+|--target|client, server, or both. defaults to both|
+|--zstd-level|zstd level chunks are compressed at, or `none` to store them uncompressed. defaults to `ZSTD_LEVEL`, any other level changes chunk bytes and hashes|
 
 ### cargo regen
-Build examples for generating test and example packages.
+Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped.
+
 |args|desc|
 |--|--|
-|--type|xsmall, small, large, xlarge, mix, xmix|
-|--auto|runs pkgen automatically after generating|
-|--count|count of files for both sides, can be "random"|
-|--max|if random is chosen for --count, max amount of files|
-|--min|if random is chosen for --count, min amount of files|
-|--entropy|the level of entropy in the output, low, med, high|
+|--type|xsmall, small, large, xlarge, mix, xmix, or random. without it, every type is generated at its default count|
+|--count|files per side (shared files count for both), needs --type. defaults per type|
+|--min|smallest file size in bytes, only with `--type random`. defaults to 1|
+|--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
+|--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
+|--auto|runs pkgen on each example afterwards, packs go to `out/tbpk_generator/<example>`|
