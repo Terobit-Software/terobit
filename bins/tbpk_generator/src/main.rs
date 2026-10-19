@@ -1,28 +1,174 @@
-use std::path::PathBuf;
-
 use bevy::prelude::*;
-use client_dev::ClientDevPlugin;
-use runtime_core::RuntimeCorePlugins;
-use std::path::Path;
+use runtime_assets::pack::writers::PackWriter;
+use runtime_assets::pack::{Target, ZSTD_LEVEL};
+use runtime_run_flags::{RuntimeFlags, RuntimeRunFlagsPlugin};
+use std::path::PathBuf;
+use tracing::info;
 
-fn main() {
+/// folder the packs go in when `--out` isn't given
+const DEFAULT_OUT: &str = "out/tbpk_generator";
+
+/// read from the run flags:
+/// `--manifest <path>` the dev directory's manifest.toml, asset paths are relative to its folder
+/// `--out <dir>` folder the packs are written to, created if missing
+/// `--target <client|server|both>` which packs to build, defaults to both
+/// `--zstd-level <level|none>` zstd level chunks are compressed at, `none` stores them
+/// uncompressed. defaults to `ZSTD_LEVEL`
+struct Args {
+    manifest: PathBuf,
+    out: PathBuf,
+    targets: &'static [Target],
+    /// `None` is no compression
+    zstd_level: Option<i32>,
+}
+
+impl Args {
+    fn from_flags(flags: &RuntimeFlags) -> Result<Self, String> {
+        let flags = flags.get_flags();
+        let value = |flag: &str| -> Result<Option<&String>, String> {
+            match flags.get(flag) {
+                None => Ok(None),
+                Some(values) => match values.as_slice() {
+                    [value] => Ok(Some(value)),
+                    _ => Err(format!("{flag} takes exactly one value")),
+                },
+            }
+        };
+
+        let manifest = value("--manifest")?
+            .ok_or("--manifest <path to manifest.toml> is required")?
+            .into();
+        let out = value("--out")?.map_or(DEFAULT_OUT, String::as_str).into();
+        let targets: &[Target] = match value("--target")?.map(String::as_str) {
+            None | Some("both") => &[Target::Client, Target::Server],
+            Some("client") => &[Target::Client],
+            Some("server") => &[Target::Server],
+            Some(other) => {
+                return Err(format!(
+                    "--target is `{other}`, expected client, server or both"
+                ));
+            }
+        };
+
+        let zstd_level =
+            match value("--zstd-level")? {
+                None => Some(ZSTD_LEVEL),
+                Some(level) if level == "none" => None,
+                Some(level) => Some(level.parse().map_err(|_| {
+                    format!("--zstd-level is `{level}`, expected a number or none")
+                })?),
+            };
+
+        Ok(Self {
+            manifest,
+            out,
+            targets,
+            zstd_level,
+        })
+    }
+}
+
+fn main() -> AppExit {
     let _guard = runtime_logging::init_logging("Tbpk", "Generator");
 
     App::new()
-        .add_plugins(RuntimeCorePlugins)
-        .add_plugins(ClientDevPlugin)
-        .add_systems(Update, || {
-            let mut writer = runtime_assets::pack::writers::PackWriter::new();
-            let _manifest = writer.read_manifest(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../tests/examples/source_to_tbpk/basic1/manifest.toml"),
-            );
-            if let Err(msg) = writer.prep_assets() {
-                tracing::error!("error on prep assets: {}", msg);
-            };
-            if let Err(msg) = writer.load_then_write() {
-                tracing::error!("error on load then write: {}", msg);
-            };
-        })
-        .run();
+        .add_plugins(MinimalPlugins)
+        .add_plugins(RuntimeRunFlagsPlugin)
+        .add_systems(Startup, generate)
+        .run()
+}
+
+fn generate(flags: Res<RuntimeFlags>, mut exit: MessageWriter<AppExit>) {
+    let args = match Args::from_flags(&flags) {
+        Ok(args) => args,
+        Err(msg) => {
+            tracing::error!("{msg}");
+            exit.write(AppExit::error());
+            return;
+        }
+    };
+    info!("Manifest: {}", args.manifest.display());
+    info!("Output folder: {}", args.out.display());
+    info!("Targets: {:?}", args.targets);
+    info!("Zstd level: {:?}", args.zstd_level);
+
+    let start = std::time::Instant::now();
+    exit.write(match write_packs(&args) {
+        Ok(()) => {
+            info!("Generated all packs in {:?}", start.elapsed());
+            AppExit::Success
+        }
+        Err(()) => {
+            tracing::error!("Pack generation failed after {:?}", start.elapsed());
+            AppExit::error()
+        }
+    });
+}
+
+/// errors are logged as they happen, so one failed target doesn't stop the other
+fn write_packs(args: &Args) -> Result<(), ()> {
+    // TODO: pass a PackSigner with `.with_signer()` once keys can be loaded,
+    // until then packs are written unsigned
+    info!("No signing key loaded, writing unsigned packs");
+    let mut writer = match PackWriter::new().with_zstd_level(args.zstd_level) {
+        Ok(writer) => writer,
+        Err(msg) => {
+            tracing::error!("{msg}");
+            return Err(());
+        }
+    };
+    if let Err(msg) = writer.load_manifest(args.manifest.clone()) {
+        tracing::error!(
+            "error on load manifest {}: {}",
+            args.manifest.display(),
+            msg
+        );
+        return Err(());
+    }
+
+    if let Err(e) = std::fs::create_dir_all(&args.out) {
+        tracing::error!("error on create {}: {}", args.out.display(), e);
+        return Err(());
+    }
+    info!("Output folder {} is ready", args.out.display());
+
+    // `<realm_id>-<pack_version>.<target>.tbpk`, as suggested in the tbpk doc
+    let stem = match writer.get_manifest_source() {
+        Ok(source) => format!("{}-{}", source.get_realm_id(), source.get_pack_version()),
+        Err(msg) => {
+            tracing::error!("{msg}");
+            return Err(());
+        }
+    };
+
+    info!("Packs will be named {stem}.<target>.tbpk");
+
+    let mut failed = false;
+    for &target in args.targets {
+        let target_start = std::time::Instant::now();
+        info!("Generating {target:?} pack");
+        if let Err(msg) = writer.build_tbpk(target) {
+            tracing::error!("error on build tbpk for {:?}: {}", target, msg);
+            failed = true;
+            continue;
+        }
+
+        let side = match target {
+            Target::Client => "client",
+            Target::Server => "server",
+        };
+        let path = args.out.join(format!("{stem}.{side}.tbpk"));
+        if let Err(msg) = writer.write_tbpk_out(&path) {
+            tracing::error!("error on write tbpk out for {:?}: {}", target, msg);
+            failed = true;
+            continue;
+        }
+        info!(
+            "Generated {target:?} pack at {} in {:?}",
+            path.display(),
+            target_start.elapsed()
+        );
+    }
+
+    if failed { Err(()) } else { Ok(()) }
 }

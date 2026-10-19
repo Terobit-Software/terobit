@@ -2,5 +2,6 @@
 rustflags = ["-C", "link-arg=-lc++"]
 
 [alias]
-rcl = "run --bin run_client_script --release"
-pkgen = "run --bin tbpk_generator --profile ci"
+rcl = "run --bin run_client_script --profile release-dev --"
+pkgen = "run --bin tbpk_generator --profile release --"
+regen = "run --bin example_generator --profile release --"

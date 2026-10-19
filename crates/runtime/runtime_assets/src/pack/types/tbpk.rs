@@ -1,4 +1,4 @@
-use crate::pack::CommonHeader;
+use crate::pack::{CommonHeader, TbManifest, TbSignature};
 
 /// size of the table of contents in bytes, right after the common header
 pub const TOC_LEN: u64 = 64;
@@ -22,11 +22,19 @@ pub struct TbPack {
     /// where each section is in the file
     pub toc: TableOfContents,
     /// the manifest section, a complete `.tbman` file
-    pub manifest: Vec<u8>,
+    pub manifest: Signed<TbManifest>,
     /// the signature section, a complete `.tbsig` file, `None` if unsigned
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<TbSignature>,
     /// the index section
     pub index: IndexV1,
+}
+
+/// a section a signature covers. `raw` is exactly what is on disk and what gets signed or
+/// verified, never re-encode `parsed` to check a signature. readers decode `parsed` only
+/// after `raw` verifies
+pub struct Signed<T> {
+    pub raw: Vec<u8>,
+    pub parsed: T,
 }
 
 /// fixed width little endian, right after the common header. offsets are from the start of the file
@@ -41,7 +49,30 @@ pub struct TableOfContents {
     pub data_len: u64,
 }
 
+impl TableOfContents {
+    /// fixed width little endian, fields in declaration order
+    pub fn to_bytes(&self) -> [u8; TOC_LEN as usize] {
+        let fields = [
+            self.manifest_offset,
+            self.manifest_len,
+            self.signature_offset,
+            self.signature_len,
+            self.index_offset,
+            self.index_len,
+            self.data_offset,
+            self.data_len,
+        ];
+
+        let mut out = [0u8; TOC_LEN as usize];
+        for (i, field) in fields.iter().enumerate() {
+            out[i * 8..i * 8 + 8].copy_from_slice(&field.to_le_bytes());
+        }
+        out
+    }
+}
+
 /// the index section, postcard encoded. its length and hash are in the signed manifest
+#[derive(serde::Serialize)]
 pub struct IndexV1 {
     /// most raw bytes a chunk can hold. 1 mib when written by the v1 tool, readers accept
     /// any power of two from 64 kib to 16 mib
@@ -52,6 +83,7 @@ pub struct IndexV1 {
     pub files: Vec<FileLocation>,
 }
 
+#[derive(serde::Serialize, Clone)]
 pub struct ChunkEntry {
     /// where the stored bytes start, from the start of the data section
     pub offset: u64,
@@ -64,6 +96,7 @@ pub struct ChunkEntry {
     pub hash: [u8; 32],
 }
 
+#[derive(serde::Serialize, Clone, Copy, Debug)]
 pub enum Compression {
     /// stored bytes are the raw bytes. stored_len equals raw_len
     None = 0,
@@ -71,6 +104,7 @@ pub enum Compression {
     Zstd = 1,
 }
 
+#[derive(serde::Serialize, Clone, Copy)]
 pub struct FileLocation {
     /// the chunk the file starts in
     pub first_chunk: u32,

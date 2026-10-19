@@ -75,9 +75,18 @@ fn main() -> ExitCode {
     };
     info!("profile: {:?}", profile);
 
+    // absolute, since the client runs with out_dir as its working directory
+    let pack_file = cwd
+        .join("tests")
+        .join("examples")
+        .join("source_to_tbpk")
+        .join("basic1")
+        .to_string_lossy()
+        .into_owned();
+
     let mut flags: Vec<&str> = vec![];
     if !is_final && !args.strip_defaults {
-        flags.extend(["--dev", "--pack-file", "."]);
+        flags.extend(["--dev", "--pack-file", &pack_file]);
     }
     info!("client flags: {:?}", flags);
 

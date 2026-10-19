@@ -1,15 +1,25 @@
-use crate::pack::CommonHeader;
+use crate::pack::{CommonHeader, MagicValue, Signed, encode_file};
 
 /// zstd level used to compress chunks in packs whose manifest is v1
-pub const ZSTD_LEVEL: i32 = 19;
+pub const ZSTD_LEVEL: i32 = 5;
 
-/// a `.tbman` file
-#[derive(serde::Serialize)]
+/// a `.tbman` file. not serde, encode with `TbManifest::encode`
 pub struct TbManifest {
     /// the common header, magic `TBMN`
     pub header: CommonHeader,
     /// the body, postcard encoded
     pub body: ManifestV1,
+}
+
+impl TbManifest {
+    /// encodes the whole file once, so the bytes that get signed are the bytes that get written
+    pub fn encode(body: ManifestV1) -> Result<Signed<TbManifest>, String> {
+        let (header, raw) = encode_file(MagicValue::TBMN, TBMAN_CURRENT_VERSION, &body)?;
+        Ok(Signed {
+            raw,
+            parsed: TbManifest { header, body },
+        })
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -35,13 +45,14 @@ pub struct ManifestV1 {
     pub index: IndexRef,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Copy, Clone, Debug)]
 pub enum Target {
     Client = 0,
     Server = 1,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum Access {
     /// anyone can play
     Free = 0,

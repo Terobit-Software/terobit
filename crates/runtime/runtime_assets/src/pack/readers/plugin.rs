@@ -29,7 +29,14 @@ impl RuntimePackReaderPlugin {
     fn scan_pack(e: On<LoadPackFileEvent>, mut commands: Commands, config: Res<RuntimePackConfig>) {
         let path = e.event().path.as_ref();
 
-        PackReader::read_pack(&mut commands, path, &config);
+        match PackReader::read_pack(&mut commands, path, &config) {
+            Err(e) => tracing::error!(
+                "failed to read pack: e = {}, path = {}",
+                e,
+                path.to_str().expect("couldnt convert to str")
+            ),
+            Ok(()) => tracing::info!("read pack successfully"),
+        }
     }
 }
 

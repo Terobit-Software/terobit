@@ -1,503 +1,358 @@
-use crate::pack::writers::{ManifestSource, SideAssets};
+use crate::pack::readers::{ManifestSource, SideAssets};
+use crate::pack::writers::chunker::{SideChunks, chunk_files};
 use crate::pack::{
-    CommonHeader, FileEntry, HEADER_LEN, Handle, ManifestV1, TBMAN_CURRENT_VERSION,
-    TBPK_CURRENT_VERSION, TableOfContents, TbManifest, TbPack,
+    Certificate, ChunkEntry, CommonHeader, FileEntry, FileLocation, Handle, IndexRef, IndexV1,
+    MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION, TableOfContents,
+    Target, TbManifest, TbPack, TbSignature,
 };
-use crate::pack::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
+use crate::pack::{
+    DEFAULT_CHUNK_SIZE, HEADER_LEN, INDEX, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
+    MIN_CHUNK_SIZE, TOC_LEN, ZSTD_LEVEL, pack_digest,
+};
+use ed25519_dalek::{Signer, SigningKey};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-#[derive(Default)]
+/// a pack signing key and the certificate the root key issued for it
+pub struct PackSigner {
+    key: SigningKey,
+    cert: Certificate,
+}
+
+impl PackSigner {
+    /// fails if the certificate isn't for packs or doesn't match the key
+    pub fn new(key: SigningKey, cert: Certificate) -> Result<Self, String> {
+        if cert.purpose() != Purpose::Pack {
+            return Err(format!(
+                "certificate purpose is {:?}, not Pack",
+                cert.purpose()
+            ));
+        }
+        if cert.public_key() != key.verifying_key().as_bytes() {
+            return Err("certificate public key doesn't match the signing key".into());
+        }
+        info!(
+            "Created pack signer with public key {}",
+            hex(key.verifying_key().as_bytes())
+        );
+        Ok(Self { key, cert })
+    }
+
+    /// signs exactly the bytes that get written, never a re-encoding of `parsed`
+    pub fn sign(&self, manifest: &Signed<TbManifest>) -> SignatureV1 {
+        let digest = pack_digest(&manifest.raw);
+        let signature = self.key.sign(&digest).to_bytes();
+        info!(
+            "Signed {} manifest bytes, digest {}",
+            manifest.raw.len(),
+            hex(&digest)
+        );
+        SignatureV1::new(self.cert.clone(), signature)
+    }
+}
+
 pub struct PackWriter {
-    manifest_source: Option<ManifestSource>,
-    chunk_map: Option<FileChunkMapSides>,
+    // implemented
+    tbpk: Option<TbPack>,
+    // implemented
     chunk_size: u32,
+    /// zstd level chunks are compressed at. defaults to the manifest version's pinned level
+    zstd_level: Option<i32>,
+    /// each side's chunks, indexed by `Target as usize`. filled by `build_tbpk`
+    chunks: [Option<SideChunks>; 2],
+    /// `None` writes an unsigned pack
+    signer: Option<PackSigner>,
+    // implemented
+    manifest_source: Option<ManifestSource>,
 }
 
-struct AssetHandles {
-    client: Vec<Handle>,
-    server: Vec<Handle>,
-    shared: Vec<Handle>,
-    validated: bool,
-}
-
-impl AssetHandles {
-    pub fn validate(&mut self) -> Result<(), String> {
-        let set = self.shared.clone().into_iter().collect::<HashSet<_>>();
-
-        for v in &self.client {
-            if set.contains(v) {
-                return Err(format!("client list contains shared item: {}", v));
-            }
+impl Default for PackWriter {
+    fn default() -> Self {
+        Self {
+            tbpk: None,
+            chunk_size: DEFAULT_CHUNK_SIZE,
+            zstd_level: Some(ZSTD_LEVEL),
+            chunks: [None, None],
+            signer: None,
+            manifest_source: None,
         }
-
-        for v in &self.server {
-            if set.contains(v) {
-                return Err(format!("server list contains shared item: {}", v));
-            }
-        }
-
-        self.validated = true;
-
-        info!("Asset handles validated");
-
-        Ok(())
     }
-}
-
-struct AssetInfoHolder {
-    client: SideInfo,
-    server: SideInfo,
-}
-
-/// everything one side's pack holds
-struct SideInfo {
-    /// every path referenced by this side's entries, deduplicated and sorted by path
-    files: Vec<FileInfo>,
-    assets: Vec<AssetInfo>,
-}
-
-struct FileInfo {
-    /// path inside the pack, see path rules in conventions
-    path: String,
-    /// on load, if they do not match panic
-    size: u64,
-}
-
-#[derive(Clone)]
-struct AssetInfo {
-    handle: Handle,
-    /// index into the side's `files`
-    file: u32,
-}
-
-#[derive(Copy, Clone)]
-struct ChunkItem {
-    /// index into the side's `files`
-    file: u32,
-    /// in bytes
-    offset: u32,
-    /// length
-    length: u64,
-    /// end count, number of final item
-    end_number: u32,
-    /// current count, number of current item
-    number: u32,
-}
-
-#[derive(Clone)]
-struct ChunkSection {
-    items: Vec<ChunkItem>,
-}
-
-impl ChunkSection {
-    pub(crate) fn get_full_length(&self) -> u64 {
-        self.items.iter().map(|item| item.length).sum()
-    }
-}
-
-struct FileChunkMap {
-    map: Vec<ChunkSection>,
-}
-
-struct FileChunkMapSides {
-    client: FileChunkMap,
-    server: FileChunkMap,
-}
-
-#[derive(Debug)]
-enum ChunkSide {
-    Server,
-    Client,
 }
 
 impl PackWriter {
     pub fn new() -> Self {
-        Self {
-            chunk_size: DEFAULT_CHUNK_SIZE,
-            ..Default::default()
-        }
+        Self::default()
     }
 
-    pub fn with_chunk_size(mut self, bytes: u32) -> Self {
-        if bytes > MAX_CHUNK_SIZE || bytes < MIN_CHUNK_SIZE {
-            panic!(
-                "Chunk size is out of range, min: {MIN_CHUNK_SIZE}, max: {MAX_CHUNK_SIZE}, given: {bytes}"
-            );
-        }
-        self.chunk_size = bytes;
+    pub fn with_signer(mut self, signer: PackSigner) -> Self {
+        info!("Pack writer will sign packs");
+        self.signer = Some(signer);
         self
     }
 
-    pub fn read_manifest(&mut self, path: PathBuf) -> Result<(), String> {
-        self.manifest_source = Some(ManifestSource::from_path(&path)?);
-        if let Ok(canon) = path.canonicalize() {
-            info!("Manifest read OK at path {}", canon.to_string_lossy());
-        } else {
-            tracing::error!("Could not make OK manifest path canon")
+    /// overrides the zstd level, `None` stores every chunk uncompressed. anything other than
+    /// `ZSTD_LEVEL` makes chunk bytes and hashes differ from what the manifest version pins,
+    /// so it's for testing speed and size
+    pub fn with_zstd_level(mut self, level: Option<i32>) -> Result<Self, String> {
+        match level {
+            Some(level) => {
+                let range = zstd::compression_level_range();
+                if !range.contains(&level) {
+                    return Err(format!(
+                        "zstd level {level} is out of range {}..={}",
+                        range.start(),
+                        range.end()
+                    ));
+                }
+                if level != ZSTD_LEVEL {
+                    tracing::warn!(
+                        "Pack writer zstd level is {level}, not the pinned {ZSTD_LEVEL}"
+                    );
+                }
+                info!("Pack writer will compress chunks at zstd level {level}");
+            }
+            None => {
+                tracing::warn!("Pack writer compression is off, not the pinned {ZSTD_LEVEL}");
+            }
         }
+        self.zstd_level = level;
+        Ok(self)
+    }
+
+    pub fn load_manifest(&mut self, path: PathBuf) -> Result<(), String> {
+        info!("Loading manifest from {}", path.display());
+        let src = ManifestSource::from_path(&path)?;
+        info!("Asset paths are relative to {}", src.get_root().display());
+        self.manifest_source = Some(src);
         Ok(())
     }
 
-    fn collect_asset_handles(&self) -> Result<AssetHandles, String> {
-        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
-
-        let parse = |assets: &BTreeMap<String, String>| {
-            assets
-                .keys()
-                .map(|key| {
-                    let v = key.parse::<Handle>();
-
-                    if let Ok(val) = &v {
-                        info!("parsed asset handle value {}", val);
-                    }
-
-                    v
-                })
-                .collect::<Result<Vec<_>, _>>()
-        };
-
-        Ok(AssetHandles {
-            client: parse(source.get_client().get_assets())?,
-            server: parse(source.get_server().get_assets())?,
-            shared: parse(source.get_assets())?,
-            validated: false,
-        })
+    fn header(&self, body_length: u64, target: Target) -> CommonHeader {
+        CommonHeader::new(MagicValue::TBPK, TBPK_CURRENT_VERSION, body_length)
     }
 
-    fn load_side_info(&self, side: &SideAssets, group: Vec<Handle>) -> Result<SideInfo, String> {
-        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
-
-        let asset_paths = group
-            .into_iter()
-            .map(|handle| {
-                let path = source.resolve_asset_path(side, &handle)?;
-                Ok((handle, path))
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-
-        // btree so files are deduplicated and sorted by path in byte order, like the manifest
-        let paths = asset_paths
-            .iter()
-            .map(|(_, path)| *path)
-            .collect::<BTreeSet<_>>();
-
-        let files = paths
-            .into_iter()
-            .map(|path| {
-                let full_path = source.get_root().join(path);
-                let metadata = std::fs::metadata(&full_path)
-                    .map_err(|e| format!("failed to read `{}`: {e}", full_path.display()))?;
-                if !metadata.is_file() {
-                    return Err(format!("`{}` is not a file", full_path.display()));
-                }
-
-                info!(
-                    "loaded file info at path {} and with size {}",
-                    full_path.to_string_lossy(),
-                    metadata.len()
-                );
-
-                Ok(FileInfo {
-                    path: path.to_owned(),
-                    size: metadata.len(),
-                })
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-
-        let assets = asset_paths
-            .into_iter()
-            .map(|(handle, path)| {
-                let file = files
-                    .binary_search_by(|f| f.path.as_str().cmp(path))
-                    .expect("every asset path is in files");
-                AssetInfo {
-                    handle,
-                    file: file as u32,
-                }
-            })
-            .collect();
-
-        Ok(SideInfo { files, assets })
+    pub fn get_manifest_source(&self) -> Result<&ManifestSource, String> {
+        self.manifest_source
+            .as_ref()
+            .ok_or_else(|| "no manifest has been loaded, yet".into())
     }
 
-    fn load_asset_info(&self, mut handles: AssetHandles) -> Result<AssetInfoHolder, String> {
-        let source = self.manifest_source.as_ref().expect("manifest source should be some before calling this, not intended to call before loading");
-
-        handles.server.extend_from_slice(&handles.shared);
-        handles.client.extend_from_slice(&handles.shared);
-
-        Ok(AssetInfoHolder {
-            client: self.load_side_info(source.get_client(), handles.client)?,
-            server: self.load_side_info(source.get_server(), handles.server)?,
-        })
-    }
-
-    fn get_side_partition(&self, asset_info: &SideInfo, side: ChunkSide) -> FileChunkMap {
-        info!("Chunking for {:?}", side);
-        let get_file_size = |file_id: u32| {
-            asset_info
-                .files
-                .get(file_id as usize)
-                .expect(&format!(
-                    "file id is out of range, id {}, max {}",
-                    file_id,
-                    asset_info.files.len() - 1
-                ))
-                .size
-        };
-
-        let chunk_size = self.chunk_size;
-        let mut oversized_chunks: Vec<ChunkSection> = Vec::new();
-        let mut colocated_items: Vec<AssetInfo> = Vec::new();
-
-        for asset in &asset_info.assets {
-            let file_id = asset.file;
-
-            let size = get_file_size(file_id);
-            if size > chunk_size as u64 {
-                let mut sections: Vec<ChunkSection> = Vec::new();
-                for i in 0..((size / chunk_size as u64) as usize) {
-                    let section = ChunkSection {
-                        items: vec![ChunkItem {
-                            file: file_id.clone(),
-                            offset: 0,
-                            length: size as u64,
-                            number: i as u32,
-                            end_number: size as u32 / chunk_size,
-                        }],
-                    };
-                    sections.push(section);
-                }
-
-                info!(
-                    "Created {} sections for oversized asset {}",
-                    sections.len(),
-                    asset.handle
-                );
-
-                oversized_chunks.extend(sections);
-            } else {
-                colocated_items.push(asset.clone());
-                info!("Found colocatable item {}", asset.handle);
-            }
-        }
-
-        let mut colocated_chunks: Vec<ChunkSection> = Vec::new();
-        let mut chunk = ChunkSection { items: Vec::new() };
-        for item in &colocated_items {
-            let size = get_file_size(item.file);
-            let used = chunk.get_full_length();
-
-            // start a new chunk when this file would overflow the current one
-            if used + size > chunk_size as u64 && !chunk.items.is_empty() {
-                colocated_chunks.push(std::mem::replace(
-                    &mut chunk,
-                    ChunkSection { items: Vec::new() },
-                ));
-            }
-
-            chunk.items.push(ChunkItem {
-                file: item.file,
-                offset: chunk.get_full_length() as u32,
-                length: size,
-                end_number: 0,
-                number: 0,
-            });
-        }
-        if !chunk.items.is_empty() {
-            colocated_chunks.push(chunk);
-        }
+    /// reads and compresses every file on one side
+    fn chunk(&mut self, target: Target) -> Result<(), String> {
+        info!("Chunking {target:?} files");
+        let source = self.get_manifest_source()?;
+        let files = source.get_side_files(target)?;
+        let chunks = chunk_files(source.get_root(), &files, self.chunk_size, self.zstd_level)?;
 
         info!(
-            "Created {} colocated chunks for {} items",
-            colocated_chunks.len(),
-            colocated_items.len()
+            "Chunked {} files into {} chunks for {target:?}",
+            files.len(),
+            chunks.entries.len()
         );
-
-        // combine them
-        oversized_chunks.extend(colocated_chunks);
-        FileChunkMap {
-            map: oversized_chunks,
-        }
-    }
-
-    fn partition_chunks(&self, asset_info: AssetInfoHolder) -> FileChunkMapSides {
-        FileChunkMapSides {
-            client: self.get_side_partition(&asset_info.client, ChunkSide::Client),
-            server: self.get_side_partition(&asset_info.server, ChunkSide::Server),
-        }
-    }
-
-    pub fn prep_assets(&mut self) -> Result<(), String> {
-        if self.manifest_source.is_none() {
-            return Err(
-                "Manifest not loaded, load manifest before attempting to prep assets".into(),
-            );
-        }
-
-        let mut asset_handles = self.collect_asset_handles()?;
-        info!("Finished loading asset handles");
-
-        if let Err(msg) = asset_handles.validate() {
-            return Err(format!("error while validating handles: {}", msg));
-        }
-
-        let asset_info = self.load_asset_info(asset_handles)?;
-        info!("Finished loading asset info");
-
-        self.chunk_map = Some(self.partition_chunks(asset_info));
-
+        self.chunks[target as usize] = Some(chunks);
         Ok(())
     }
 
-    pub fn create_tbpk(&mut self, target: crate::pack::Target) -> Result<TbPack, String> {
-        let manifest_source = self
-            .manifest_source
-            .expect("manifest source does not exist");
+    fn get_chunks(&self, target: Target) -> Result<&SideChunks, String> {
+        self.chunks[target as usize]
+            .as_ref()
+            .ok_or_else(|| format!("{target:?} files haven't been chunked, yet"))
+    }
 
-        let mut header = CommonHeader {
-            magic: crate::pack::MagicValue::TBPK,
-            version: TBPK_CURRENT_VERSION,
-            flags: 0,
-            header_length: HEADER_LEN,
-            reserved: 0,
-            body_length: 0,
+    fn get_index(&self, target: Target) -> Result<IndexV1, String> {
+        let chunks = self.get_chunks(target)?;
+        let index = IndexV1 {
+            chunk_size: self.chunk_size,
+            chunks: chunks.entries.clone(),
+            files: chunks.locations.clone(),
         };
 
-        let manifest_contents = ManifestV1 {
-            target,
-            realm_id: *manifest_source.get_realm_id(),
-            owner_id: *manifest_source.get_owner_id(),
-            access: *manifest_source.get_access(),
-            pack_version: 1,
-            files: vec![FileEntry {
-                path:
-            }],
-        };
+        Ok(index)
+    }
 
-        let man = TbManifest {
-            header: CommonHeader {
-                magic: crate::pack::MagicValue::TBMN,
-                version: TBMAN_CURRENT_VERSION,
-                flags: 0,
-                header_length: HEADER_LEN,
-                reserved: 0,
-                body_length: *&postcard::to_vec(&manifest_contents)
-                    .unwrap_or_default()
-                    .to_vec()
-                    .len() as u64,
-            },
-            body: manifest_contents,
+    /// the index section's bytes. the manifest's index hash is over exactly these
+    fn encode_index(&self, target: Target) -> Result<Vec<u8>, String> {
+        postcard::to_allocvec(&self.get_index(target)?).map_err(|e| e.to_string())
+    }
+
+    /// sections go header, toc, manifest, signature, index, data, with no gaps
+    fn get_table_of_contents(
+        &self,
+        target: Target,
+        manifest: &Signed<TbManifest>,
+        signature: Option<&TbSignature>,
+    ) -> Result<TableOfContents, String> {
+        let manifest_offset = HEADER_LEN as u64 + TOC_LEN;
+        let manifest_len = manifest.raw.len() as u64;
+        if manifest_len > MAX_MANIFEST_LEN {
+            return Err(format!(
+                "manifest is {manifest_len} bytes, the most is {MAX_MANIFEST_LEN}"
+            ));
+        }
+
+        let signature_offset = manifest_offset + manifest_len;
+        let signature_len = signature.map_or(0, |sig| HEADER_LEN as u64 + sig.header().body_length);
+        if signature_len > MAX_SIGNATURE_LEN {
+            return Err(format!(
+                "signature is {signature_len} bytes, the most is {MAX_SIGNATURE_LEN}"
+            ));
+        }
+
+        let index_offset = signature_offset + signature_len;
+        let index_len = self.encode_index(target)?.len() as u64;
+
+        let data_offset = index_offset + index_len;
+        let data_len = self.get_chunks(target)?.data_len();
+
+        info!("{target:?} manifest section at {manifest_offset}, {manifest_len} bytes");
+        info!("{target:?} signature section at {signature_offset}, {signature_len} bytes");
+        info!("{target:?} index section at {index_offset}, {index_len} bytes");
+        info!("{target:?} data section at {data_offset}, {data_len} bytes");
+
+        Ok(TableOfContents {
+            manifest_offset,
+            manifest_len,
+            signature_offset,
+            signature_len,
+            index_offset,
+            index_len,
+            data_offset,
+            data_len,
+        })
+    }
+
+    /// needs the index built first, since the manifest holds its length and hash
+    fn get_manifest(&self, target: Target) -> Result<ManifestV1, String> {
+        let source = self.get_manifest_source()?;
+
+        let index = self.encode_index(target)?;
+        let index_ref = IndexRef {
+            len: index.len() as u64,
+            hash: blake3::derive_key(INDEX, &index),
         };
+        info!(
+            "{target:?} index is {} bytes, hash {}",
+            index_ref.len,
+            hex(&index_ref.hash)
+        );
+
+        let manifest = source.get_v1_side(target, index_ref)?;
+        info!(
+            "Built {target:?} manifest with {} files, {} assets, {} scripts",
+            manifest.files.len(),
+            manifest.assets.len(),
+            manifest.scripts.len()
+        );
+        Ok(manifest)
+    }
+
+    fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, String> {
+        let manifest = TbManifest::encode(self.get_manifest(target)?)?;
+        info!(
+            "Encoded {target:?} manifest to {} bytes",
+            manifest.raw.len()
+        );
+        Ok(manifest)
+    }
+
+    fn get_signature(&self, manifest: &Signed<TbManifest>) -> Option<SignatureV1> {
+        self.signer.as_ref().map(|signer| signer.sign(manifest))
+    }
+
+    fn get_tb_signature(
+        &self,
+        manifest: &Signed<TbManifest>,
+    ) -> Result<Option<TbSignature>, String> {
+        if self.signer.is_none() {
+            info!("No signer set, the pack will be unsigned");
+        }
+        self.get_signature(manifest)
+            .map(TbSignature::new)
+            .transpose()
+    }
+
+    pub fn build_tbpk(&mut self, target: Target) -> Result<(), String> {
+        info!("Building {target:?} pack");
+        // the index comes from the chunks, and the manifest holds the index's hash
+        self.chunk(target)?;
+
+        // the signature covers the manifest's bytes, so the manifest has to exist first
+        let manifest = self.get_signed_manifest(target)?;
+        let signature = self.get_tb_signature(&manifest)?;
+        let toc = self.get_table_of_contents(target, &manifest, signature.as_ref())?;
+
+        // the data section is last, so its end is the end of the file
+        let body_length = toc.data_offset + toc.data_len - HEADER_LEN as u64;
 
         let tbpk = TbPack {
-            header,
-            manifest: *&postcard::to_vec(&man).unwrap_or_default().to_vec(),
+            header: self.header(body_length, target),
+            toc,
+            index: self.get_index(target)?,
+            manifest,
+            signature,
         };
 
-        Ok(tbpk)
+        self.tbpk = Some(tbpk);
+
+        info!(
+            "Built {target:?} pack, {} bytes total",
+            HEADER_LEN as u64 + body_length
+        );
+        Ok(())
+    }
+
+    /// writes the built pack to `path`, sections in toc order with no gaps
+    pub fn write_tbpk_out(&self, path: &Path) -> Result<(), String> {
+        let tbpk_value = match self.tbpk.as_ref() {
+            None => return Err("TBPK must be built before calling write out".into()),
+            Some(v) => v,
+        };
+        let toc = &tbpk_value.toc;
+        let target = tbpk_value.manifest.parsed.body.target;
+        let chunks = self.get_chunks(target)?;
+        info!("Writing {target:?} pack to {}", path.display());
+
+        let index = postcard::to_allocvec(&tbpk_value.index).map_err(|e| e.to_string())?;
+        if index.len() as u64 != toc.index_len {
+            return Err("index length doesn't match the table of contents".into());
+        }
+
+        let signature = match tbpk_value.signature.as_ref() {
+            None => Vec::new(),
+            Some(sig) => sig.to_bytes()?,
+        };
+
+        let file = File::create(path).map_err(|e| format!("`{}`: {e}", path.display()))?;
+        let mut out = BufWriter::new(file);
+        for (name, section) in [
+            ("header", &tbpk_value.header.to_bytes()[..]),
+            ("table of contents", &toc.to_bytes()),
+            ("manifest", &tbpk_value.manifest.raw),
+            ("signature", &signature),
+            ("index", &index),
+        ] {
+            out.write_all(section).map_err(|e| e.to_string())?;
+            info!("Wrote {name} section, {} bytes", section.len());
+        }
+
+        let data_len =
+            std::io::copy(&mut chunks.data.open()?, &mut out).map_err(|e| e.to_string())?;
+        if data_len != toc.data_len {
+            return Err("data section length doesn't match the table of contents".into());
+        }
+        info!("Wrote data section, {data_len} bytes");
+        out.flush().map_err(|e| e.to_string())?;
+
+        info!("Wrote tbpk to {}", path.display());
+        Ok(())
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn example_manifest() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../tests/examples/source_to_tbpk/basic1/manifest.toml")
-    }
-
-    fn should_fail_example_manifest() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../tests/examples/source_to_tbpk/basic1_should_fail/manifest.toml")
-    }
-
-    #[test]
-    fn prep_assets_without_manifest_is_error() {
-        assert!(PackWriter::new().prep_assets().is_err());
-    }
-
-    /// writes `manifest.toml` and empty files at `paths` into a fresh temp dir
-    fn temp_dev_dir(name: &str, manifest: &str, paths: &[&str]) -> PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("terobit_writer_{}_{}", std::process::id(), name));
-        let _ = std::fs::remove_dir_all(&root);
-        for path in paths {
-            let full = root.join(path);
-            std::fs::create_dir_all(full.parent().unwrap()).unwrap();
-            std::fs::write(full, path.as_bytes()).unwrap();
-        }
-        std::fs::write(root.join("manifest.toml"), manifest).unwrap();
-        root
-    }
-
-    #[test]
-    fn files_are_deduplicated_and_sorted_by_path() {
-        let root = temp_dev_dir(
-            "dedup",
-            "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
-             [assets]\n\"self:z\" = \"b/big.bin\"\n\"self:a\" = \"a.bin\"\n\
-             [client.assets]\n\"self:again\" = \"a.bin\"\n",
-            &["a.bin", "b/big.bin"],
-        );
-
-        let mut writer = PackWriter::new();
-        writer.read_manifest(root.join("manifest.toml")).unwrap();
-        let handles = writer.collect_asset_handles().unwrap();
-        let info = writer.load_asset_info(handles).unwrap();
-
-        let paths = |side: &SideInfo| {
-            side.files
-                .iter()
-                .map(|f| f.path.clone())
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(paths(&info.client), ["a.bin", "b/big.bin"]);
-        assert_eq!(paths(&info.server), ["a.bin", "b/big.bin"]);
-        assert_eq!(info.client.assets.len(), 3);
-        for asset in &info.client.assets {
-            let expected = if asset.handle.id() == "z" { 1 } else { 0 };
-            assert_eq!(asset.file, expected, "{}", asset.handle);
-        }
-
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn client_and_server_ids_resolve_separately() {
-        let root = temp_dev_dir(
-            "sides",
-            "realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n\
-             [client.assets]\n\"self:x\" = \"client.bin\"\n\
-             [server.assets]\n\"self:x\" = \"server.bin\"\n",
-            &["client.bin", "server.bin"],
-        );
-
-        let mut writer = PackWriter::new();
-        writer.read_manifest(root.join("manifest.toml")).unwrap();
-        let handles = writer.collect_asset_handles().unwrap();
-        let info = writer.load_asset_info(handles).unwrap();
-
-        assert_eq!(info.client.files[0].path, "client.bin");
-        assert_eq!(info.server.files[0].path, "server.bin");
-
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn rejects_invalid_asset_handle() {
-        // basic1 has `self:cube.material`, and `.` isn't allowed in handles
-        let mut writer = PackWriter::new();
-        writer
-            .read_manifest(should_fail_example_manifest())
-            .unwrap();
-
-        let err = writer.prep_assets().unwrap_err();
-        assert!(err.contains("self:cube.material"), "{err}");
-    }
+/// lowercase hex, for logging hashes and keys
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
