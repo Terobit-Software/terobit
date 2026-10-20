@@ -1,4 +1,4 @@
-use crate::pack::Handle;
+use crate::pack::AssetHandle;
 use crate::registry::TbpkSource;
 use bevy::ecs::resource::Resource;
 use std::collections::HashMap;
