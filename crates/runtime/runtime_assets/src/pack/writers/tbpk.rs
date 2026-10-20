@@ -1,7 +1,7 @@
 use crate::pack::writers::chunker::{ChunkError, SideChunks, chunk_files};
 use crate::pack::{
-    Certificate, ChunkEntry, CommonHeader, EncodeError, FileEntry, FileLocation, Handle, IndexRef,
-    IndexV1, MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION,
+    AssetHandle, Certificate, ChunkEntry, CommonHeader, EncodeError, FileEntry, FileLocation,
+    IndexRef, IndexV1, MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION,
     TableOfContents, Target, TbManifest, TbPack, TbSignature,
 };
 use crate::pack::{

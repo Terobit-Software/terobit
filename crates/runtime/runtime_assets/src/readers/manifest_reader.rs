@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 use crate::pack::{
-    Access, AssetEntry, FileEntry, Handle, HandleError, IndexRef, ManifestV1, PathError,
+    Access, AssetEntry, FileEntry, AssetHandle, HandleError, IndexRef, ManifestV1, PathError,
     ScriptEntry, Target, validate_path,
 };
 
@@ -196,7 +196,7 @@ impl ManifestSource {
             ("server.scripts", &self.server.scripts),
         ] {
             for (id, path) in entries {
-                id.parse::<Handle>()
+                id.parse::<AssetHandle>()
                     .context(InvalidHandleSnafu { table, id })?;
                 validate_path(path).context(InvalidPathSnafu { table, id, path })?;
             }
@@ -243,7 +243,7 @@ impl ManifestSource {
     pub(crate) fn resolve_asset_path(
         &self,
         target: Target,
-        handle: &Handle,
+        handle: &AssetHandle,
     ) -> Result<&str, ManifestSideError> {
         let key = handle.to_string();
         let side = self.side(target);
