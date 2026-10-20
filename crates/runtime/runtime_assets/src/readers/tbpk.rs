@@ -4,10 +4,8 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::pack::{
-    HEADER_LEN,
-    readers::{ManifestLoadError, ManifestSource, RuntimePackConfig},
-};
+use crate::pack::HEADER_LEN;
+use crate::{ManifestLoadError, ManifestSource, RuntimePackConfig};
 
 /// a pack, or a dev directory standing in for one, that couldn't be read
 #[derive(Debug, Snafu)]
