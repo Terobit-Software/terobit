@@ -1,4 +1,3 @@
-use crate::pack::readers::{ManifestLoadError, ManifestSideError, ManifestSource, SideAssets};
 use crate::pack::writers::chunker::{ChunkError, SideChunks, chunk_files};
 use crate::pack::{
     Certificate, ChunkEntry, CommonHeader, EncodeError, FileEntry, FileLocation, Handle, IndexRef,
@@ -9,6 +8,7 @@ use crate::pack::{
     DEFAULT_CHUNK_SIZE, HEADER_LEN, INDEX, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
     MIN_CHUNK_SIZE, TOC_LEN, ZSTD_LEVEL, pack_digest,
 };
+use crate::{ManifestLoadError, ManifestSideError, ManifestSource, SideAssets};
 use ed25519_dalek::{Signer, SigningKey};
 use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
