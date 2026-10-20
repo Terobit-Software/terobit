@@ -1,5 +1,8 @@
 use crate::PackReader;
-use bevy::prelude::*;
+use bevy::{
+    asset::io::{AssetSource, AssetSourceBuilder},
+    prelude::*,
+};
 use std::path::Path;
 use tracing::info;
 
