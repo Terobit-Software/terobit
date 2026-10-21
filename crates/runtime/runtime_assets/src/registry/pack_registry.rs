@@ -1,6 +1,9 @@
 use crate::pack::AssetHandle;
 use crate::registry::TbpkSource;
 use bevy::ecs::resource::Resource;
+use snafu::OptionExt;
+use snafu::ResultExt;
+use snafu::Snafu;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -18,4 +21,33 @@ pub enum RootLocation {
 pub struct RegistryInner {
     /// <RealmId, TbpkSource>
     sources: HashMap<u64, TbpkSource>,
+}
+
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum RegistryError {
+    #[snafu(display("failed to get read access to registry with handle `{}`", handle))]
+    FailedReadAccess { handle: AssetHandle },
+
+    #[snafu(display("could not find realmid `{}` in sources", id))]
+    FailedGetRealmFromId { id: u64 },
+}
+
+impl PackRegistry {
+    pub(crate) fn resolve(&self, handle: &AssetHandle) -> Result<Box<Path>, RegistryError> {
+        let read = self.0.read().map_err(|_| {
+            FailedReadAccessSnafu {
+                handle: handle.clone(),
+            }
+            .build()
+        })?;
+
+        let source = read
+            .sources
+            .get(&0u64)
+            .context(FailedGetRealmFromIdSnafu { id: 0 })?;
+
+        let manifest = source.get_manifest();
+        let index = source.get_index();
+    }
 }
