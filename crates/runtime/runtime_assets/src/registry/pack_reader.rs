@@ -9,6 +9,7 @@ struct PackAssetReader(PackRegistry);
 
 impl AssetReader for PackAssetReader {
     async fn read<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {}
+
     async fn read_meta<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {
         Err::<VecReader, _>(AssetReaderError::NotFound(path.into())) // no .meta files in packs
     }
