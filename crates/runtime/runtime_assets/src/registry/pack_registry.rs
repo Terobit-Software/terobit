@@ -33,12 +33,12 @@ pub enum RegistryError {
     #[snafu(display("could not find realmid `{}` in sources", id))]
     FailedGetRealmFromId { id: u64 },
 
-    #[snafu(display("could not resolve handle `{}` to path", id))]
-    FailedToResolveHandle { handle: &AssetHandle },
+    #[snafu(display("could not resolve handle `{}` to path", handle))]
+    FailedToResolveHandle { handle: AssetHandle },
 }
 
 impl PackRegistry {
-    pub(crate) fn resolve(&self, handle: &AssetHandle) -> Result<&Box<Path>, RegistryError> {
+    pub(crate) fn resolve(&self, handle: &AssetHandle) -> Result<Box<Path>, RegistryError> {
         let read = self.0.read().map_err(|_| {
             FailedReadAccessSnafu {
                 handle: handle.clone(),
@@ -49,12 +49,14 @@ impl PackRegistry {
         let source = read
             .sources
             .get(&0u64)
-            .context(FailedGetRealmFromIdSnafu { id: 0 })?;
+            .context(FailedGetRealmFromIdSnafu { id: 0u64 })?;
 
         let path = source
             .resolve_handle_to_path(handle)
-            .context(FailedToResolveHandleSnafu { handle })?;
+            .context(FailedToResolveHandleSnafu {
+                handle: handle.clone(),
+            })?;
 
-        Ok(path)
+        Ok(path.clone())
     }
 }

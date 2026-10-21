@@ -5,12 +5,11 @@ use crate::pack::{AssetHandle, IndexV1, ManifestV1};
 
 pub struct TbpkSource {
     manifest: ManifestV1,
-    index: IndexV1,
     handle_to_path: HashMap<AssetHandle, Box<Path>>,
 }
 
 impl TbpkSource {
-    pub fn new(manifest: ManifestV1, index: IndexV1) -> Self {
+    pub fn new(manifest: ManifestV1) -> Self {
         let mut handle_to_path = HashMap::new();
 
         for scr in &manifest.scripts {
@@ -29,17 +28,12 @@ impl TbpkSource {
 
         Self {
             manifest,
-            index,
             handle_to_path,
         }
     }
 
     pub fn get_manifest(&self) -> &ManifestV1 {
         &self.manifest
-    }
-
-    pub fn get_index(&self) -> &IndexV1 {
-        &self.index
     }
 
     pub fn resolve_handle_to_path(&self, handle: &AssetHandle) -> Option<&Box<Path>> {
