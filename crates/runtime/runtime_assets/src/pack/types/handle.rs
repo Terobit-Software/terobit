@@ -33,6 +33,9 @@ pub enum HandleError {
         "handle `{namespace}:{id}` has id `{id}`, but an id must be non-empty and only use lowercase `a-z`, `0-9`, `_`, `-` and `/`"
     ))]
     InvalidId { namespace: String, id: String },
+
+    #[snafu(display("handle `{namespace}:{id}` is unknown and not found in the asset registry."))]
+    UknownHandle { namespace: String, id: String },
 }
 
 impl AssetHandle {
