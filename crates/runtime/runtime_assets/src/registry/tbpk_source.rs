@@ -42,7 +42,7 @@ impl TbpkSource {
         &self.index
     }
 
-    pub fn resolve_handle_to_path(&self, handle: &AssetHandle) -> Option<Box<Path>> {
-        Some(self.handle_to_path.get(handle)?.clone())
+    pub fn resolve_handle_to_path(&self, handle: &AssetHandle) -> Option<&Box<Path>> {
+        self.handle_to_path.get(handle)
     }
 }
