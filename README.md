@@ -48,6 +48,45 @@ Contains dependabot config and CI config for github.
 ### /bins
 Contains binaries for the repo. See [binaries](#binaries).
 
+### /crates
+Contains all the crates for the repo. In `/crates/{BINARY}` are the crates that belong to said binary. It is best practice to split binaries into many small, independent crates.
+
+### /docs
+Contains the documentation for the project. In `/docs/formats` is the documentation for custom file types.
+
+### /out
+A temporary directory for binary outputs. Also includes `.tbpk` files in `/out/tbpk_generator` usually.
+
+### /scripts
+Contains scripts run in some of the [aliases](#commands). 
+
+### /tests
+The directory containing tests and examples for local testing. In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s.
+
+### .gitignore
+Gitignore.
+
+### Cargo.lock
+The cargo lock file.
+
+### Cargo.toml
+Contains definition and dependencies for the workspace.
+
+### CONVENTIONS.md
+Contains conventions and rules for editing the project.
+
+### LICENSE
+Contains the **source available** license for the project.
+
+### README.md
+This file.
+
+### rust-toolchain.md
+Contains build targets for the project.
+
+### TODO.md
+Not used, to be removed.
+
 </details>
 
 ## Binaries
