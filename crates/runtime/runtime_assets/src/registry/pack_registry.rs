@@ -1,12 +1,12 @@
 use crate::pack::AssetHandle;
 use crate::registry::TbpkSource;
 use bevy::ecs::resource::Resource;
-use bevy::gltf::gltf::json::extensions::asset::Asset;
 use snafu::OptionExt;
 use snafu::ResultExt;
 use snafu::Snafu;
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -35,6 +35,9 @@ pub enum RegistryError {
 
     #[snafu(display("could not resolve handle `{}` to path", handle))]
     FailedToResolveHandle { handle: AssetHandle },
+
+    #[snafu(display("could not read from path `{}`", path.display()))]
+    FailedToReadAssetFromPath { path: PathBuf },
 }
 
 impl PackRegistry {
@@ -58,5 +61,9 @@ impl PackRegistry {
             })?;
 
         Ok(path.clone())
+    }
+
+    pub fn read_bytes(&self, path: &Box<Path>) -> Result<Vec<u8>, RegistryError> {
+        return Ok(vec![]);
     }
 }
