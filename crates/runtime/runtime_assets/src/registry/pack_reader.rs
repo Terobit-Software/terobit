@@ -8,9 +8,13 @@ use crate::registry::PackRegistry;
 struct PackAssetReader(PackRegistry);
 
 impl AssetReader for PackAssetReader {
+<<<<<<< HEAD
     async fn read<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {
         let reg = &self.0;
     }
+=======
+    async fn read<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {}
+>>>>>>> 60a5f20d6b675ce4bf8c05ce34a076e88ad16748
 
     async fn read_meta<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {
         Err::<VecReader, _>(AssetReaderError::NotFound(path.into())) // no .meta files in packs
