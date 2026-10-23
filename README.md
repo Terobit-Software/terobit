@@ -63,28 +63,28 @@ Contains scripts run in some of the [aliases](#commands).
 ### /tests
 The directory containing tests and examples for local testing. In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s.
 
-### .gitignore
+### /.gitignore
 Gitignore.
 
-### Cargo.lock
+### /Cargo.lock
 The cargo lock file.
 
-### Cargo.toml
+### /Cargo.toml
 Contains definition and dependencies for the workspace.
 
-### CONVENTIONS.md
+### /CONVENTIONS.md
 Contains conventions and rules for editing the project.
 
-### LICENSE
+### /LICENSE
 Contains the **source available** license for the project.
 
-### README.md
+### /README.md
 This file.
 
-### rust-toolchain.md
+### /rust-toolchain.md
 Contains build targets for the project.
 
-### TODO.md
+### /TODO.md
 Not used, to be removed.
 
 </details>
