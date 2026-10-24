@@ -9,7 +9,7 @@ use bevy::{
     time::TimePlugin,
     transform::TransformPlugin,
 };
-use runtime_assets::pack::readers::RuntimePackReaderPlugin;
+use runtime_assets::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 
 pub struct RuntimeCorePlugins;
@@ -25,10 +25,11 @@ impl PluginGroup for RuntimeCorePlugins {
             .add(DiagnosticsPlugin)
             .add(TerminalCtrlCHandlerPlugin)
             .add(StatesPlugin)
+            // registers the `pack://` asset source, which has to happen before `AssetPlugin`
+            .add(RuntimePackReaderPlugin)
             // scene, window and render all need the `AssetServer`
             .add(AssetPlugin::default())
             .add(RuntimeRunFlagsPlugin)
-            .add(RuntimePackReaderPlugin)
     }
 }
 
@@ -49,7 +50,7 @@ mod plugin_tests {
         );
         assert!(
             app.world()
-                .get_resource::<runtime_assets::pack::readers::RuntimePackConfig>()
+                .get_resource::<runtime_assets::RuntimePackConfig>()
                 .is_some()
         );
     }

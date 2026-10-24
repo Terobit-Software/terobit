@@ -5,7 +5,7 @@ use std::str::FromStr;
 /// an asset or script handle, `namespace:id`. always valid, since the only ways to make
 /// one check it against the rule in the conventions doc
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Handle {
+pub struct AssetHandle {
     namespace: String,
     id: String,
 }
@@ -33,9 +33,12 @@ pub enum HandleError {
         "handle `{namespace}:{id}` has id `{id}`, but an id must be non-empty and only use lowercase `a-z`, `0-9`, `_`, `-` and `/`"
     ))]
     InvalidId { namespace: String, id: String },
+
+    #[snafu(display("handle `{namespace}:{id}` is unknown and not found in the asset registry."))]
+    UknownHandle { namespace: String, id: String },
 }
 
-impl Handle {
+impl AssetHandle {
     pub fn new(namespace: &str, id: &str) -> Result<Self, HandleError> {
         let allowed =
             |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
@@ -68,7 +71,7 @@ impl Handle {
     }
 }
 
-impl FromStr for Handle {
+impl FromStr for AssetHandle {
     type Err = HandleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -79,7 +82,7 @@ impl FromStr for Handle {
     }
 }
 
-impl fmt::Display for Handle {
+impl fmt::Display for AssetHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.namespace, self.id)
     }
@@ -87,7 +90,7 @@ impl fmt::Display for Handle {
 
 #[cfg(test)]
 mod tests {
-    use super::Handle;
+    use super::AssetHandle;
 
     #[test]
     fn parses_valid_handles() {
@@ -97,17 +100,17 @@ mod tests {
             "self:loot_tables",
             "self:a-1/b_2",
         ] {
-            let handle: Handle = s.parse().unwrap();
+            let handle: AssetHandle = s.parse().unwrap();
             assert_eq!(handle.to_string(), s);
         }
     }
 
     #[test]
     fn splits_namespace_and_id() {
-        let handle: Handle = "self:textures/grass".parse().unwrap();
+        let handle: AssetHandle = "self:textures/grass".parse().unwrap();
         assert_eq!(handle.namespace(), "self");
         assert_eq!(handle.id(), "textures/grass");
-        assert_eq!(handle, Handle::new("self", "textures/grass").unwrap());
+        assert_eq!(handle, AssetHandle::new("self", "textures/grass").unwrap());
     }
 
     #[test]
@@ -122,14 +125,14 @@ mod tests {
             "other:cube",
             "self:cube material",
         ] {
-            assert!(s.parse::<Handle>().is_err(), "{s}");
+            assert!(s.parse::<AssetHandle>().is_err(), "{s}");
         }
     }
 
     #[test]
     fn new_rejects_invalid_parts() {
-        assert!(Handle::new("self", "a:b").is_err());
-        assert!(Handle::new("", "cube").is_err());
-        assert!(Handle::new("self", "").is_err());
+        assert!(AssetHandle::new("self", "a:b").is_err());
+        assert!(AssetHandle::new("", "cube").is_err());
+        assert!(AssetHandle::new("self", "").is_err());
     }
 }

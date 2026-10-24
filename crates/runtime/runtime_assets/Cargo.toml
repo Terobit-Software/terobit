@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features=["std"]}
+bevy = { workspace = true, features=["std", "bevy_asset"]}
 zstd.workspace = true
 postcard.workspace = true
 serde.workspace = true
