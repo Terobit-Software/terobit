@@ -19,7 +19,7 @@ together, see [ARCHITECTURE](docs/ARCHITECTURE.md).
 | signing / licenses           | signing exists in the writer, no key loading, no verification             |
 | client                       | opens an empty window. `--dev` loads a dev directory, nothing uses it yet |
 | server, editor, sandbox      | not started (hello world or empty)                                        |
-| tests                        | 75 passing across the workspace (`runtime_assets` 45, run flags 10, client_dev 10, others 10) |
+| tests                        | 69 pass in a default workspace run (`runtime_assets` 45), `client_dev` runs 10 with `--features dev` |
 | CI                           | `cargo fmt --check` failed on this branch (one import order), fixed 2026-10-24 |
 
 ## 1. Broken now
@@ -36,15 +36,10 @@ Fix these first. Each one stops something that looks finished from working.
 - [x] **B7.** "id in both `[assets]` and a side" and "scripts must be `.wasm`" are checked when
   the manifest loads.
 
-- [ ] **B8. `--dev` works in every build, including release.**
-  The docs say `--dev` only exists in builds with a `dev` cargo feature and release
-  binaries never have it ([tbpk dev directory](docs/formats/tbpk/REF.md#dev-directory)).
-  No such feature exists, and `cargo rcl --final` still accepts `--dev`.
-  - Why: a released client that reads unsigned dev directories skips signing and license
-    checks entirely.
-  - How: add `dev = []` to `client_dev` and a forwarding `dev = ["client_dev/dev"]` to
-    `terobit_client`, wrap the `--dev` handling in `#[cfg(feature = "dev")]`, and have
-    `cargo rcl` build with `--features dev` unless `--final` is passed.
+- [x] **B8.** `--dev` only exists in builds with the `dev` feature (`client_dev/dev`,
+  forwarded by `terobit_client/dev`). Other builds don't compile developer mode and ignore
+  `--dev` with a warning. `cargo rcl` turns the feature on unless `--final`, and CI runs
+  `client_dev`'s tests both ways.
 
 - [ ] **B9. Every program's log file is named `terobit-client.log`.**
   The name is hard coded (`runtime_logging/src/lib.rs:110`), so the pack generator and run

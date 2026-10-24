@@ -13,19 +13,20 @@ client's working directory looks like a real install.
 From the workspace root (paths are relative to the current directory):
 
 ```sh
-cargo rcl            # release-dev build, runs with the dev flags
-cargo rcl --final    # release build, runs with no flags
-cargo rcl -s         # release-dev build, runs with no flags
+cargo rcl            # release-dev build with the dev feature, runs with the dev flags
+cargo rcl --final    # release build without the dev feature, runs with no flags
+cargo rcl -s         # release-dev build with the dev feature, runs with no flags
 ```
 
 | flag                     | what it does                                                     |
 |--------------------------|------------------------------------------------------------------|
-| `--final`, `-f`          | builds with the `release` profile and runs without the dev flags |
+| `--final`, `-f`          | builds with the `release` profile and without the `dev` feature, and runs without the dev flags |
 | `--strip-defaults`, `-s` | runs without the dev flags                                       |
 
 ## What it does
 
-1. `cargo build --profile release-dev -p terobit_client` (`release` with `--final`)
+1. `cargo build --profile release-dev -p terobit_client --features dev`, or
+   `cargo build --profile release -p terobit_client` with `--final`
 2. deletes and recreates `out/client`
 3. copies `bins/terobit_client/assets` to `out/client/assets` if it exists. It doesn't yet,
    so this warns every run
@@ -41,5 +42,4 @@ The exit code is the client's.
 - [ ] a `--pack-file <path>` flag so other examples (like generated ones) can run without
   editing the script
 - [ ] pass extra arguments through to the client (`cargo rcl -- --some-flag`)
-- [ ] build with `--features dev` unless `--final`, once the feature exists (B8)
 - [ ] create `bins/terobit_client/assets` or drop step 3

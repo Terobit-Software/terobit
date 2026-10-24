@@ -13,7 +13,7 @@ cargo rcl
 Or directly:
 
 ```sh
-cargo run -p terobit_client --profile release-dev -- --dev --pack-file tests/examples/source_to_tbpk/basic1
+cargo run -p terobit_client --profile release-dev --features dev -- --dev --pack-file tests/examples/source_to_tbpk/basic1
 ```
 
 On Linux you need the same system libraries as CI:
@@ -26,8 +26,9 @@ On Linux you need the same system libraries as CI:
 | `--dev`              | developer mode: lets the client read a dev directory in place of a `.tbpk` |
 | `--pack-file <path>` | the `.tbpk` file or dev directory to load. Only read with `--dev` for now. Extra paths after the first are ignored with a warning |
 
-`--dev` should only exist in builds with a `dev` cargo feature. That feature doesn't exist
-yet, so every build accepts it (B8).
+Both flags only work in builds with the `dev` cargo feature, which `cargo rcl` turns on and
+`cargo rcl --final` doesn't. Other builds ignore `--dev` with a warning, so a release
+client can never read a dev directory.
 
 ## How it works
 
@@ -49,7 +50,6 @@ core, input, scene, window, render, ui, animation, audio, picking. Client plugin
 ## TODO
 
 - [ ] read `.tbpk` archives (F1) and load them without `--dev` (F4)
-- [ ] put `--dev` behind a `dev` cargo feature (B8)
 - [ ] check licenses for `Licensed` realms (F3)
 - [ ] run client scripts (F6)
 - [ ] `cargo rcl` copies `bins/terobit_client/assets`, which doesn't exist. Add it once the

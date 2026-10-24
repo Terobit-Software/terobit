@@ -21,16 +21,16 @@ cargo pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # bui
 cargo rcl                                                                # build and run the client
 ```
 
-CI runs `cargo fmt --all --check`, `cargo check --workspace --all-targets` and the tests with [nextest](https://nexte.st). Run `cargo fmt --all` before pushing.
+CI runs `cargo fmt --all --check`, `cargo check --workspace --all-targets` and the tests with [nextest](https://nexte.st), plus `client_dev`'s tests with `--features dev`. Run `cargo fmt --all` before pushing.
 
 ## Commands
 
 ### cargo rcl
-Build and run the client. builds `terobit_client`, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](scripts/run_client_script/README.md).
+Build and run the client. builds `terobit_client` with the `dev` feature, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](scripts/run_client_script/README.md).
 
 |args|desc|
 |----|----|
-|--final, -f|builds with the release profile instead of release-dev, and runs without the dev flags|
+|--final, -f|builds with the release profile instead of release-dev and without the `dev` feature, and runs without the dev flags|
 |--strip-defaults, -s|runs without the default dev flags (`--dev`, `--pack-file ...`)|
 
 ### cargo pkgen
