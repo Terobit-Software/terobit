@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 use crate::pack::{
-    Access, AssetEntry, FileEntry, AssetHandle, HandleError, IndexRef, ManifestV1, PathError,
+    Access, AssetEntry, AssetHandle, FileEntry, HandleError, IndexRef, ManifestV1, PathError,
     ScriptEntry, Target, validate_path,
 };
 

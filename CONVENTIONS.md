@@ -47,7 +47,7 @@ Caused by these errors (recent errors listed first):
 - Add `#[tracing::instrument(skip_all, fields(...))]` to entry points like `build_tbpk` or `read_pack`, so every log inside them carries the target, path, etc.
 - `bevy::prelude::*` brings in a `context` method that clashes with SNAFU's. In files that use SNAFU, import only the bevy items you need.
 
-## Unrwap
+## Unwrap
 Minimize the use of unwrap or expect in any code.
 
 #### Do:
@@ -63,7 +63,7 @@ let number = match value {
 
 #### Dont:
 ```rust
-let value.expect("number is not ok");
+let number = value.expect("number is not ok");
 ```
 
 If code MUST panic when wrong, please use `panic!`. This creates cleaner, and more traceable code. Panics should have custom and verbose languages to your ability. If you cannot control the panic, say for example in a Bevy crate, then you have no control there. Always, when possible, throw an error not a panic. For example:
@@ -80,3 +80,11 @@ match option {
 ```rust
 option.unwrap()
 ```
+
+## Pull requests
+These are enforced by the workflows in `.github/workflows`.
+
+- **Bump the version.** Every PR into `main` must change the `version` in `bins/terobit_client`, `bins/terobit_editor` and `bins/terobit_server` to one new shared value. The `Version check` workflow fails if they differ from each other or still match `main`.
+- **Pass CI.** `cargo fmt --all --check`, `cargo check --workspace --all-targets --profile ci`, and `cargo nextest run --workspace --cargo-profile ci`. Run `cargo fmt --all` before pushing.
+- **Workflow changes need review** from `@Terobit-Software/head-development` (see `.github/CODEOWNERS`).
+- **Nightlies are automatic.** Every night at midnight Central, `release/nightly/MM.DD.YYYY` is cut from `main` and older nightly branches are deleted. Don't push to them.
