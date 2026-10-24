@@ -1,13 +1,11 @@
-use bevy::prelude::Commands;
 use snafu::{ResultExt, Snafu, ensure};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::pack::{
-    HEADER_LEN,
-    readers::{ManifestLoadError, ManifestSource, RuntimePackConfig},
-};
+use crate::pack::{HEADER_LEN, Target};
+use crate::registry::{PackRegistry, TbpkSource};
+use crate::{ManifestLoadError, ManifestSource, RuntimePackConfig};
 
 /// a pack, or a dev directory standing in for one, that couldn't be read
 #[derive(Debug, Snafu)]
@@ -50,9 +48,10 @@ pub struct PackReader {}
 impl PackReader {
     #[tracing::instrument(skip_all, fields(pack = %path.display()))]
     pub fn read_pack(
-        commands: &mut Commands,
         path: &Path,
+        target: Target,
         config: &RuntimePackConfig,
+        registry: &PackRegistry,
     ) -> Result<(), PackReadError> {
         info!("Reading pack at path {}", path.display());
 
@@ -64,8 +63,9 @@ impl PackReader {
 
             info!("Path is directory, continuing as a developer package. Assuming newest version");
 
-            let _manifest_source = ManifestSource::from_path(&path.join("manifest.toml"))
+            let manifest = ManifestSource::from_path(&path.join("manifest.toml"))
                 .context(DevManifestSnafu { path })?;
+            registry.set(TbpkSource::dev(&manifest, target));
 
             return Ok(());
         }

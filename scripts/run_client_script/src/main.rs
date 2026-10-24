@@ -54,21 +54,13 @@ enum RunError {
     #[snafu(display("failed to read the current directory, run this from the workspace root"))]
     CurrentDir { source: io::Error },
 
-    #[snafu(display(
-        "failed to start `cargo build --profile {profile} -p {BIN_NAME}`, is cargo on PATH?"
-    ))]
-    StartBuild {
-        profile: &'static str,
-        source: io::Error,
-    },
+    #[snafu(display("failed to start `{command}`, is cargo on PATH?"))]
+    StartBuild { command: String, source: io::Error },
 
     #[snafu(display(
-        "`cargo build --profile {profile} -p {BIN_NAME}` failed with {status}, not running the client, see the cargo output above"
+        "`{command}` failed with {status}, not running the client, see the cargo output above"
     ))]
-    BuildFailed {
-        profile: &'static str,
-        status: ExitStatus,
-    },
+    BuildFailed { command: String, status: ExitStatus },
 
     #[snafu(display("failed to clean the old output folder `{}`", path.display()))]
     CleanOut { path: PathBuf, source: io::Error },
@@ -155,18 +147,21 @@ fn run(args: Args) -> Result<(), RunError> {
     }
     info!("client flags: {:?}", flags);
 
-    // Build the client
-    info!("Building client with profile {}...", profile.name());
+    // Build the client, final builds never get developer mode
+    let mut build_args = vec!["build", "--profile", profile.name(), "-p", BIN_NAME];
+    if !is_final {
+        build_args.extend(["--features", "dev"]);
+    }
+    let command = format!("cargo {}", build_args.join(" "));
+    info!("Building client with `{command}`...");
     let build_status = Command::new("cargo")
-        .args(["build", "--profile", profile.name(), "-p", BIN_NAME])
+        .args(&build_args)
         .status()
-        .context(StartBuildSnafu {
-            profile: profile.name(),
-        })?;
+        .context(StartBuildSnafu { command: &command })?;
     ensure!(
         build_status.success(),
         BuildFailedSnafu {
-            profile: profile.name(),
+            command,
             status: build_status
         }
     );
