@@ -1,9 +1,9 @@
 use bevy::asset::{Asset, AssetServer, Handle};
 use bevy::ecs::system::{Res, SystemParam};
-use snafu::{ResultExt, Snafu};
+use snafu::{OptionExt, Snafu};
 
 use crate::pack::AssetHandle;
-use crate::registry::{PackRegistry, RegistryError};
+use crate::registry::PackRegistry;
 
 /// a handle that no loaded pack declares for this side
 #[derive(Debug, Snafu)]
@@ -12,7 +12,6 @@ use crate::registry::{PackRegistry, RegistryError};
 ))]
 pub struct UnknownHandle {
     pub handle: AssetHandle,
-    pub source: RegistryError,
 }
 
 /// loads pack assets by handle, use in systems in place of `Res<AssetServer>`
@@ -28,8 +27,6 @@ impl PackAssets<'_> {
             .registry
             .resolve(h)
             .context(UnknownHandleSnafu { handle: h.clone() })?;
-        Ok(self
-            .server
-            .load(format!("pack://{}/{}", h.namespace(), path.display())))
+        Ok(self.server.load(format!("pack://{path}")))
     }
 }

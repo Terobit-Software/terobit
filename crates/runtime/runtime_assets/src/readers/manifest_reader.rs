@@ -90,12 +90,7 @@ pub enum ManifestValidateError {
         #[snafu(source(from(PathError, Box::new)))]
         source: Box<PathError>,
     },
-}
 
-/// one side's manifest or file list couldn't be built from the source manifest
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
-pub enum ManifestSideError {
     #[snafu(display(
         "`{id}` is declared in both [assets] and [{}.assets], a handle can only be declared once per side",
         side_table(*target)
@@ -110,7 +105,12 @@ pub enum ManifestSideError {
         path: String,
         target: Target,
     },
+}
 
+/// one side's manifest or file list couldn't be built from the source manifest
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum ManifestSideError {
     #[snafu(display(
         "failed to read the size of {target:?} file `{pack_path}` at `{}`, check that it exists and is readable",
         full_path.display()
@@ -132,12 +132,6 @@ pub enum ManifestSideError {
         u32::MAX
     ))]
     TooManyFiles { target: Target, count: usize },
-
-    #[snafu(display(
-        "handle `{handle}` is not declared in [assets] or [{}.assets] of the manifest",
-        side_table(*target)
-    ))]
-    AssetNotFound { handle: String, target: Target },
 }
 
 /// the manifest table a side's assets and scripts live under
@@ -183,7 +177,8 @@ impl ManifestSource {
         Ok(manifest)
     }
 
-    /// ids are never 0, and every path follows the path rules in the conventions doc
+    /// ids are never 0, every handle and path follows the conventions doc, and each side
+    /// follows the source.md rules
     fn validate(&self) -> Result<(), ManifestValidateError> {
         ensure!(self.realm_id != 0, ZeroRealmIdSnafu);
         ensure!(self.owner_id != 0, ZeroOwnerIdSnafu);
@@ -199,6 +194,22 @@ impl ManifestSource {
                 id.parse::<AssetHandle>()
                     .context(InvalidHandleSnafu { table, id })?;
                 validate_path(path).context(InvalidPathSnafu { table, id, path })?;
+            }
+        }
+
+        for target in [Target::Client, Target::Server] {
+            let side = self.side(target);
+            for id in side.assets.keys() {
+                ensure!(
+                    !self.assets.contains_key(id),
+                    SharedAndSideSnafu { id, target }
+                );
+            }
+            for (id, path) in &side.scripts {
+                ensure!(
+                    path.ends_with(".wasm"),
+                    ScriptNotWasmSnafu { id, path, target }
+                );
             }
         }
 
@@ -238,43 +249,25 @@ impl ManifestSource {
         &self.root
     }
 
-    /// the pack path of an asset on one side. the client and server namespaces are
-    /// separate, so only shared assets and that side's assets are searched
-    pub(crate) fn resolve_asset_path(
-        &self,
-        target: Target,
-        handle: &AssetHandle,
-    ) -> Result<&str, ManifestSideError> {
-        let key = handle.to_string();
-        let side = self.side(target);
-
-        [&self.assets, &side.assets]
-            .into_iter()
-            .find_map(|assets| assets.get(&key))
-            .map(String::as_str)
-            .context(AssetNotFoundSnafu {
-                handle: key.as_str(),
-                target,
-            })
-    }
-
-    /// return is in form of (client, server). the index refs come from the caller since
-    /// they depend on the chunked file bytes, not the manifest
-    pub(crate) fn get_v1(
-        &self,
-        client_index: IndexRef,
-        server_index: IndexRef,
-    ) -> Result<(ManifestV1, ManifestV1), ManifestSideError> {
-        let client = self.get_v1_side(Target::Client, client_index)?;
-        let server = self.get_v1_side(Target::Server, server_index)?;
-        Ok((client, server))
-    }
-
     fn side(&self, target: Target) -> &SideAssets {
         match target {
             Target::Client => &self.client,
             Target::Server => &self.server,
         }
+    }
+
+    /// `(id, path)` of every asset one side can see: the shared ones, then that side's.
+    /// the client and server namespaces are separate
+    pub(crate) fn assets_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
+        self.assets.iter().chain(&self.side(target).assets)
+    }
+
+    /// every path one side references, deduplicated and sorted in byte order
+    pub(crate) fn paths_for(&self, target: Target) -> BTreeSet<&str> {
+        self.assets_for(target)
+            .chain(&self.side(target).scripts)
+            .map(|(_, path)| path.as_str())
+            .collect()
     }
 
     /// one side's files: the shared assets plus that side's assets and scripts, sorted by
@@ -283,30 +276,20 @@ impl ManifestSource {
         &self,
         target: Target,
     ) -> Result<Vec<FileEntry>, ManifestSideError> {
-        let side = self.side(target);
-
-        // btreeset of strings sorts by byte order, which is what `files` needs
-        let paths: BTreeSet<&str> = self
-            .assets
-            .values()
-            .chain(side.assets.values())
-            .chain(side.scripts.values())
-            .map(String::as_str)
-            .collect();
-
-        let files = paths
-            .iter()
+        let files = self
+            .paths_for(target)
+            .into_iter()
             .map(|path| {
                 let full_path = self.root.join(path);
                 let size = std::fs::metadata(&full_path)
                     .context(FileMetadataSnafu {
                         target,
-                        pack_path: *path,
+                        pack_path: path,
                         full_path: &full_path,
                     })?
                     .len();
                 Ok(FileEntry {
-                    path: (*path).to_owned(),
+                    path: path.to_owned(),
                     size,
                 })
             })
@@ -319,28 +302,14 @@ impl ManifestSource {
         Ok(files)
     }
 
-    /// one side's manifest. its files are the shared assets plus that side's assets and scripts
+    /// one side's manifest. `files` must be that side's `get_side_files`, the list the
+    /// index was chunked from
     pub(crate) fn get_v1_side(
         &self,
         target: Target,
+        files: Vec<FileEntry>,
         index: IndexRef,
     ) -> Result<ManifestV1, ManifestSideError> {
-        let side = self.side(target);
-
-        for id in side.assets.keys() {
-            ensure!(
-                !self.assets.contains_key(id),
-                SharedAndSideSnafu { id, target }
-            );
-        }
-        for (id, path) in &side.scripts {
-            ensure!(
-                path.ends_with(".wasm"),
-                ScriptNotWasmSnafu { id, path, target }
-            );
-        }
-
-        let files = self.get_side_files(target)?;
         ensure!(
             u32::try_from(files.len()).is_ok(),
             TooManyFilesSnafu {
@@ -359,9 +328,7 @@ impl ManifestSource {
         };
 
         let mut assets = self
-            .assets
-            .iter()
-            .chain(&side.assets)
+            .assets_for(target)
             .map(|(id, path)| {
                 Ok(AssetEntry {
                     id: id.clone(),
@@ -371,7 +338,8 @@ impl ManifestSource {
             .collect::<Result<Vec<_>, ManifestSideError>>()?;
         assets.sort_by(|a, b| a.id.cmp(&b.id));
 
-        let scripts = side
+        let scripts = self
+            .side(target)
             .scripts
             .iter()
             .map(|(id, path)| {
@@ -654,5 +622,54 @@ mod struct_tests {
             ManifestSource::from_path(&path),
             Err(ManifestLoadError::ReadFile { .. })
         ));
+    }
+
+    fn validate_error(name: &str, tables: &str) -> ManifestValidateError {
+        let err = parse(
+            name,
+            &format!("realm_id = 1\nowner_id = 1\npack_version = 1\naccess = \"free\"\n{tables}"),
+        )
+        .err()
+        .expect("manifest should be rejected");
+        match err {
+            ManifestLoadError::Invalid { source, .. } => *source,
+            other => panic!("expected a validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_asset_declared_shared_and_on_a_side() {
+        let err = validate_error(
+            "shared_and_side",
+            "[assets]\n\"self:x\" = \"a.png\"\n[client.assets]\n\"self:x\" = \"b.png\"\n",
+        );
+        assert!(
+            matches!(
+                err,
+                ManifestValidateError::SharedAndSide {
+                    target: Target::Client,
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_script_that_isnt_wasm() {
+        let err = validate_error(
+            "script_not_wasm",
+            "[server.scripts]\n\"self:main\" = \"scripts/main.lua\"\n",
+        );
+        assert!(
+            matches!(
+                err,
+                ManifestValidateError::ScriptNotWasm {
+                    target: Target::Server,
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
     }
 }

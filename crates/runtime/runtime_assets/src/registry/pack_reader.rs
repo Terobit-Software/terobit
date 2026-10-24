@@ -1,28 +1,18 @@
-use crate::pack::AssetHandle;
 use bevy::asset::io::{AssetReader, AssetReaderError, Reader, VecReader};
 use std::path::Path;
 
 use crate::registry::PackRegistry;
 
-struct PackAssetReader(PackRegistry);
+/// the `pack://` asset source. its paths are pack paths, like `meshes/mesh.obj`
+pub(crate) struct PackAssetReader(pub(crate) PackRegistry);
 
 impl AssetReader for PackAssetReader {
     async fn read<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {
-        let reg = &self.0;
-        let not_found = || AssetReaderError::NotFound(path.into());
-
-        // "self:cube" -> AssetHandle
-        let handle: AssetHandle = path
-            .to_str()
-            .ok_or_else(not_found)?
-            .parse()
-            .map_err(|_| not_found())?;
-
-        let rel = reg.resolve(&handle).map_err(|_| not_found())?;
-
-        let bytes = reg.read_bytes(&rel).map_err(std::io::Error::other)?;
-
-        Ok(VecReader::new(bytes))
+        let full_path = self
+            .0
+            .full_path(path)
+            .ok_or_else(|| AssetReaderError::NotFound(path.into()))?;
+        Ok(VecReader::new(std::fs::read(full_path)?))
     }
 
     async fn read_meta<'a>(&'a self, path: &'a Path) -> Result<impl Reader + 'a, AssetReaderError> {

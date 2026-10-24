@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use runtime_assets::RuntimePackConfig;
+use runtime_assets::pack::Target;
 use std::path::PathBuf;
 use tracing::{error, warn};
 
@@ -63,8 +64,10 @@ impl Plugin for ClientDevPlugin {
             }
 
             if let Some(path) = pack_file {
-                app.world_mut()
-                    .trigger(runtime_assets::LoadPackFileEvent { path });
+                app.world_mut().trigger(runtime_assets::LoadPackFileEvent {
+                    path,
+                    target: Target::Client,
+                });
             } else {
                 warn!(
                     "Developer mode is on but no pack will be loaded, pass `--pack-file <path to .tbpk or dev directory>` to load one"

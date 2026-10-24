@@ -24,7 +24,7 @@ terobit_server loads the server pack                        F5
 ```
 
 During development the client skips packing and reads the dev directory directly with
-`--dev --pack-file <dir>`. That path is partly built (B1-B4).
+`--dev --pack-file <dir>`.
 
 ## Binaries
 
@@ -75,8 +75,8 @@ animation, audio, picking, then client plugins.
 - render goes after window, and ui after render
 - client plugins go last because they read resources the runtime adds (`RuntimeFlags`,
   `RuntimePackConfig`)
-- a custom asset source like `pack://` has to be registered before `AssetPlugin`, which is
-  inside core. That isn't done yet (B1)
+- inside core, `RuntimePackReaderPlugin` comes before `AssetPlugin`, because Bevy only
+  accepts the `pack://` asset source it registers before `AssetPlugin` is added
 
 ## Building a pack
 
@@ -105,18 +105,20 @@ What happens today when you run `terobit_client --dev --pack-file <dir>`:
 2. `ClientDevPlugin` sees `--dev`, allows directory reads in `RuntimePackConfig`, and
    triggers `LoadPackFileEvent` with the path
 3. `RuntimePackReaderPlugin`'s observer calls `PackReader::read_pack`
-   - a directory: parses and validates `manifest.toml`, then stops (B4)
+   - a directory: parses and validates `manifest.toml`, then puts the shared and
+     `[client.*]` entries in `PackRegistry`
    - a file: checks it is at least 24 bytes, then stops (F1)
+4. game code calls `PackAssets::load::<T>(&"self:cube".parse()?)`, which looks the handle up
+   in the registry and loads `pack://meshes/mesh.obj`. The `pack://` reader only serves
+   files the loaded side declares, so a client can't read server files even in dev
 
-What it should do (from the [tbpk docs](formats/tbpk/v1.md#reading-a-pack)):
+What reading a `.tbpk` should do (from the [tbpk docs](formats/tbpk/v1.md#reading-a-pack)):
 
 1. read and check the header, table of contents, manifest and signature
 2. check the license if the realm is `Licensed` (F3)
 3. check the index hash and decode the index
-4. add the pack to `PackRegistry`
-5. game code calls `PackAssets::load::<T>(&"self:cube".parse()?)`, which resolves the
-   handle to a file and loads it through the `pack://` asset source. Each chunk is hash
-   checked before it is decompressed
+4. add the pack to `PackRegistry`, then load assets the same way as from a dev directory.
+   Each chunk is hash checked before it is decompressed
 
 ## Why it's built this way
 

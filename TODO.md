@@ -15,81 +15,26 @@ together, see [ARCHITECTURE](docs/ARCHITECTURE.md).
 | manifest.toml loading        | works, validated, well tested                                             |
 | pack writing (`cargo pkgen`) | works, writes unsigned v1 archives                                        |
 | pack reading                 | stub: only checks a file is at least 24 bytes                             |
-| dev directory loading        | parses and validates `manifest.toml`, then stops                          |
-| asset registry (`pack://`)   | written but not connected to anything, see B1-B4                          |
+| dev directory loading        | works: assets load by handle through `pack://`, only the reading side's entries |
 | signing / licenses           | signing exists in the writer, no key loading, no verification             |
-| client                       | opens an empty window, loads no game content                              |
+| client                       | opens an empty window. `--dev` loads a dev directory, nothing uses it yet |
 | server, editor, sandbox      | not started (hello world or empty)                                        |
-| tests                        | 70 passing in the non-graphics crates (`runtime_assets` 41, run flags 10, client_dev 10, others 9) |
+| tests                        | 75 passing across the workspace (`runtime_assets` 45, run flags 10, client_dev 10, others 10) |
 | CI                           | `cargo fmt --check` failed on this branch (one import order), fixed 2026-10-24 |
 
 ## 1. Broken now
 
 Fix these first. Each one stops something that looks finished from working.
 
-- [ ] **B1. The asset registry isn't connected.**
-  `PackRegistry` is never added as a resource, `PackAssetReader` is never registered as the
-  `pack://` asset source (the compiler warns it is never constructed), and nothing ever
-  adds a `TbpkSource` to the registry.
-  - Why: any system that takes `PackAssets` won't run, because Bevy reports the registry
-    resource as missing, and once that's fixed every `load` still fails. Loading assets from a dev directory, the goal of this
-    branch, can't work until these three pieces connect.
-  - How: create one `PackRegistry`, `insert_resource` a clone, and call
-    `app.register_asset_source("pack", AssetSourceBuilder::new(move || Box::new(PackAssetReader(registry.clone()))))`.
-    Bevy only accepts asset sources registered **before** `AssetPlugin` is added, and
-    `RuntimeCorePlugins` adds `AssetPlugin` first (`runtime_core/src/lib.rs:29`), so the
-    registration needs its own small plugin placed before `AssetPlugin` in that group.
-
-- [ ] **B2. `PackAssets::load` and `PackAssetReader::read` disagree on what a path is.**
-  `load` resolves the handle to a file path and asks for `pack://self/meshes/mesh.obj`
-  (`registry/pack_assets.rs:33`). The reader then tries to parse that path as a handle
-  like `self:cube` (`registry/pack_reader.rs:18`), which fails, so it returns not found.
-  - Why: even with B1 fixed, no asset loads.
-  - How: resolve once. Recommended: `load` resolves the handle and passes the pack path;
-    the reader takes a pack path and only reads it. Keeping the real file name in the path
-    also lets Bevy pick the right loader from the extension (`.glb`, `.png`, ...).
-
-- [ ] **B3. The registry only looks up realm id `0`.**
-  `resolve` and `read_bytes` both call `sources.get(&0u64)` (`registry/pack_registry.rs:63`,
-  `:82`), but realm ids are never 0 and the manifest loader rejects 0.
-  - Why: a source stored under its real `realm_id` can never be found.
-  - How: while only one pack is loaded at a time, store the active realm id in the registry
-    and use it for `self:` handles. Later, map namespaces to realms.
-
-- [ ] **B4. Dev directory loading stops after reading the manifest.**
-  `PackReader::read_pack` loads `manifest.toml` into `_manifest_source` and drops it
-  (`readers/tbpk.rs:65`).
-  - Why: `--dev --pack-file <dir>` logs success but nothing from the directory is usable.
-  - How: build the client side's `ManifestV1` (`get_v1_side(Target::Client, ...)`) and add
-    a `TbpkSource` with `RootLocation::Developer { path }` to the registry. The dev path
-    has no index, so either make `IndexRef` optional for dev sources or give `TbpkSource`
-    its own handle-to-path map built straight from `ManifestSource`.
-
-- [ ] **B5. `TbpkSource::new` can panic.**
-  It calls `unwrap()` on every id parse (`registry/tbpk_source.rs:19`, `:26`) and indexes
-  `manifest.files[...]` without a bounds check. Assets and scripts also share one map, so
-  an asset and a script with the same id (allowed by the tbman v1 rules) overwrite each
-  other.
-  - Why: a bad manifest crashes the client instead of failing the load with an error, which
-    breaks the no-unwrap rule in [CONVENTIONS](CONVENTIONS.md).
-  - How: return `Result<Self, TbpkSourceError>`, use `files.get(i)`, and keep separate maps
-    for assets and scripts.
-
-- [ ] **B6. The pack writer reads file sizes from disk twice.**
-  `build_tbpk` gets the side's file list in `chunk()` (`pack/writers/tbpk.rs:318`) and
-  again in `get_v1_side` (`readers/manifest_reader.rs:343`) when building the manifest.
-  - Why: if a file changes size in between, the manifest's `size` won't match the chunked
-    bytes and the pack is corrupt without any error.
-  - How: call `get_side_files` once in `build_tbpk` and pass the list to both the chunker
-    and the manifest builder.
-
-- [ ] **B7. Some manifest rules only run when packing.**
-  "id in both `[assets]` and `[client.assets]`" and "scripts must be `.wasm`" are checked in
-  `get_v1_side` (`readers/manifest_reader.rs:333`, `:339`), not in `validate()`.
-  - Why: the docs say the dev loader and the pack tool enforce the same rules, so mistakes
-    show up during development. Right now a broken manifest loads fine with `--dev` and only
-    fails at `cargo pkgen`.
-  - How: move both checks into `ManifestSource::validate` and add tests for them there.
+- [x] **B1-B5. Dev directory assets load.** `RuntimePackReaderPlugin` registers the
+  `pack://` asset source before `AssetPlugin` and owns the one `PackRegistry`. Reading a dev
+  directory puts its shared and reading-side entries in the registry. `PackAssets::load`
+  turns a handle into `pack://<pack path>`, and the reader only serves files that side
+  declares.
+- [x] **B6.** The pack writer reads file sizes once and builds the manifest from the list it
+  chunked.
+- [x] **B7.** "id in both `[assets]` and a side" and "scripts must be `.wasm`" are checked when
+  the manifest loads.
 
 - [ ] **B8. `--dev` works in every build, including release.**
   The docs say `--dev` only exists in builds with a `dev` cargo feature and release

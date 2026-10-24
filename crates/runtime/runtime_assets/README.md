@@ -10,8 +10,8 @@ are the spec this crate follows.
 |-----------------|------------------------------------------------------------------------------|--------------|
 | `pack` (types)  | in-memory form of each format: `CommonHeader`, `TbPack` and `IndexV1`, `ManifestV1`, `TbSignature`, `TbLicense`, `Certificate` and the hash contexts, `AssetHandle`, `validate_path` | serialize only, no `Deserialize` yet (F1) |
 | `pack::writers` | `PackWriter` builds and writes `.tbpk` archives, `PackSigner` signs manifests, the chunker splits and compresses files | working |
-| `readers`       | `ManifestSource` loads and validates `manifest.toml`. `RuntimePackReaderPlugin`, `LoadPackFileEvent` and `RuntimePackConfig` start a pack load. `PackReader` reads it | manifest works, pack reading is a stub (F1, B4) |
-| `registry`      | `PackRegistry` maps handles to files, `PackAssets` loads by handle in systems, `PackAssetReader` is the `pack://` asset source | written, not connected (B1-B5) |
+| `readers`       | `ManifestSource` loads and validates `manifest.toml`. `RuntimePackReaderPlugin`, `LoadPackFileEvent` and `RuntimePackConfig` start a pack load. `PackReader` reads it | manifest and dev directories work, `.tbpk` reading is a stub (F1) |
+| `registry`      | `PackRegistry` holds the loaded pack, `PackAssets` loads by handle in systems, `PackAssetReader` is the `pack://` asset source | working for dev directories |
 
 Ids like `B1` and `F1` are items in the [TODO](../../../TODO.md).
 
@@ -38,11 +38,11 @@ the pack has an empty signature section. `cargo pkgen` wraps all of this.
 
 ### Start loading a pack
 
-`RuntimePackReaderPlugin` is already part of `RuntimeCorePlugins`. To load a pack, trigger
-the event:
+`RuntimePackReaderPlugin` is already part of `RuntimeCorePlugins`. In your own app, add it
+before `AssetPlugin`. To load a pack, trigger the event with the side that reads it:
 
 ```rust
-world.trigger(LoadPackFileEvent { path: path.into_boxed_path() });
+world.trigger(LoadPackFileEvent { path: path.into_boxed_path(), target: Target::Client });
 ```
 
 Directories (dev directories) are only read when `RuntimePackConfig::set_allow_dir_read(true)`
@@ -50,7 +50,7 @@ has been called, which `client_dev` does for `--dev`.
 
 ### Load an asset by handle
 
-This is the intended API. It doesn't work yet (B1-B4).
+Works for dev directories. `.tbpk` archives come with F1.
 
 ```rust
 fn spawn(assets: PackAssets) {
@@ -65,7 +65,10 @@ fn spawn(assets: PackAssets) {
   names, at most 255 bytes (`validate_path`)
 - handles: `self:<name>`, name uses `a-z 0-9 _ - /` (`AssetHandle`)
 - manifests: `realm_id` and `owner_id` aren't 0, unknown fields are rejected, every id and
-  path is checked on load. Two more checks only run at pack time for now (B7)
+  path is checked on load, no id is in both `[assets]` and a side's `assets`, and scripts
+  are `.wasm`
+- reading: only the shared entries and the reading side's are visible, by handle or by
+  `pack://` path
 - writing: files sorted by path, chunks laid out as in
   [writing chunks](../../../docs/formats/tbpk/v1.md#writing-chunks), a chunk that zstd
   shrinks by less than 20% is stored raw, and a source file that changes size while
@@ -77,6 +80,7 @@ fn spawn(assets: PackAssets) {
 cargo test -p runtime_assets
 ```
 
-41 tests cover paths, handles, manifest loading (against `tests/examples/source_to_tbpk`),
-the chunker (layout, round trips, determinism, files changing size) and the reader plugin.
+45 tests cover paths, handles, manifest loading (against `tests/examples/source_to_tbpk`),
+the chunker (layout, round trips, determinism, files changing size), the reader plugin, and
+loading `basic1` assets end to end through `pack://`.
 Nothing tests a whole written pack yet. That comes with the reader (F1).

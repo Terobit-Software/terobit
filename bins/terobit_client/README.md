@@ -40,15 +40,14 @@ core, input, scene, window, render, ui, animation, audio, picking. Client plugin
 
 - opens a window with rendering, UI, audio, input and picking. Nothing spawns a camera or
   scene yet, so it's empty
-- with `--dev`, it parses and validates the dev directory's `manifest.toml`, but nothing
-  from it reaches the game (B1-B4)
+- with `--dev`, the dev directory's shared and client assets can be loaded with `PackAssets`,
+  but nothing in the client loads any yet
 - a `.tbpk` file is only checked to be at least 24 bytes (F1)
 - without `--dev`, no pack is loaded at all (F4)
 - no login, licenses, networking or scripts
 
 ## TODO
 
-- [ ] connect the asset registry so `--dev` content loads (B1-B4)
 - [ ] read `.tbpk` archives (F1) and load them without `--dev` (F4)
 - [ ] put `--dev` behind a `dev` cargo feature (B8)
 - [ ] check licenses for `Licensed` realms (F3)

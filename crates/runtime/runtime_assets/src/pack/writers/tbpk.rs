@@ -310,8 +310,8 @@ impl PackWriter {
         self.manifest_source.as_ref().context(NoManifestSnafu)
     }
 
-    /// reads and compresses every file on one side
-    fn chunk(&mut self, target: Target) -> Result<(), PackWriterError> {
+    /// reads and compresses every file on one side, returns the file list it chunked
+    fn chunk(&mut self, target: Target) -> Result<Vec<FileEntry>, PackWriterError> {
         info!("Chunking {target:?} files");
         let source = self.get_manifest_source()?;
         let files = source
@@ -327,7 +327,7 @@ impl PackWriter {
             chunks.entries.len()
         );
         self.chunks[target as usize] = Some(chunks);
-        Ok(())
+        Ok(files)
     }
 
     fn get_chunks(&self, target: Target) -> Result<&SideChunks, PackWriterError> {
@@ -403,7 +403,11 @@ impl PackWriter {
     }
 
     /// needs the index built first, since the manifest holds its length and hash
-    fn get_manifest(&self, target: Target) -> Result<ManifestV1, PackWriterError> {
+    fn get_manifest(
+        &self,
+        target: Target,
+        files: Vec<FileEntry>,
+    ) -> Result<ManifestV1, PackWriterError> {
         let source = self.get_manifest_source()?;
 
         let index = self.encode_index(target)?;
@@ -418,7 +422,7 @@ impl PackWriter {
         );
 
         let manifest = source
-            .get_v1_side(target, index_ref)
+            .get_v1_side(target, files, index_ref)
             .context(BuildManifestSnafu { target })?;
         info!(
             "Built {target:?} manifest with {} files, {} assets, {} scripts",
@@ -429,8 +433,12 @@ impl PackWriter {
         Ok(manifest)
     }
 
-    fn get_signed_manifest(&self, target: Target) -> Result<Signed<TbManifest>, PackWriterError> {
-        let manifest = TbManifest::encode(self.get_manifest(target)?)
+    fn get_signed_manifest(
+        &self,
+        target: Target,
+        files: Vec<FileEntry>,
+    ) -> Result<Signed<TbManifest>, PackWriterError> {
+        let manifest = TbManifest::encode(self.get_manifest(target, files)?)
             .context(EncodeManifestSnafu { target })?;
         info!(
             "Encoded {target:?} manifest to {} bytes",
@@ -464,10 +472,10 @@ impl PackWriter {
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), PackWriterError> {
         info!("Building {target:?} pack");
         // the index comes from the chunks, and the manifest holds the index's hash
-        self.chunk(target)?;
+        let files = self.chunk(target)?;
 
         // the signature covers the manifest's bytes, so the manifest has to exist first
-        let manifest = self.get_signed_manifest(target)?;
+        let manifest = self.get_signed_manifest(target, files)?;
         let signature = self.get_tb_signature(target, &manifest)?;
         let toc = self.get_table_of_contents(target, &manifest, signature.as_ref())?;
 

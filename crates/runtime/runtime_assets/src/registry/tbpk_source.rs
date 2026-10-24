@@ -1,49 +1,44 @@
-use std::path::Path;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
-use crate::pack::{AssetHandle, IndexV1, ManifestV1};
-use crate::registry::RootLocation;
+use crate::ManifestSource;
+use crate::pack::{AssetHandle, Target};
 
+/// one side of a loaded pack: the assets it declares and the files it can read
+#[derive(Default)]
 pub struct TbpkSource {
-    manifest: ManifestV1,
-    root: RootLocation,
-    handle_to_path: HashMap<AssetHandle, Box<Path>>,
+    /// where the pack's files are on disk
+    root: PathBuf,
+    /// asset id to pack path
+    assets: HashMap<String, String>,
+    files: HashSet<PathBuf>,
 }
 
 impl TbpkSource {
-    pub fn new(manifest: ManifestV1, root: RootLocation) -> Self {
-        let mut handle_to_path = HashMap::new();
-
-        for scr in &manifest.scripts {
-            handle_to_path.insert(
-                scr.id.parse().unwrap(),
-                PathBuf::from(manifest.files[scr.file as usize].path.clone()).into_boxed_path(),
-            );
-        }
-
-        for ass in &manifest.assets {
-            handle_to_path.insert(
-                ass.id.parse().unwrap(),
-                PathBuf::from(manifest.files[ass.file as usize].path.clone()).into_boxed_path(),
-            );
-        }
-
+    /// a dev directory read in place. like a built pack, it only has the shared entries and
+    /// those of `target`
+    pub fn dev(manifest: &ManifestSource, target: Target) -> Self {
         Self {
-            manifest,
-            root,
-            handle_to_path,
+            root: manifest.get_root().to_owned(),
+            assets: manifest
+                .assets_for(target)
+                .map(|(id, path)| (id.clone(), path.clone()))
+                .collect(),
+            files: manifest
+                .paths_for(target)
+                .into_iter()
+                .map(PathBuf::from)
+                .collect(),
         }
     }
 
-    pub fn get_manifest(&self) -> &ManifestV1 {
-        &self.manifest
+    /// the pack path of an asset
+    pub fn resolve(&self, handle: &AssetHandle) -> Option<&str> {
+        self.assets.get(&handle.to_string()).map(String::as_str)
     }
 
-    pub fn get_root(&self) -> &RootLocation {
-        &self.root
-    }
-
-    pub fn resolve_handle_to_path(&self, handle: &AssetHandle) -> Option<&Box<Path>> {
-        self.handle_to_path.get(handle)
+    /// where a pack path is on disk, `None` if it isn't one of this side's files
+    pub fn full_path(&self, path: &Path) -> Option<PathBuf> {
+        self.files.contains(path).then(|| self.root.join(path))
     }
 }
