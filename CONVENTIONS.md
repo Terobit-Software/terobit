@@ -85,6 +85,6 @@ option.unwrap()
 These are enforced by the workflows in `.github/workflows`.
 
 - **Bump the version.** Every PR into `main` must change the `version` in `bins/terobit_client`, `bins/terobit_editor` and `bins/terobit_server` to one new shared value. The `Version check` workflow fails if they differ from each other or still match `main`.
-- **Pass CI.** `cargo fmt --all --check`, `cargo check --workspace --all-targets --profile ci`, and `cargo nextest run --workspace --cargo-profile ci`. Run `cargo fmt --all` before pushing.
+- **Pass CI.** `cargo fmt --all --check`, `cargo check --workspace --all-targets --profile ci`, `cargo nextest run --workspace --cargo-profile ci`, and `cargo nextest run -p client_dev --features dev --cargo-profile ci`. Run `cargo fmt --all` before pushing.
 - **Workflow changes need review** from `@Terobit-Software/head-development` (see `.github/CODEOWNERS`).
 - **Nightlies are automatic.** Every night at midnight Central, `release/nightly/MM.DD.YYYY` is cut from `main` and older nightly branches are deleted. Don't push to them.

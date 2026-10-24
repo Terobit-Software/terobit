@@ -51,3 +51,5 @@ jobs:
           cache-on-failure: true
       - uses: taiki-e/install-action@nextest
       - run: cargo nextest run --workspace --no-tests=pass --no-fail-fast --cargo-profile ci
+      # developer mode only compiles with the `dev` feature, which the workspace run leaves off
+      - run: cargo nextest run -p client_dev --features dev --no-fail-fast --cargo-profile ci

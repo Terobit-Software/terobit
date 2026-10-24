@@ -8,3 +8,7 @@ bevy.workspace = true
 runtime_run_flags.workspace = true
 tracing.workspace = true
 runtime_assets.workspace = true
+
+[features]
+# --dev: read dev directories in place of signed packs. never on in release builds
+dev = []

@@ -17,3 +17,6 @@ runtime_scene.workspace = true
 runtime_ui.workspace = true
 runtime_window.workspace = true
 client_dev.workspace = true
+
+[features]
+dev = ["client_dev/dev"]

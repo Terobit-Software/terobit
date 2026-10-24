@@ -24,7 +24,8 @@ terobit_server loads the server pack                        F5
 ```
 
 During development the client skips packing and reads the dev directory directly with
-`--dev --pack-file <dir>`.
+`--dev --pack-file <dir>`. `--dev` only exists in builds with the `dev` cargo feature, so a
+release build can't read a dev directory.
 
 ## Binaries
 
@@ -57,7 +58,7 @@ client uses (`crates/server` and `crates/editor` will follow the same pattern).
 | `runtime_audio`     | audio (vorbis)                                                               |
 | `runtime_picking`   | Bevy's default picking                                                       |
 | `runtime_sandbox`   | empty, will host wasm scripts (F6)                                           |
-| `client_dev`        | the client's `--dev` and `--pack-file` handling                              |
+| `client_dev`        | the client's `--dev` and `--pack-file` handling, compiled only with its `dev` feature |
 
 ### Why so many small crates
 
@@ -99,7 +100,8 @@ This part works. `PackWriter` in `runtime_assets::pack::writers` does it, and
 
 ## Loading a pack
 
-What happens today when you run `terobit_client --dev --pack-file <dir>`:
+What happens today when you run `terobit_client --dev --pack-file <dir>`, built with
+`--features dev`:
 
 1. `RuntimeRunFlagsPlugin` stores the command line in `RuntimeFlags`
 2. `ClientDevPlugin` sees `--dev`, allows directory reads in `RuntimePackConfig`, and
