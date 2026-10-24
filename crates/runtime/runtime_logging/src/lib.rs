@@ -29,19 +29,19 @@ fn env(var: &'static str) -> Result<String, LoggingError> {
 }
 
 #[inline]
-/// Returns the directory where log files should be stored
+/// Returns the directory where log files should be stored, `<first>/<last>` under each OS's
+/// usual folder. capitalized on macOS, lowercase elsewhere
 fn get_log_directory(
     first_name: &'static str,
     last_name: &'static str,
 ) -> Result<PathBuf, LoggingError> {
     #[cfg(target_os = "macos")]
     {
-        Ok(PathBuf::from(format!(
-            "/Users/{}/Library/Logs/{}{}/",
-            env("USER")?,
-            first_name,
-            last_name
-        )))
+        Ok(
+            PathBuf::from(format!("/Users/{}/Library/Logs", env("USER")?))
+                .join(first_name)
+                .join(last_name),
+        )
     }
     // $XDG_DATA_HOME, falling back to ~/.local/share per the XDG base directory spec
     #[cfg(target_os = "linux")]
@@ -54,11 +54,8 @@ fn get_log_directory(
             None => PathBuf::from(env("HOME")?).join(".local").join("share"),
         };
         Ok(base
-            .join(format!(
-                "{}{}",
-                first_name.to_lowercase(),
-                last_name.to_lowercase()
-            ))
+            .join(first_name.to_lowercase())
+            .join(last_name.to_lowercase())
             .join("logs"))
     }
     #[cfg(target_os = "windows")]
@@ -68,6 +65,15 @@ fn get_log_directory(
             .join(last_name.to_lowercase())
             .join("logs"))
     }
+}
+
+/// `<first>-<last>.log`, lowercase
+fn log_file_name(first_name: &str, last_name: &str) -> String {
+    format!(
+        "{}-{}.log",
+        first_name.to_lowercase(),
+        last_name.to_lowercase()
+    )
 }
 
 fn panic_hook(info: &std::panic::PanicHookInfo<'_>) {
@@ -107,12 +113,13 @@ fn file_writer(
     std::fs::create_dir_all(&log_dir).context(CreateLogDirSnafu { path: &log_dir })?;
 
     // daily rotation: creates terobit-client.log.2026-09-04, etc.
-    let file_appender = rolling::daily(&log_dir, "terobit-client.log");
+    let file_appender = rolling::daily(&log_dir, log_file_name(first_name, last_name));
     let (writer, guard) = tracing_appender::non_blocking(file_appender);
     Ok((writer, guard, log_dir))
 }
 
-/// first name should be formated as `Name` NOT `name` or `NAME`. Only the first letter should be capitalized
+/// both names should be formatted as `Name`, NOT `name` or `NAME`. Only the first letter should be
+/// capitalized, macOS log folders use them as given
 ///
 /// never fails: if the log file can't be set up, logs only go to the terminal and a warning
 /// says why. the returned guard must stay alive for the whole program or buffered file logs
@@ -175,7 +182,7 @@ mod fn_tests {
 
         assert_eq!(
             get_log_directory("Terobit", "Client").unwrap(),
-            PathBuf::from(format!("/Users/{}/Library/Logs/TerobitClient/", user))
+            PathBuf::from(format!("/Users/{}/Library/Logs/Terobit/Client", user))
         );
     }
 
@@ -191,7 +198,7 @@ mod fn_tests {
 
         assert!(dir.is_absolute());
         assert!(!dir.to_string_lossy().contains('~'));
-        assert_eq!(dir, base.join("terobitclient").join("logs"));
+        assert_eq!(dir, base.join("terobit").join("client").join("logs"));
     }
 
     #[test]
@@ -206,6 +213,12 @@ mod fn_tests {
                 .join("client")
                 .join("logs")
         );
+    }
+
+    #[test]
+    fn log_file_is_named_after_the_app() {
+        assert_eq!(log_file_name("Terobit", "Client"), "terobit-client.log");
+        assert_eq!(log_file_name("Tbpk", "Generator"), "tbpk-generator.log");
     }
 
     #[test]

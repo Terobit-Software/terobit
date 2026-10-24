@@ -41,14 +41,10 @@ Fix these first. Each one stops something that looks finished from working.
   `--dev` with a warning. `cargo rcl` turns the feature on unless `--final`, and CI runs
   `client_dev`'s tests both ways.
 
-- [ ] **B9. Every program's log file is named `terobit-client.log`.**
-  The name is hard coded (`runtime_logging/src/lib.rs:110`), so the pack generator and run
-  script also write `terobit-client.log` into their own log folders. The folder layout also
-  differs per OS: `TerobitClient/` on macOS, `terobitclient/logs` on Linux,
-  `terobit/client/logs` on Windows.
-  - Why: confusing when looking for a tool's logs, and the per-OS layouts make support
-    instructions harder.
-  - How: build the file name from `first_name` and `last_name`, and pick one folder layout.
+- [x] **B9.** Logs are named after the program (`tbpk-generator.log.<date>`) and every OS
+  uses `<first>/<last>`: `~/Library/Logs/Terobit/Client/` on macOS,
+  `~/.local/share/terobit/client/logs/` on Linux, `%LOCALAPPDATA%\terobit\client\logs\` on
+  Windows.
 
 ## 2. Docs and code disagree
 

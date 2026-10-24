@@ -29,9 +29,9 @@ Each flag takes exactly one value. There is no `--help` yet (C6).
 Output is `<out>/<realm_id>-<pack_version>.client.tbpk` and `.server.tbpk`. The example
 above writes `out/tbpk_generator/1-1.client.tbpk` and `1-1.server.tbpk`.
 
-Logs go to the terminal and to a daily file. On Linux that's
-`~/.local/share/tbpkgenerator/logs/`, where the file is wrongly named
-`terobit-client.log.<date>` (B9).
+Logs go to the terminal and to a daily `tbpk-generator.log.<date>` file in
+`~/.local/share/tbpk/generator/logs/` on Linux, `~/Library/Logs/Tbpk/Generator/` on macOS,
+or `%LOCALAPPDATA%\tbpk\generator\logs\` on Windows.
 
 ## How it works
 
