@@ -25,10 +25,11 @@ impl PluginGroup for RuntimeCorePlugins {
             .add(DiagnosticsPlugin)
             .add(TerminalCtrlCHandlerPlugin)
             .add(StatesPlugin)
+            // registers the `pack://` asset source, which has to happen before `AssetPlugin`
+            .add(RuntimePackReaderPlugin)
             // scene, window and render all need the `AssetServer`
             .add(AssetPlugin::default())
             .add(RuntimeRunFlagsPlugin)
-            .add(RuntimePackReaderPlugin)
     }
 }
 

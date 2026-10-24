@@ -1,97 +1,33 @@
+use bevy::ecs::resource::Resource;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard};
+
 use crate::pack::AssetHandle;
 use crate::registry::TbpkSource;
-use bevy::ecs::resource::Resource;
-use snafu::OptionExt;
-use snafu::ResultExt;
-use snafu::Snafu;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::RwLock;
 
+/// the loaded pack, shared by `PackAssets` and the `pack://` asset source
 #[derive(Resource, Clone, Default)]
-pub struct PackRegistry(Arc<RwLock<RegistryInner>>);
+pub struct PackRegistry(Arc<RwLock<TbpkSource>>);
 
-pub enum RootLocation {
-    Developer { path: Box<Path> },
-    Pack { id: u64 },
-}
-
-#[derive(Default)]
-pub struct RegistryInner {
-    /// <RealmId, TbpkSource>
-    sources: HashMap<u64, TbpkSource>,
-}
-
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
-pub enum RegistryError {
-    #[snafu(display("failed to get read access to registry with handle `{}`", handle))]
-    FailedReadAccess { handle: AssetHandle },
-
-    #[snafu(display("could not find realmid `{}` in sources", id))]
-    FailedGetRealmFromId { id: u64 },
-
-    #[snafu(display("could not resolve handle `{}` to path", handle))]
-    FailedToResolveHandle { handle: AssetHandle },
-
-    #[snafu(display("failed to get read access to registry"))]
-    FailedReadLock,
-
-    #[snafu(display("could not read from path `{}`", path.display()))]
-    FailedToReadAssetFromPath {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("reading `{}` from pack `{}` is not supported yet", path.display(), id))]
-    PackReadUnsupported { id: u64, path: PathBuf },
-}
-
+// the source is only ever replaced whole, so a panic can't leave it half written and a
+// poisoned lock is safe to use
 impl PackRegistry {
-    pub(crate) fn resolve(&self, handle: &AssetHandle) -> Result<Box<Path>, RegistryError> {
-        let read = self.0.read().map_err(|_| {
-            FailedReadAccessSnafu {
-                handle: handle.clone(),
-            }
-            .build()
-        })?;
-
-        let source = read
-            .sources
-            .get(&0u64)
-            .context(FailedGetRealmFromIdSnafu { id: 0u64 })?;
-
-        let path = source
-            .resolve_handle_to_path(handle)
-            .context(FailedToResolveHandleSnafu {
-                handle: handle.clone(),
-            })?;
-
-        Ok(path.clone())
+    /// replaces the loaded pack
+    pub fn set(&self, source: TbpkSource) {
+        *self.0.write().unwrap_or_else(PoisonError::into_inner) = source;
     }
 
-    pub fn read_bytes(&self, path: &Path) -> Result<Vec<u8>, RegistryError> {
-        // needs to be updated to async some time
-        let full_path = {
-            let read = self.0.read().map_err(|_| FailedReadLockSnafu.build())?;
+    /// the pack path of an asset
+    pub fn resolve(&self, handle: &AssetHandle) -> Option<String> {
+        self.source().resolve(handle).map(str::to_owned)
+    }
 
-            let source = read
-                .sources
-                .get(&0u64)
-                .context(FailedGetRealmFromIdSnafu { id: 0u64 })?;
+    /// where a pack path is on disk, `None` if the loaded pack doesn't have that file
+    pub fn full_path(&self, path: &Path) -> Option<PathBuf> {
+        self.source().full_path(path)
+    }
 
-            match source.get_root() {
-                RootLocation::Developer { path: root } => root.join(path),
-                RootLocation::Pack { id } => {
-                    return PackReadUnsupportedSnafu { id: *id, path }.fail();
-                }
-            }
-        };
-
-        tracing::info!("Reading from path {}", full_path.display());
-
-        std::fs::read(&full_path).context(FailedToReadAssetFromPathSnafu { path: full_path })
+    fn source(&self) -> RwLockReadGuard<'_, TbpkSource> {
+        self.0.read().unwrap_or_else(PoisonError::into_inner)
     }
 }

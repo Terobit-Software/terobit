@@ -117,7 +117,7 @@ What's broken, missing and out of date, with why and how for each item.
 Generates .tbpk files from a manifest and asset directory. Working, writes unsigned packs. See [README](bins/tbpk_generator/README.md).
 
 ### Client (terobit_client)
-Runs and parses .client.tbpk files. Currently opens an empty window. With `--dev` it validates a dev directory's manifest, but loads nothing from it yet. See [README](bins/terobit_client/README.md).
+Runs and parses .client.tbpk files. Currently opens an empty window. With `--dev` it loads a dev directory's assets, but nothing uses them yet. See [README](bins/terobit_client/README.md).
 
 ### Editor (terobit_editor)
 Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, tbpk_generator and `cargo rcl` stand in for it. See [README](bins/terobit_editor/README.md).
