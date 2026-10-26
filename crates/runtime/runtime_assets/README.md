@@ -9,7 +9,7 @@ are the spec this crate follows.
 | module          | what's in it                                                                 | state        |
 |-----------------|------------------------------------------------------------------------------|--------------|
 | `pack` (types)  | in-memory form of each format: `CommonHeader`, `TbPack` and `IndexV1`, `ManifestV1`, `TbSignature`, `TbLicense`, `Certificate` and the hash contexts, `AssetHandle`, `validate_path` | serialize only, no `Deserialize` yet (F1) |
-| `pack::writers` | `PackWriter` builds and writes `.tbpk` archives, `PackSigner` signs manifests, the chunker splits and compresses files | working |
+| `pack::writers` | `PackWriter` builds and writes `.tbpk` archives, `PackSigner` signs manifests, the chunker splits and compresses files. needs the `writer` feature | working |
 | `readers`       | `ManifestSource` loads and validates `manifest.toml`. `RuntimePackReaderPlugin`, `LoadPackFileEvent` and `RuntimePackConfig` start a pack load. `PackReader` reads it | manifest and dev directories work, `.tbpk` reading is a stub (F1) |
 | `registry`      | `PackRegistry` holds the loaded pack, `PackAssets` loads by handle in systems, `PackAssetReader` is the `pack://` asset source | working for dev directories |
 

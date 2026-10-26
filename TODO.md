@@ -51,21 +51,11 @@ Fix these first. Each one stops something that looks finished from working.
 The [format README](docs/formats/README.md) says that when code and docs disagree, one of
 them is a bug.
 
-- [ ] **D1. zstd level: docs say 19, code says 5.**
-  [tbman v1](docs/formats/tbman/v1.md#compression) pins level 19. `ZSTD_LEVEL` is 5
-  (`pack/types/tbman.rs:4`), and `cargo pkgen` uses it by default.
-  - Why: the level changes every compressed chunk's bytes and hash, and it can never change
-    once v1 is released.
-  - How: decide before release. 19 gives smaller packs but packs much more slowly, 5 is
-    quick. Update whichever side is wrong, and record the zstd version in tbman v1 at the
-    same time (the doc still says "not pinned yet"). The zstd bump that had to be reverted
-    in #21 shows why it should be pinned with `=` in `Cargo.toml` (see T4).
-
-- [ ] **D2. The `writer` cargo feature does nothing.**
-  `runtime_assets` declares `writer = [] # seperate with a feature`, but `pack::writers` is
-  always compiled, so the client ships the pack writer.
-  - How: put `pack::writers` behind `#[cfg(feature = "writer")]` (`tbpk_generator` already
-    turns it on), or remove the feature.
+- [x] **D1.** The zstd level is 5 in both the code and [tbman v1](docs/formats/tbman/v1.md#compression).
+  The doc records libzstd 1.5.7, and `zstd` and `zstd-sys` are pinned with `=` in
+  `Cargo.toml`.
+- [x] **D2.** `pack::writers` only compiles with `runtime_assets`' `writer` feature, so the
+  client doesn't ship the pack writer. `tbpk_generator` turns it on.
 
 - [x] **D3.** The README said `cargo rcl` runs the client with `--pack-file .`. It passes
   the absolute path of `tests/examples/source_to_tbpk/basic1`. Fixed in the README.
@@ -187,8 +177,8 @@ Roughly in the order they depend on each other.
 - [ ] **T3. Add clippy.** `cargo clippy --workspace --all-targets -- -D warnings` once C2 is
   done.
 
-- [ ] **T4. Keep dependabot away from zstd once v1 is pinned.** Daily grouped updates
-  include zstd, and a new zstd can change chunk bytes. Add an `ignore` entry for it.
+- [x] **T4.** Dependabot ignores `zstd`, `zstd-safe` and `zstd-sys`, since a new zstd can
+  change chunk bytes.
 
 ## 6. Docs to write
 

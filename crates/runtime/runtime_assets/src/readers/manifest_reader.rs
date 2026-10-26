@@ -270,6 +270,7 @@ impl ManifestSource {
             .collect()
     }
 
+    #[cfg(feature = "writer")]
     /// one side's files: the shared assets plus that side's assets and scripts, sorted by
     /// path in byte order, with sizes read from disk
     pub(crate) fn get_side_files(
@@ -302,6 +303,7 @@ impl ManifestSource {
         Ok(files)
     }
 
+    #[cfg(feature = "writer")]
     /// one side's manifest. `files` must be that side's `get_side_files`, the list the
     /// index was chunked from
     pub(crate) fn get_v1_side(

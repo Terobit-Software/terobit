@@ -5277,6 +5277,7 @@ dependencies = [
  "toml",
  "tracing",
  "zstd",
+ "zstd-sys",
 ]
 
 [[package]]

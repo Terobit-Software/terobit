@@ -10,6 +10,12 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    # the zstd version is pinned by manifest v1 (docs/formats/tbman/v1.md#compression).
+    # a new one can change chunk bytes, so it only moves with a new manifest version
+    ignore:
+      - dependency-name: "zstd"
+      - dependency-name: "zstd-safe"
+      - dependency-name: "zstd-sys"
     # Group minor/patch bumps into one PR to avoid PR fatigue; breaking
     # majors (wgpu, winit, ...) arrive as individual PRs instead.
     groups:
