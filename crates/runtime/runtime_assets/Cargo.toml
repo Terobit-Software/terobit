@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features=["std", "bevy_asset"]}
 zstd.workspace = true
+zstd-sys.workspace = true
 postcard.workspace = true
 serde.workspace = true
 tracing.workspace = true
@@ -18,4 +19,5 @@ snafu.workspace = true
 
 [features]
 default = []
-writer = [] # seperate with a feature
+# the pack writer (`pack::writers`). off so the client doesn't ship it
+writer = []

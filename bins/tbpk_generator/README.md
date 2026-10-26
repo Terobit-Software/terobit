@@ -50,7 +50,6 @@ does inside.
 
 - writes valid, unsigned v1 archives
 - no signing key loading, so packs are always unsigned (F2)
-- the default zstd level disagrees with the docs (D1)
 - prints a few hundred lines even for a tiny pack (C1)
 
 ## TODO
