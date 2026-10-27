@@ -1,0 +1,7 @@
+[package]
+name = "hello_world1"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+terobit_v1.workspace = true

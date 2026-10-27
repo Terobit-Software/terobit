@@ -1,0 +1,11 @@
+[package]
+name = "terobit_v1_macros"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+syn.workspace = true
+quote.workspace = true
+
+[lib]
+proc-macro = true

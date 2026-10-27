@@ -1,0 +1,6 @@
+[package]
+name = "terobit_v1"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
