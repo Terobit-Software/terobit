@@ -6506,6 +6506,9 @@ version = "0.1.0"
 [[package]]
 name = "terobit_v1"
 version = "0.1.0"
+dependencies = [
+ "terobit_v1_macros",
+]
 
 [[package]]
 name = "terobit_v1_macros"
