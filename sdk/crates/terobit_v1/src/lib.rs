@@ -1,11 +1,5 @@
-use terobit_v1_macros::{main, update};
+pub use terobit_v1_macros::main;
 
-#[main]
-pub fn entry() {
-    println!("test");
-}
-
-#[update]
-pub fn update() {
-    println!("update")
+pub mod update {
+    pub use terobit_v1_macros::{post_physics, post_render, pre_physics, pre_render};
 }

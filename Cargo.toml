@@ -32,9 +32,11 @@ members = [
 
     # sdk
     "sdk/crates/terobit_v1",
+    "sdk/crates/terobit_v1_abi",
+    "sdk/crates/terobit_v1_macros",
 
     # examples
-    "tests/examples/sdk/hello_world1", "sdk/crates/terobit_v1_macros",
+    "tests/examples/sdk/hello_world1",
 ]
 
 [workspace.package]
@@ -62,6 +64,7 @@ snafu = "0.9.2"
 wasmtime = "50.0.0"
 syn = { version = "3.0.9", features = ["full"] }
 quote = "1.0.47"
+bytemuck = { version = "1.25.2", default-features = false, features = ["derive"] }
 
 # Internal crates
 runtime_animation = { path = "crates/runtime/runtime_animation" }
@@ -79,6 +82,7 @@ runtime_assets = { path = "crates/runtime/runtime_assets" }
 client_dev = { path = "crates/client/client_dev" }
 terobit_v1 = { path = "sdk/crates/terobit_v1" }
 terobit_v1_macros = { path = "sdk/crates/terobit_v1_macros" }
+terobit_v1_abi = { path = "sdk/crates/terobit_v1_abi" }
 
 # Final release builds: slow to compile, maximum speed and minimum size.
 # cargo build --release

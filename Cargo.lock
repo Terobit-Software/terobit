@@ -6511,6 +6511,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "terobit_v1_abi"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "terobit_v1_macros"
 version = "0.1.0"
 dependencies = [
