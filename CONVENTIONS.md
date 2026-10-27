@@ -16,6 +16,23 @@ bevy = { version = "0.20.0", default-features = false }
 bevy.workspace = true
 ```
 
+## Workspace Version
+Every crate and binary shares one version, set in `[workspace.package]`. Never give a crate its own version.
+
+#### /Cargo.toml
+```toml
+[workspace.package]
+version = "0.1.0"
+```
+
+#### crate/Cargo.toml
+```toml
+[package]
+name = "runtime_example"
+version.workspace = true
+edition = "2024"
+```
+
 ## Logging
 All logging should be done through tracing. Use `info!`, `error!`, and `warn!`.
 
@@ -84,7 +101,7 @@ option.unwrap()
 ## Pull requests
 These are enforced by the workflows in `.github/workflows`.
 
-- **Bump the version.** Every PR into `main` must change the `version` in `bins/terobit_client`, `bins/terobit_editor` and `bins/terobit_server` to one new shared value. The `Version check` workflow fails if they differ from each other or still match `main`.
+- **Bump the version.** Every PR into `main` must change the `[workspace.package]` `version` in `/Cargo.toml`. The `Version check` workflow fails if it still matches `main`.
 - **Pass CI.** `cargo fmt --all --check`, `cargo check --workspace --all-targets --profile ci`, `cargo nextest run --workspace --cargo-profile ci`, and `cargo nextest run -p client_dev --features dev --cargo-profile ci`. Run `cargo fmt --all` before pushing.
 - **Workflow changes need review** from `@Terobit-Software/head-development` (see `.github/CODEOWNERS`).
 - **Nightlies are automatic.** Every night at midnight Central, `release/nightly/MM.DD.YYYY` is cut from `main` and older nightly branches are deleted. Don't push to them.

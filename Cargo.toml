@@ -31,6 +31,9 @@ members = [
     "scripts/example_generator",
 ]
 
+[workspace.package]
+version = "0.1.0"
+
 [workspace.dependencies]
 bevy = { version = "0.20.0", default-features = false, features = ["debug"] }
 tracing = "0.1.44"
