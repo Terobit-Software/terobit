@@ -11,6 +11,7 @@ use bevy::{
 };
 use runtime_assets::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
+use runtime_sandbox::RuntimeSandboxPlugin;
 
 pub struct RuntimeCorePlugins;
 
@@ -30,6 +31,7 @@ impl PluginGroup for RuntimeCorePlugins {
             // scene, window and render all need the `AssetServer`
             .add(AssetPlugin::default())
             .add(RuntimeRunFlagsPlugin)
+            .add(RuntimeSandboxPlugin)
     }
 }
 

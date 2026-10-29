@@ -5833,6 +5833,7 @@ dependencies = [
  "bevy",
  "runtime_assets",
  "runtime_run_flags",
+ "runtime_sandbox",
 ]
 
 [[package]]
@@ -5878,6 +5879,7 @@ dependencies = [
 name = "runtime_sandbox"
 version = "0.1.0"
 dependencies = [
+ "bevy",
  "wasmtime",
 ]
 
