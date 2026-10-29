@@ -6,6 +6,7 @@ version.workspace = true
 [dependencies]
 syn.workspace = true
 quote.workspace = true
+terobit_v1_abi.workspace = true
 
 [lib]
 proc-macro = true

@@ -1,160 +1,123 @@
 //! This library contains proc-macros for the v1 SDK.
+//!
+//! Every macro here is an entrypoint attribute, declared once with
+//! `entrypoint!` against its export name in `terobit_v1_abi::endpoints`.
+
+mod entrypoint;
 
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{ItemFn, parse_macro_input};
+use terobit_v1_abi::endpoints::*;
 
-/// Called after the script is loaded and host resources are initialized.
+/// Declares an entrypoint attribute macro that exports the annotated fn
+/// under the given `terobit_v1_abi::endpoints` constant.
 ///
-/// `fn()` -> `u16`
-///
-/// (nothing) -> main fn exit code
-///
-/// ```rust
-/// use terobit_v1::main;
-///
-/// #[main]
-/// fn main () -> u16 {
-///     println!("This code is run when the script is loaded.");
-///     0
-/// }
+/// ```ignore
+/// entrypoint!(
+///     /// docs
+///     main(MAIN_ENTRYPOINT)
+/// );
 /// ```
-#[proc_macro_attribute]
-pub fn main(_args: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let fn_name = &input_fn.sig.ident;
-
-    quote! {
-        #input_fn
-
-        #[unsafe(no_mangle)]
-        pub extern "C" fn _terobit_v1_main() {
-            #fn_name();
+macro_rules! entrypoint {
+    ($(#[$attr:meta])* $name:ident($export:ident)) => {
+        $(#[$attr])*
+        #[proc_macro_attribute]
+        pub fn $name(args: TokenStream, item: TokenStream) -> TokenStream {
+            entrypoint::expand($export, args, item)
         }
-    }
-    .into()
+    };
 }
 
-/// Called before rendering and physics. Update stage 1 (first).
-///
-/// `fn(FrameInfo)` -> `u16`
-///
-/// (info for this frame) -> pre physics fn exit code
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::pre_physics]
-/// fn pre_physics (info: FrameInfo) -> u16 {
-///     println!("This code is run every frame BEFORE physics.");
-///     0
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn pre_physics(_args: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let fn_name = &input_fn.sig.ident;
+entrypoint!(
+    /// Called after the script is loaded and host resources are initialized.
+    ///
+    /// `fn()` -> `u16`
+    ///
+    /// (nothing) -> main fn exit code
+    ///
+    /// ```rust
+    /// use terobit_v1::main;
+    ///
+    /// #[main]
+    /// fn main () -> u16 {
+    ///     println!("This code is run when the script is loaded.");
+    ///     0
+    /// }
+    /// ```
+    main(MAIN_ENTRYPOINT)
+);
 
-    quote! {
-        #input_fn
+entrypoint!(
+    /// Called before rendering and physics. Update stage 1 (first).
+    ///
+    /// `fn(FrameInfo)` -> `u16`
+    ///
+    /// (info for this frame) -> pre physics fn exit code
+    ///
+    /// ```rust
+    /// use terobit_v1::update;
+    ///
+    /// #[update::pre_physics]
+    /// fn pre_physics (info: FrameInfo) -> u16 {
+    ///     println!("This code is run every frame BEFORE physics.");
+    ///     0
+    /// }
+    /// ```
+    pre_physics(PRE_PHYSICS_ENTRYPOINT)
+);
 
-        #[unsafe(no_mangle)]
-        pub extern "C" fn _terobit_v1_pre_physics_update() {
-            #fn_name();
-        }
-    }
-    .into()
-}
+entrypoint!(
+    /// Called every frame after physics, but before pre-rendering. Update stage 2.
+    ///
+    /// `fn(FrameInfo)` -> `u16`
+    ///
+    /// (info for this frame) -> post physics fn exit code
+    ///
+    /// ```rust
+    /// use terobit_v1::update;
+    ///
+    /// #[update::post_physics]
+    /// fn post_physics (info: FrameInfo) -> u16 {
+    ///     println!("This code is run every frame AFTER physics.");
+    ///     0
+    /// }
+    /// ```
+    post_physics(POST_PHYSICS_ENTRYPOINT)
+);
 
-/// Called every frame after physics, but before pre-rendering. Update stage 2.
-///
-/// `fn(FrameInfo)` -> `u16`
-///
-/// (info for this frame) -> post physics fn exit code
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::post_physics]
-/// fn post_physics (info: FrameInfo) -> u16 {
-///     println!("This code is run every frame AFTER physics.");
-///     0
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn post_physics(_args: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let fn_name = &input_fn.sig.ident;
+entrypoint!(
+    /// Called every frame before rendering, but after post-physics. Update stage 3.
+    ///
+    /// `fn(FrameInfo)` -> `u16`
+    ///
+    /// (info for this frame) -> pre render fn exit code
+    ///
+    /// ```rust
+    /// use terobit_v1::update;
+    ///
+    /// #[update::pre_render]
+    /// fn pre_render (info: FrameInfo) -> u16 {
+    ///     println!("This code is run every frame BEFORE rendering.");
+    ///     0
+    /// }
+    /// ```
+    pre_render(PRE_RENDER_ENTRYPOINT)
+);
 
-    quote! {
-        #input_fn
-
-        #[unsafe(no_mangle)]
-        pub extern "C" fn _terobit_v1_post_physics_update() {
-            #fn_name();
-        }
-    }
-    .into()
-}
-
-/// Called every frame before rendering, but after post-physics. Update stage 3.
-///
-/// `fn(FrameInfo)` -> `u16`
-///
-/// (info for this frame) -> pre render fn exit code
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::pre_render]
-/// fn pre_render (info: FrameInfo) -> u16 {
-///     println!("This code is run every frame BEFORE rendering.");
-///     0
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn pre_render(_args: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let fn_name = &input_fn.sig.ident;
-
-    quote! {
-        #input_fn
-
-        #[unsafe(no_mangle)]
-        pub extern "C" fn _terobit_v1_pre_render_update() {
-            #fn_name();
-        }
-    }
-    .into()
-}
-
-/// Called every frame after rendering and physics. Update stage 4 (final).
-///
-/// `fn(FrameInfo)` -> `u16`
-///
-/// (info for this frame) -> post render fn exit code
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::post_rendering]
-/// fn post_rendering (info: FrameInfo) -> u16 {
-///     println!("This code is run every frame AFTER rendering.");
-///     0
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn post_render(_args: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let fn_name = &input_fn.sig.ident;
-
-    quote! {
-        #input_fn
-
-        #[unsafe(no_mangle)]
-        pub extern "C" fn _terobit_v1_post_render_update() {
-            #fn_name();
-        }
-    }
-    .into()
-}
+entrypoint!(
+    /// Called every frame after rendering and physics. Update stage 4 (final).
+    ///
+    /// `fn(FrameInfo)` -> `u16`
+    ///
+    /// (info for this frame) -> post render fn exit code
+    ///
+    /// ```rust
+    /// use terobit_v1::update;
+    ///
+    /// #[update::post_render]
+    /// fn post_render (info: FrameInfo) -> u16 {
+    ///     println!("This code is run every frame AFTER rendering.");
+    ///     0
+    /// }
+    /// ```
+    post_render(POST_RENDER_ENTRYPOINT)
+);
