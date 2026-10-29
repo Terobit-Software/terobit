@@ -16,6 +16,7 @@ runtime_render.workspace = true
 runtime_scene.workspace = true
 runtime_ui.workspace = true
 runtime_window.workspace = true
+runtime_sandbox.workspace = true
 client_dev.workspace = true
 
 [features]

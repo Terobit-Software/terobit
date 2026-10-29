@@ -6489,6 +6489,7 @@ dependencies = [
  "runtime_logging",
  "runtime_picking",
  "runtime_render",
+ "runtime_sandbox",
  "runtime_scene",
  "runtime_ui",
  "runtime_window",

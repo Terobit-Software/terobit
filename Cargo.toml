@@ -79,6 +79,7 @@ runtime_ui = { path = "crates/runtime/runtime_ui" }
 runtime_window = { path = "crates/runtime/runtime_window" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
 runtime_assets = { path = "crates/runtime/runtime_assets" }
+runtime_sandbox = { path = "crates/runtime/runtime_sandbox" }
 client_dev = { path = "crates/client/client_dev" }
 terobit_v1 = { path = "sdk/crates/terobit_v1" }
 terobit_v1_macros = { path = "sdk/crates/terobit_v1_macros" }
