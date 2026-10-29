@@ -5,3 +5,6 @@ version.workspace = true
 
 [dependencies]
 terobit_v1.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
