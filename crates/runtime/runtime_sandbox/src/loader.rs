@@ -1,4 +1,8 @@
-use bevy::ecs::{event::Event, observer::On, system::Res};
+use bevy::ecs::{
+    event::Event,
+    observer::On,
+    system::{Res, ResMut},
+};
 use runtime_assets::{pack::AssetHandle, registry::PackRegistry};
 
 #[derive(Event)]
@@ -42,7 +46,11 @@ fn get_module_bytes(
     })
 }
 
-pub fn observe_load_module_event(event: On<LoadModuleEvent>, registry: Res<PackRegistry>) {
+pub fn observe_load_module_event(
+    event: On<LoadModuleEvent>,
+    registry: Res<PackRegistry>,
+    mut sandbox: ResMut<crate::RuntimeSandboxResource>,
+) {
     let handle = event.handle.clone();
     tracing::info!("New load module request from {}", handle);
 
@@ -53,4 +61,6 @@ pub fn observe_load_module_event(event: On<LoadModuleEvent>, registry: Res<PackR
             return;
         }
     };
+
+    let sbox = &mut *sandbox;
 }
