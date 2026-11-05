@@ -5880,6 +5880,7 @@ name = "runtime_sandbox"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "runtime_assets",
  "terobit_v1_abi",
  "tracing",
  "wasmtime",

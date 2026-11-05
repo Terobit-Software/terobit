@@ -8,3 +8,4 @@ wasmtime.workspace = true
 bevy.workspace = true
 terobit_v1_abi.workspace = true
 tracing.workspace = true
+runtime_assets.workspace = true

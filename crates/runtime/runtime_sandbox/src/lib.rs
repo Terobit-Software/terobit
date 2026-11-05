@@ -5,6 +5,9 @@ use bevy::{
 
 pub struct RuntimeSandboxPlugin;
 
+mod loader;
+pub use loader::*;
+
 #[derive(Resource)]
 pub struct RuntimeSandboxResource {
     engine: wasmtime::Engine,
@@ -30,5 +33,7 @@ impl Plugin for RuntimeSandboxPlugin {
             instances: Vec::new(),
         });
         tracing::info!("Inserted resource");
+
+        app.add_observer(observe_load_module_event);
     }
 }
