@@ -13,6 +13,7 @@ pub struct RuntimeSandboxResource {
     engine: wasmtime::Engine,
     store: wasmtime::Store<()>,
     instances: Vec<wasmtime::Instance>,
+    linker: wasmtime::Linker<()>,
 }
 
 impl Plugin for RuntimeSandboxPlugin {
@@ -27,10 +28,14 @@ impl Plugin for RuntimeSandboxPlugin {
         let store = wasmtime::Store::new(&engine, ());
         tracing::info!("Created wasm store");
 
+        let linker = wasmtime::Linker::new(&engine);
+        tracing::info!("Created wasm linker");
+
         app.insert_resource(RuntimeSandboxResource {
             engine,
             store,
             instances: Vec::new(),
+            linker,
         });
         tracing::info!("Inserted resource");
 
