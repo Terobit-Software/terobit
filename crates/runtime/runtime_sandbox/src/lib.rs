@@ -10,10 +10,10 @@ pub use loader::*;
 
 #[derive(Resource)]
 pub struct RuntimeSandboxResource {
-    engine: wasmtime::Engine,
-    store: wasmtime::Store<()>,
-    instances: Vec<wasmtime::Instance>,
-    linker: wasmtime::Linker<()>,
+    pub engine: wasmtime::Engine,
+    pub store: wasmtime::Store<()>,
+    pub instances: Vec<wasmtime::Instance>,
+    pub linker: wasmtime::Linker<()>,
 }
 
 impl Plugin for RuntimeSandboxPlugin {

@@ -49,7 +49,7 @@ fn get_module_bytes(
 pub fn observe_load_module_event(
     event: On<LoadModuleEvent>,
     registry: Res<PackRegistry>,
-    mut sandbox: ResMut<crate::RuntimeSandboxResource>,
+    mut _sand: ResMut<crate::RuntimeSandboxResource>,
 ) {
     let handle = event.handle.clone();
     tracing::info!("New load module request from {}", handle);
@@ -62,5 +62,21 @@ pub fn observe_load_module_event(
         }
     };
 
-    let sbox = &mut *sandbox;
+    let sbox = &mut *_sand;
+
+    let module = match wasmtime::Module::new(&sbox.engine, &bytes) {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::error!("Failed to compile module `{}`: {:?}", handle, e);
+            return;
+        }
+    };
+
+    match sbox.linker.instantiate(&mut sbox.store, &module) {
+        Ok(instance) => {
+            tracing::info!("Loaded module `{}`", handle);
+            sbox.instances.push(instance);
+        }
+        Err(e) => tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e),
+    }
 }
