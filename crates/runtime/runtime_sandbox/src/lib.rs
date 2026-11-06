@@ -18,15 +18,22 @@ pub struct RuntimeSandboxResource {
 
 impl Plugin for RuntimeSandboxPlugin {
     fn build(&self, app: &mut App) {
-        let config = wasmtime::Config::default();
+        let mut config = wasmtime::Config::default();
+        config.consume_fuel(true);
+
         let engine = match wasmtime::Engine::new(&config) {
             Ok(v) => v,
             Err(e) => panic!("FAILED TO MAKE WASM ENGINE: {}", e),
         };
         tracing::info!("Created wasm engine");
 
-        let store = wasmtime::Store::new(&engine, ());
+        let mut store = wasmtime::Store::new(&engine, ());
         tracing::info!("Created wasm store");
+
+        match store.set_fuel(1_000_000) {
+            Ok(()) => tracing::info!("Allocated 1_000_000 fuel successfully"),
+            Err(e) => tracing::error!("FAILED to allocate 1_000_000 fuel with reason {}", e),
+        }
 
         let linker = wasmtime::Linker::new(&engine);
         tracing::info!("Created wasm linker");
