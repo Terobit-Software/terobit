@@ -48,15 +48,15 @@ entrypoint!(
 entrypoint!(
     /// Called before rendering and physics. Update stage 1 (first).
     ///
-    /// `fn(FrameInfo)` -> `()`
+    /// `fn()` -> `()`
     ///
-    /// (info for this frame) -> (nothing)
+    /// (nothing) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::pre_physics]
-    /// fn pre_physics (info: FrameInfo) {
+    /// fn pre_physics () {
     ///     println!("This code is run every frame BEFORE physics.");
     /// }
     /// ```
@@ -66,15 +66,15 @@ entrypoint!(
 entrypoint!(
     /// Called every frame after physics, but before pre-rendering. Update stage 2.
     ///
-    /// `fn(FrameInfo)` -> `()`
+    /// `fn()` -> `()`
     ///
-    /// (info for this frame) -> (nothing)
+    /// (nothing) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::post_physics]
-    /// fn post_physics (info: FrameInfo) {
+    /// fn post_physics () {
     ///     println!("This code is run every frame AFTER physics.");
     /// }
     /// ```
@@ -84,15 +84,15 @@ entrypoint!(
 entrypoint!(
     /// Called every frame before rendering, but after post-physics. Update stage 3.
     ///
-    /// `fn(FrameInfo)` -> `()`
+    /// `fn()` -> `()`
     ///
-    /// (info for this frame) -> (nothing)
+    /// (nothing) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::pre_render]
-    /// fn pre_render (info: FrameInfo) {
+    /// fn pre_render () {
     ///     println!("This code is run every frame BEFORE rendering.");
     /// }
     /// ```
@@ -102,15 +102,15 @@ entrypoint!(
 entrypoint!(
     /// Called every frame after rendering and physics. Update stage 4 (final).
     ///
-    /// `fn(FrameInfo)` -> `()`
+    /// `fn()` -> `()`
     ///
-    /// (info for this frame) -> (nothing)
+    /// (nothing) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::post_render]
-    /// fn post_render (info: FrameInfo) {
+    /// fn post_render () {
     ///     println!("This code is run every frame AFTER rendering.");
     /// }
     /// ```
