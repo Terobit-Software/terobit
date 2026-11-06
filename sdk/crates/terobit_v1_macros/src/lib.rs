@@ -30,17 +30,16 @@ macro_rules! entrypoint {
 entrypoint!(
     /// Called after the script is loaded and host resources are initialized.
     ///
-    /// `fn()` -> `u16`
+    /// `fn()` -> `()`
     ///
-    /// (nothing) -> main fn exit code
+    /// (nothing) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::main;
     ///
     /// #[main]
-    /// fn main () -> u16 {
+    /// fn main () {
     ///     println!("This code is run when the script is loaded.");
-    ///     0
     /// }
     /// ```
     main(MAIN_ENTRYPOINT)
@@ -49,17 +48,16 @@ entrypoint!(
 entrypoint!(
     /// Called before rendering and physics. Update stage 1 (first).
     ///
-    /// `fn(FrameInfo)` -> `u16`
+    /// `fn(FrameInfo)` -> `()`
     ///
-    /// (info for this frame) -> pre physics fn exit code
+    /// (info for this frame) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::pre_physics]
-    /// fn pre_physics (info: FrameInfo) -> u16 {
+    /// fn pre_physics (info: FrameInfo) {
     ///     println!("This code is run every frame BEFORE physics.");
-    ///     0
     /// }
     /// ```
     pre_physics(PRE_PHYSICS_ENTRYPOINT)
@@ -68,17 +66,16 @@ entrypoint!(
 entrypoint!(
     /// Called every frame after physics, but before pre-rendering. Update stage 2.
     ///
-    /// `fn(FrameInfo)` -> `u16`
+    /// `fn(FrameInfo)` -> `()`
     ///
-    /// (info for this frame) -> post physics fn exit code
+    /// (info for this frame) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::post_physics]
-    /// fn post_physics (info: FrameInfo) -> u16 {
+    /// fn post_physics (info: FrameInfo) {
     ///     println!("This code is run every frame AFTER physics.");
-    ///     0
     /// }
     /// ```
     post_physics(POST_PHYSICS_ENTRYPOINT)
@@ -87,17 +84,16 @@ entrypoint!(
 entrypoint!(
     /// Called every frame before rendering, but after post-physics. Update stage 3.
     ///
-    /// `fn(FrameInfo)` -> `u16`
+    /// `fn(FrameInfo)` -> `()`
     ///
-    /// (info for this frame) -> pre render fn exit code
+    /// (info for this frame) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::pre_render]
-    /// fn pre_render (info: FrameInfo) -> u16 {
+    /// fn pre_render (info: FrameInfo) {
     ///     println!("This code is run every frame BEFORE rendering.");
-    ///     0
     /// }
     /// ```
     pre_render(PRE_RENDER_ENTRYPOINT)
@@ -106,17 +102,16 @@ entrypoint!(
 entrypoint!(
     /// Called every frame after rendering and physics. Update stage 4 (final).
     ///
-    /// `fn(FrameInfo)` -> `u16`
+    /// `fn(FrameInfo)` -> `()`
     ///
-    /// (info for this frame) -> post render fn exit code
+    /// (info for this frame) -> (nothing)
     ///
     /// ```rust
     /// use terobit_v1::update;
     ///
     /// #[update::post_render]
-    /// fn post_render (info: FrameInfo) -> u16 {
+    /// fn post_render (info: FrameInfo) {
     ///     println!("This code is run every frame AFTER rendering.");
-    ///     0
     /// }
     /// ```
     post_render(POST_RENDER_ENTRYPOINT)
