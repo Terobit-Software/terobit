@@ -1,2 +1,1 @@
-mod log;
-pub(crate) use log;
+pub(crate) mod log;

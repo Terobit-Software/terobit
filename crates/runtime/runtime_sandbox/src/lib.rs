@@ -6,6 +6,7 @@ use runtime_consts::sandbox::WASM_FUEL;
 
 pub struct RuntimeSandboxPlugin;
 
+mod host;
 mod loader;
 pub use loader::*;
 
@@ -36,8 +37,13 @@ impl Plugin for RuntimeSandboxPlugin {
             Err(e) => tracing::error!("FAILED to allocate {} fuel with reason {}", WASM_FUEL, e),
         }
 
-        let linker = wasmtime::Linker::new(&engine);
+        let mut linker = wasmtime::Linker::new(&engine);
         tracing::info!("Created wasm linker");
+
+        match host::log::link(&mut linker) {
+            Ok(()) => tracing::info!("Linked host log"),
+            Err(e) => tracing::error!("FAILED to link host log with reason {}", e),
+        }
 
         app.insert_resource(RuntimeSandboxResource {
             engine,
