@@ -1,9 +1,9 @@
+use bevy::ecs::system::Commands;
 use bevy::ecs::{
     event::Event,
     observer::On,
     system::{Res, ResMut},
 };
-use bevy::ecs::system::Commands;
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 
 #[derive(Event)]
@@ -34,9 +34,11 @@ fn get_module_bytes(
     handle: &AssetHandle,
     registry: &PackRegistry,
 ) -> Result<Vec<u8>, ModuleLoadError> {
-    let path = registry.resolve_script(handle).context(UnknownHandleSnafu {
-        handle: handle.clone(),
-    })?;
+    let path = registry
+        .resolve_script(handle)
+        .context(UnknownHandleSnafu {
+            handle: handle.clone(),
+        })?;
 
     let full = registry
         .full_path(Path::new(&path))
