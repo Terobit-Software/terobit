@@ -8,5 +8,5 @@ edition = "2024"
 client_consts.workspace = true
 tracing.workspace = true
 runtime_logging.workspace = true
-clap.workspace = true
+runtime_run_flags.workspace = true
 snafu.workspace = true

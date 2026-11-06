@@ -3,22 +3,108 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, ExitStatus};
 
-use clap::Parser;
 use client_consts::flags::{DEV, PACK_FILE};
 use client_consts::paths::{CLIENT_BIN, CLIENT_OUT};
+use runtime_run_flags::RuntimeFlags;
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info, warn};
 
+/// pack loaded when `--pack-file` isn't given, relative to the workspace root
+const DEFAULT_PACK_FILE: &str = "tests/examples/source_to_tbpk/basic1";
+
 /// Build and run the terobit client
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[derive(Debug)]
 struct Args {
     /// Build in final (release) mode
-    #[arg(short, long)]
     r#final: bool,
     /// Don't pass the default dev flags to the client
-    #[arg(short, long)]
     strip_defaults: bool,
+    /// pack or dev directory the client loads, relative to the current directory
+    pack_file: PathBuf,
+}
+
+/// run flags that don't make a valid set of `Args`
+#[derive(Debug, Snafu)]
+enum ArgsError {
+    #[snafu(display(
+        "unknown flag {flag}, expected --final, --strip-defaults or {PACK_FILE} <path>"
+    ))]
+    UnknownFlag { flag: String },
+
+    #[snafu(display(
+        "`{arg}` isn't a flag, flags are long only (`-f` is now `--final`, `-s` is `--strip-defaults`)"
+    ))]
+    NotAFlag { arg: String },
+
+    #[snafu(display("{flag} doesn't take a value, but was given {values:?}"))]
+    TakesNoValue { flag: String, values: Vec<String> },
+
+    #[snafu(display("{PACK_FILE} takes exactly one path, but was given {}: {values:?}", values.len()))]
+    PackFileCount { values: Vec<String> },
+
+    #[snafu(display("{PACK_FILE} only applies to dev runs, it can't be used with {flag}"))]
+    PackFileUnused { flag: &'static str },
+}
+
+impl Args {
+    /// `RuntimeFlags` drops anything before the first `--flag`, so check for it here instead of
+    /// silently running with defaults
+    fn from_args(args: Vec<String>) -> Result<Self, ArgsError> {
+        if let Some(arg) = args.iter().take_while(|arg| !arg.starts_with("--")).next() {
+            return NotAFlagSnafu { arg }.fail();
+        }
+        Self::from_flags(&RuntimeFlags::from_args(args))
+    }
+
+    fn from_flags(flags: &RuntimeFlags) -> Result<Self, ArgsError> {
+        let flags = flags.get_flags();
+        for flag in flags.keys() {
+            ensure!(
+                ["--final", "--strip-defaults", PACK_FILE].contains(&flag.as_str()),
+                UnknownFlagSnafu { flag }
+            );
+        }
+
+        let switch = |flag: &str| -> Result<bool, ArgsError> {
+            match flags.get(flag) {
+                None => Ok(false),
+                Some(values) if values.is_empty() => Ok(true),
+                Some(values) => TakesNoValueSnafu {
+                    flag,
+                    values: values.clone(),
+                }
+                .fail(),
+            }
+        };
+        let r#final = switch("--final")?;
+        let strip_defaults = switch("--strip-defaults")?;
+
+        let pack_file = match flags.get(PACK_FILE) {
+            None => PathBuf::from(DEFAULT_PACK_FILE),
+            Some(values) => {
+                let [path] = values.as_slice() else {
+                    return PackFileCountSnafu {
+                        values: values.clone(),
+                    }
+                    .fail();
+                };
+                ensure!(!r#final, PackFileUnusedSnafu { flag: "--final" });
+                ensure!(
+                    !strip_defaults,
+                    PackFileUnusedSnafu {
+                        flag: "--strip-defaults"
+                    }
+                );
+                PathBuf::from(path)
+            }
+        };
+
+        Ok(Self {
+            r#final,
+            strip_defaults,
+            pack_file,
+        })
+    }
 }
 
 #[allow(dead_code)]
@@ -98,7 +184,15 @@ fn main() -> ExitCode {
     let (first, last) = client_consts::logging::RUN_CLIENT_SCRIPT;
     let _guard = runtime_logging::init_logging(first, last);
 
-    match run(Args::parse()) {
+    let args = match Args::from_args(std::env::args().skip(1).collect()) {
+        Ok(args) => args,
+        Err(e) => {
+            error!("Invalid run client flags: {}", Report::from_error(&e));
+            return ExitCode::FAILURE;
+        }
+    };
+
+    match run(args) {
         Ok(()) => {
             info!("Run succeeded");
             ExitCode::SUCCESS
@@ -134,13 +228,8 @@ fn run(args: Args) -> Result<(), RunError> {
     info!("profile: {:?}", profile);
 
     // absolute, since the client runs with out_dir as its working directory
-    let pack_file = cwd
-        .join("tests")
-        .join("examples")
-        .join("source_to_tbpk")
-        .join("basic1")
-        .to_string_lossy()
-        .into_owned();
+    let pack_file = cwd.join(&args.pack_file).to_string_lossy().into_owned();
+    info!("pack file: {pack_file}");
 
     let mut flags: Vec<&str> = vec![];
     if !is_final && !args.strip_defaults {
