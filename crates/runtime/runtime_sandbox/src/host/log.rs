@@ -3,6 +3,7 @@ use wasmtime::{Caller, Linker, Result, bail};
 /// links `host::log` (see `terobit_v1_abi::crosspoints::log`).
 pub(crate) fn link(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap("host", "log", log)?;
+    tracing::info!("Linked host::log");
     Ok(())
 }
 
