@@ -1,4 +1,7 @@
-use crate::pack::{CHUNK, ChunkEntry, Compression, FileEntry, FileLocation, LARGE_FILE_THRESHOLD};
+use crate::pack::{ChunkEntry, Compression, FileEntry, FileLocation};
+use runtime_consts::integrity::CHUNK;
+use runtime_consts::pack::{LARGE_FILE_THRESHOLD, MIN_COMPRESSION_SAVINGS_PERCENT};
+use runtime_consts::units::MIB;
 use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -107,7 +110,7 @@ fn throughput(bytes: u64, elapsed: Duration) -> f64 {
     if secs == 0.0 {
         return f64::INFINITY;
     }
-    bytes as f64 / (1024.0 * 1024.0) / secs
+    bytes as f64 / MIB as f64 / secs
 }
 
 /// one side's chunked files. the stored chunk bytes live in a temp file, so memory use is
@@ -503,11 +506,17 @@ impl Chunker {
         };
         let compress = compress_started.elapsed();
         let (stored, compression) = match &compressed {
-            Some(compressed) if compressed.len() as u64 * 5 <= raw.len() as u64 * 4 => {
+            Some(compressed)
+                if compressed.len() as u64 * 100
+                    <= raw.len() as u64 * (100 - MIN_COMPRESSION_SAVINGS_PERCENT) =>
+            {
                 (&compressed[..], Compression::Zstd)
             }
             Some(_) => {
-                info!("Chunk {index}: zstd saved less than 20%, storing uncompressed");
+                info!(
+                    "Chunk {}: zstd saved less than {}%, storing uncompressed",
+                    index, MIN_COMPRESSION_SAVINGS_PERCENT
+                );
                 (raw, Compression::None)
             }
             None => (raw, Compression::None),
@@ -592,7 +601,7 @@ fn check_eof(file: &mut File, size: u64) -> Result<(), ChunkerError> {
 #[cfg(test)]
 mod chunker_tests {
     use super::*;
-    use crate::pack::ZSTD_LEVEL;
+    use runtime_consts::pack::ZSTD_LEVEL;
 
     const CHUNK_SIZE: u32 = 64 * 1024;
 

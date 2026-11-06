@@ -1,3 +1,4 @@
+use runtime_consts::pack::HEADER_LEN;
 use snafu::{ResultExt, Snafu};
 
 /// the magic value of the file
@@ -14,9 +15,6 @@ pub enum MagicValue {
     /// terobit resource file
     TBRS,
 }
-
-/// size of the common header in bytes. fixed width, so it never depends on the struct layout
-pub const HEADER_LEN: u32 = 24;
 
 /// not serde, always encode with `to_bytes` so it stays fixed width
 pub struct CommonHeader {

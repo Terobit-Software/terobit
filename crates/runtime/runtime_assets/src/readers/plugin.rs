@@ -2,6 +2,7 @@ use crate::PackReader;
 use crate::pack::Target;
 use crate::registry::{PackAssetReader, PackRegistry};
 use bevy::{asset::io::AssetSourceBuilder, prelude::*};
+use runtime_consts::pack::PACK_ASSET_SOURCE;
 use std::path::Path;
 use tracing::info;
 
@@ -55,7 +56,7 @@ impl Plugin for RuntimePackReaderPlugin {
         let registry = PackRegistry::default();
         app.insert_resource(registry.clone());
         app.register_asset_source(
-            "pack",
+            PACK_ASSET_SOURCE,
             AssetSourceBuilder::new(move || Box::new(PackAssetReader(registry.clone()))),
         );
         app.add_observer(Self::scan_pack);

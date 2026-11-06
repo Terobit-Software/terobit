@@ -2,6 +2,7 @@ use bevy::{
     ecs::resource::Resource,
     prelude::{App, Plugin},
 };
+use runtime_consts::sandbox::WASM_FUEL;
 
 pub struct RuntimeSandboxPlugin;
 
@@ -30,9 +31,9 @@ impl Plugin for RuntimeSandboxPlugin {
         let mut store = wasmtime::Store::new(&engine, ());
         tracing::info!("Created wasm store");
 
-        match store.set_fuel(1_000_000) {
-            Ok(()) => tracing::info!("Allocated 1_000_000 fuel successfully"),
-            Err(e) => tracing::error!("FAILED to allocate 1_000_000 fuel with reason {}", e),
+        match store.set_fuel(WASM_FUEL) {
+            Ok(()) => tracing::info!("Allocated {} fuel successfully", WASM_FUEL),
+            Err(e) => tracing::error!("FAILED to allocate {} fuel with reason {}", WASM_FUEL, e),
         }
 
         let linker = wasmtime::Linker::new(&engine);

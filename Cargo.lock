@@ -2336,6 +2336,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "runtime_assets",
+ "runtime_consts",
  "runtime_run_flags",
  "tracing",
 ]
@@ -3221,6 +3222,7 @@ name = "example_generator"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "runtime_consts",
  "runtime_logging",
  "runtime_run_flags",
  "snafu",
@@ -5785,6 +5787,7 @@ name = "run_client_script"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "runtime_consts",
  "runtime_logging",
  "snafu",
  "tracing",
@@ -5810,6 +5813,7 @@ dependencies = [
  "cap-std",
  "ed25519-dalek",
  "postcard",
+ "runtime_consts",
  "serde",
  "serde_with",
  "snafu",
@@ -5825,6 +5829,10 @@ version = "0.1.0"
 dependencies = [
  "bevy",
 ]
+
+[[package]]
+name = "runtime_consts"
+version = "0.1.0"
 
 [[package]]
 name = "runtime_core"
@@ -5881,6 +5889,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "runtime_assets",
+ "runtime_consts",
  "snafu",
  "terobit_v1_abi",
  "tracing",
@@ -6454,6 +6463,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "runtime_assets",
+ "runtime_consts",
  "runtime_logging",
  "runtime_run_flags",
  "snafu",
@@ -6490,6 +6500,7 @@ dependencies = [
  "client_dev",
  "runtime_animation",
  "runtime_audio",
+ "runtime_consts",
  "runtime_core",
  "runtime_input",
  "runtime_logging",

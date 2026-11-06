@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use runtime_assets::pack::Target;
 use runtime_assets::{LoadPackFileEvent, RuntimePackConfig};
+use runtime_consts::flags::PACK_FILE;
 use runtime_run_flags::RuntimeFlags;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
@@ -31,25 +32,28 @@ pub(crate) fn enable(app: &mut App) {
             });
         }
         None => warn!(
-            "Developer mode is on but no pack will be loaded, pass `--pack-file <path to .tbpk or dev directory>` to load one"
+            "Developer mode is on but no pack will be loaded, pass `{} <path to .tbpk or dev directory>` to load one",
+            PACK_FILE
         ),
     }
 }
 
-/// the first `--pack-file` path
+/// the first `PACK_FILE` path
 fn pack_file(flags: &RuntimeFlags) -> Option<Box<Path>> {
-    let values = flags.get_flags().get("--pack-file")?;
+    let values = flags.get_flags().get(PACK_FILE)?;
     match values.as_slice() {
         [] => {
             error!(
-                "--pack-file was given without a path, expected `--pack-file <path to .tbpk or dev directory>`. No pack will be loaded"
+                "{} was given without a path, expected `{} <path to .tbpk or dev directory>`. No pack will be loaded",
+                PACK_FILE, PACK_FILE
             );
             None
         }
         [first, rest @ ..] => {
             if !rest.is_empty() {
                 warn!(
-                    "--pack-file was given {} paths, only the first (`{first}`) is loaded, ignoring {rest:?}",
+                    "{} was given {} paths, only the first (`{first}`) is loaded, ignoring {rest:?}",
+                    PACK_FILE,
                     values.len()
                 );
             }

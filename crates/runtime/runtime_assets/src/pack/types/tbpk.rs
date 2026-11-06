@@ -1,19 +1,5 @@
 use crate::pack::{CommonHeader, TbManifest, TbSignature};
-
-/// size of the table of contents in bytes, right after the common header
-pub const TOC_LEN: u64 = 64;
-/// most bytes the manifest section can take
-pub const MAX_MANIFEST_LEN: u64 = 64 * 1024 * 1024;
-/// most bytes the signature section can take, 0 means unsigned
-pub const MAX_SIGNATURE_LEN: u64 = 4 * 1024;
-/// smallest chunk size a reader accepts
-pub const MIN_CHUNK_SIZE: u32 = 64 * 1024;
-/// largest chunk size a reader accepts
-pub const MAX_CHUNK_SIZE: u32 = 16 * 1024 * 1024;
-/// chunk size the v1 pack tool writes
-pub const DEFAULT_CHUNK_SIZE: u32 = 1024 * 1024;
-/// files this size or bigger start their own chunks when writing
-pub const LARGE_FILE_THRESHOLD: u64 = 256 * 1024;
+use runtime_consts::pack::TOC_LEN;
 
 /// a `.tbpk` archive, everything except the data section, which is read chunk by chunk
 pub struct TbPack {
@@ -111,5 +97,3 @@ pub struct FileLocation {
     /// where the file starts in that chunk's raw bytes
     pub offset_in_chunk: u32,
 }
-
-pub const TBPK_CURRENT_VERSION: u16 = 1;

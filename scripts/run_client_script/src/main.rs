@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, ExitStatus};
 
 use clap::Parser;
+use runtime_consts::flags::{DEV, PACK_FILE};
+use runtime_consts::paths::{CLIENT_BIN, CLIENT_OUT};
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info, warn};
 
@@ -45,8 +47,6 @@ impl BuildProfile {
         }
     }
 }
-
-const BIN_NAME: &str = "terobit_client";
 
 /// the client couldn't be built, staged or run
 #[derive(Debug, Snafu)]
@@ -95,7 +95,8 @@ enum RunError {
 
 fn main() -> ExitCode {
     // returning ExitCode (instead of process::exit) lets the guard drop and flush logs
-    let _guard = runtime_logging::init_logging("Tbrun", "Client");
+    let (first, last) = runtime_consts::logging::RUN_CLIENT_SCRIPT;
+    let _guard = runtime_logging::init_logging(first, last);
 
     match run(Args::parse()) {
         Ok(()) => {
@@ -113,13 +114,13 @@ fn run(args: Args) -> Result<(), RunError> {
     let cwd = std::env::current_dir().context(CurrentDirSnafu)?;
     info!("cwd: {:?}", cwd);
 
-    let client_dir = cwd.join("bins/terobit_client");
+    let client_dir = cwd.join("bins").join(CLIENT_BIN);
     info!("client dir: {:?}", client_dir.canonicalize());
 
     let assets_dir = client_dir.join("assets");
     info!("assets dir: {:?}", assets_dir.canonicalize());
 
-    let out_dir = cwd.join("out/client");
+    let out_dir = cwd.join(CLIENT_OUT);
     info!("out dir: {:?}", out_dir.canonicalize());
 
     let is_final = args.r#final;
@@ -143,12 +144,12 @@ fn run(args: Args) -> Result<(), RunError> {
 
     let mut flags: Vec<&str> = vec![];
     if !is_final && !args.strip_defaults {
-        flags.extend(["--dev", "--pack-file", &pack_file]);
+        flags.extend([DEV, PACK_FILE, &pack_file]);
     }
     info!("client flags: {:?}", flags);
 
     // Build the client, final builds never get developer mode
-    let mut build_args = vec!["build", "--profile", profile.name(), "-p", BIN_NAME];
+    let mut build_args = vec!["build", "--profile", profile.name(), "-p", CLIENT_BIN];
     if !is_final {
         build_args.extend(["--features", "dev"]);
     }
@@ -192,7 +193,7 @@ fn run(args: Args) -> Result<(), RunError> {
     }
 
     // Copy the binary to the output directory
-    let bin = format!("{BIN_NAME}{}", std::env::consts::EXE_SUFFIX);
+    let bin = format!("{}{}", CLIENT_BIN, std::env::consts::EXE_SUFFIX);
     info!("Copying {bin}...");
     let built_bin = cwd.join("target").join(profile.target_dir()).join(&bin);
     let out_bin = out_dir.join(&bin);

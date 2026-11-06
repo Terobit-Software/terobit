@@ -1,7 +1,5 @@
 use crate::pack::{CommonHeader, EncodeError, MagicValue, Signed, encode_file};
-
-/// zstd level used to compress chunks in packs whose manifest is v1
-pub const ZSTD_LEVEL: i32 = 5;
+use runtime_consts::pack::TBMAN_CURRENT_VERSION;
 
 /// a `.tbman` file. not serde, encode with `TbManifest::encode`
 pub struct TbManifest {
@@ -91,5 +89,3 @@ pub struct IndexRef {
     /// hash(INDEX, index bytes), see integrity
     pub hash: [u8; 32],
 }
-
-pub const TBMAN_CURRENT_VERSION: u16 = 1;

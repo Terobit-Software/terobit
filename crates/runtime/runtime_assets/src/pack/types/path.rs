@@ -1,17 +1,5 @@
+use runtime_consts::pack::{MAX_PATH_LEN, MAX_PATH_SEGMENTS, MAX_SEGMENT_LEN, RESERVED_NAMES};
 use snafu::{Snafu, ensure};
-
-/// most bytes a whole path can take
-pub const MAX_PATH_LEN: usize = 255;
-/// most segments a path can have
-pub const MAX_PATH_SEGMENTS: usize = 16;
-/// most bytes one segment can take
-pub const MAX_SEGMENT_LEN: usize = 64;
-
-/// names windows reserves, with or without an extension
-const RESERVED_NAMES: [&str; 22] = [
-    "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
-    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-];
 
 /// why a path inside a pack broke the path rules in the conventions doc
 #[derive(Debug, Snafu)]

@@ -47,6 +47,7 @@ client uses (`crates/server` and `crates/editor` will follow the same pattern).
 |---------------------|------------------------------------------------------------------------------|
 | `runtime_core`      | base plugins every app needs: task pools, time, transforms, states, the asset server, run flags and the pack reader. Add it first |
 | `runtime_assets`    | everything about packs: format types, `manifest.toml` loading, the pack writer, the pack reader and the asset registry. See its [README](../crates/runtime/runtime_assets/README.md) |
+| `runtime_consts`    | dependency free, `no_std` constants: pack format limits and versions, integrity contexts, run flag names, wasm fuel, log names and workspace paths |
 | `runtime_run_flags` | turns `--flag value value --other` into the `RuntimeFlags` resource         |
 | `runtime_logging`   | terminal and daily log file output, plus a panic hook that logs panics       |
 | `runtime_window`    | window, winit, clipboard, accessibility                                      |

@@ -4,6 +4,7 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
+runtime_consts.workspace = true
 bevy.workspace = true
 runtime_run_flags.workspace = true
 tracing.workspace = true
