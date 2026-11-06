@@ -43,6 +43,7 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
+publish = false
 
 [workspace.dependencies]
 bevy = { version = "0.20.0", default-features = false, features = ["debug"] }

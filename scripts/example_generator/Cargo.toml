@@ -1,6 +1,7 @@
 [package]
 name = "example_generator"
 version.workspace = true
+publish.workspace = true
 edition = "2024"
 
 [dependencies]

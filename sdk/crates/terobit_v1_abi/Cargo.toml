@@ -2,6 +2,7 @@
 name = "terobit_v1_abi"
 edition = "2024"
 version.workspace = true
+publish.workspace = true
 
 [dependencies]
 bytemuck.workspace = true
