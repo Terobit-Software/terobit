@@ -13,6 +13,9 @@ pub struct LoadModuleEvent {
 use snafu::{OptionExt, ResultExt, Snafu};
 use std::path::Path;
 
+mod prep;
+pub use prep::prep_instance;
+
 #[derive(Debug, Snafu)]
 pub enum ModuleLoadError {
     #[snafu(display("no loaded pack declares module `{handle}`"))]
@@ -73,10 +76,20 @@ pub fn observe_load_module_event(
     };
 
     match sandbox.linker.instantiate(&mut sandbox.store, &module) {
-        Ok(instance) => {
+        Ok(v) => {
             tracing::info!("Loaded module `{}`", handle);
-            sandbox.instances.push(instance);
+            sandbox.instances.push(v);
+
+            if let Err(e) = prep_instance(&v, &mut sandbox.store) {
+                tracing::error!(
+                    "Failed to prep module `{}`: {}",
+                    handle,
+                    snafu::Report::from_error(&e)
+                );
+            }
         }
-        Err(e) => tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e),
-    }
+        Err(e) => {
+            tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
+        }
+    };
 }
