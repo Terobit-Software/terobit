@@ -33,7 +33,7 @@ fn get_module_bytes(
     handle: &AssetHandle,
     registry: &PackRegistry,
 ) -> Result<Vec<u8>, ModuleLoadError> {
-    let path = registry.resolve(handle).context(UnknownHandleSnafu {
+    let path = registry.resolve_script(handle).context(UnknownHandleSnafu {
         handle: handle.clone(),
     })?;
 

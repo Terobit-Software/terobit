@@ -22,6 +22,11 @@ impl PackRegistry {
         self.source().resolve(handle).map(str::to_owned)
     }
 
+    /// the pack path of a script
+    pub fn resolve_script(&self, handle: &AssetHandle) -> Option<String> {
+        self.source().resolve_script(handle).map(str::to_owned)
+    }
+
     /// where a pack path is on disk, `None` if the loaded pack doesn't have that file
     pub fn full_path(&self, path: &Path) -> Option<PathBuf> {
         self.source().full_path(path)

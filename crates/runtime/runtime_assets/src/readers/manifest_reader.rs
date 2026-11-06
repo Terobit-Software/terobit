@@ -264,6 +264,11 @@ impl ManifestSource {
         self.assets.iter().chain(&self.side(target).assets)
     }
 
+    /// `(id, path)` of every script one side runs. scripts are never shared
+    pub(crate) fn scripts_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
+        self.side(target).scripts.iter()
+    }
+
     /// every path one side references, deduplicated and sorted in byte order
     pub(crate) fn paths_for(&self, target: Target) -> BTreeSet<&str> {
         self.assets_for(target)
