@@ -62,9 +62,9 @@ pub fn observe_load_module_event(
         }
     };
 
-    let sbox = &mut *_sand;
+    let sandbox = &mut *_sand;
 
-    let module = match wasmtime::Module::new(&sbox.engine, &bytes) {
+    let module = match wasmtime::Module::new(&sandbox.engine, &bytes) {
         Ok(m) => m,
         Err(e) => {
             tracing::error!("Failed to compile module `{}`: {:?}", handle, e);
@@ -72,10 +72,10 @@ pub fn observe_load_module_event(
         }
     };
 
-    match sbox.linker.instantiate(&mut sbox.store, &module) {
+    match sandbox.linker.instantiate(&mut sandbox.store, &module) {
         Ok(instance) => {
             tracing::info!("Loaded module `{}`", handle);
-            sbox.instances.push(instance);
+            sandbox.instances.push(instance);
         }
         Err(e) => tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e),
     }
