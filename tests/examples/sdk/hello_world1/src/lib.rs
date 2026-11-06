@@ -1,6 +1,4 @@
-use terobit_v1::log;
-use terobit_v1::main;
-use terobit_v1::update;
+use terobit_v1::prelude::*;
 
 #[main]
 fn main() {
