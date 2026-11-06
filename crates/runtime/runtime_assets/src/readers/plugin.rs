@@ -17,6 +17,13 @@ pub struct LoadPackFileEvent {
     pub target: Target,
 }
 
+/// a pack was read into the `PackRegistry`, its assets and scripts can be loaded now
+#[derive(Event)]
+pub struct PackReadEvent {
+    /// the side that read the pack
+    pub target: Target,
+}
+
 #[derive(Resource, Default)]
 pub struct RuntimePackConfig {
     allow_dir_read: bool,
@@ -37,6 +44,7 @@ impl RuntimePackReaderPlugin {
         e: On<LoadPackFileEvent>,
         config: Res<RuntimePackConfig>,
         registry: Res<PackRegistry>,
+        mut commands: Commands,
     ) {
         let LoadPackFileEvent { path, target } = e.event();
 
@@ -46,7 +54,10 @@ impl RuntimePackReaderPlugin {
                 path.display(),
                 snafu::Report::from_error(&e)
             ),
-            Ok(()) => tracing::info!("Read pack `{}` successfully", path.display()),
+            Ok(()) => {
+                tracing::info!("Read pack `{}` successfully", path.display());
+                commands.trigger(PackReadEvent { target: *target });
+            }
         }
     }
 }

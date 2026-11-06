@@ -3,7 +3,8 @@ use bevy::ecs::{
     observer::On,
     system::{Res, ResMut},
 };
-use runtime_assets::{pack::AssetHandle, registry::PackRegistry};
+use bevy::ecs::system::Commands;
+use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 
 #[derive(Event)]
 pub struct LoadModuleEvent {
@@ -47,6 +48,24 @@ fn get_module_bytes(
     std::fs::read(full).context(ReadSnafu {
         handle: handle.clone(),
     })
+}
+
+/// loads every script of a freshly read pack
+pub fn observe_pack_read_event(
+    event: On<PackReadEvent>,
+    registry: Res<PackRegistry>,
+    mut commands: Commands,
+) {
+    let handles = registry.script_handles();
+    tracing::info!(
+        "Pack read for {:?}, loading {} scripts",
+        event.target,
+        handles.len()
+    );
+
+    for handle in handles {
+        commands.trigger(LoadModuleEvent { handle });
+    }
 }
 
 pub fn observe_load_module_event(

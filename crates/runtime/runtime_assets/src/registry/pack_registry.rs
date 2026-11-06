@@ -22,6 +22,11 @@ impl PackRegistry {
         self.source().resolve(handle).map(str::to_owned)
     }
 
+    /// every script the loaded pack runs, sorted
+    pub fn script_handles(&self) -> Vec<AssetHandle> {
+        self.source().script_handles()
+    }
+
     /// the pack path of a script
     pub fn resolve_script(&self, handle: &AssetHandle) -> Option<String> {
         self.source().resolve_script(handle).map(str::to_owned)

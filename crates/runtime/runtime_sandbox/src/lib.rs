@@ -54,5 +54,6 @@ impl Plugin for RuntimeSandboxPlugin {
         tracing::info!("Inserted resource");
 
         app.add_observer(observe_load_module_event);
+        app.add_observer(observe_pack_read_event);
     }
 }
