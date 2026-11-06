@@ -1,13 +1,12 @@
 use bevy::prelude::{App, AppExit, MessageWriter, MinimalPlugins, Res, Startup};
+use runtime_assets::pack::Target;
 use runtime_assets::pack::writers::{PackWriter, PackWriterError};
-use runtime_assets::pack::{Target, ZSTD_LEVEL};
+use runtime_consts::pack::ZSTD_LEVEL;
+use runtime_consts::paths::TBPK_GENERATOR_OUT;
 use runtime_run_flags::{RuntimeFlags, RuntimeRunFlagsPlugin};
 use snafu::{OptionExt, Report, ResultExt, Snafu, ensure};
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
-
-/// folder the packs go in when `--out` isn't given
-const DEFAULT_OUT: &str = "out/tbpk_generator";
 
 /// run flags that don't make a valid set of `Args`
 #[derive(Debug, Snafu)]
@@ -112,7 +111,9 @@ impl Args {
         };
 
         let manifest = value("--manifest")?.context(MissingManifestSnafu)?.into();
-        let out = value("--out")?.map_or(DEFAULT_OUT, String::as_str).into();
+        let out = value("--out")?
+            .map_or(TBPK_GENERATOR_OUT, String::as_str)
+            .into();
         let targets: &[Target] = match value("--target")?.map(String::as_str) {
             None | Some("both") => &[Target::Client, Target::Server],
             Some("client") => &[Target::Client],
@@ -140,7 +141,8 @@ impl Args {
 }
 
 fn main() -> AppExit {
-    let _guard = runtime_logging::init_logging("Tbpk", "Generator");
+    let (first, last) = runtime_consts::logging::TBPK_GENERATOR;
+    let _guard = runtime_logging::init_logging(first, last);
 
     App::new()
         .add_plugins(MinimalPlugins)

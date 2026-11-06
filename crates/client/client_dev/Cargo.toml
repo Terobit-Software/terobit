@@ -1,9 +1,11 @@
 [package]
 name = "client_dev"
-version = "0.1.0"
+version.workspace = true
+publish.workspace = true
 edition = "2024"
 
 [dependencies]
+client_consts.workspace = true
 bevy.workspace = true
 runtime_run_flags.workspace = true
 tracing.workspace = true

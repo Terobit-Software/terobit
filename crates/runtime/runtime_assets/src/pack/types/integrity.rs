@@ -1,17 +1,5 @@
+use runtime_consts::integrity::PACK;
 use serde_with::{Bytes, serde_as};
-
-/// blake3 derive-key context for a chunk's stored bytes
-pub const CHUNK: &str = "terobit 2026-10-01 chunk";
-/// blake3 derive-key context for a pack index's bytes
-pub const INDEX: &str = "terobit 2026-10-01 pack index";
-/// blake3 derive-key context for a public key, to make a key id
-pub const KEY_ID: &str = "terobit 2026-10-01 key id";
-/// blake3 derive-key context for what a root key signs
-pub const CERT: &str = "terobit 2026-10-01 certificate";
-/// blake3 derive-key context for what a pack signing key signs
-pub const PACK: &str = "terobit 2026-10-01 pack signature";
-/// blake3 derive-key context for what a license signing key signs
-pub const LICENSE: &str = "terobit 2026-10-01 license signature";
 
 #[serde_as]
 #[derive(serde::Serialize, Clone)]

@@ -1,15 +1,16 @@
 use crate::pack::writers::chunker::{ChunkError, SideChunks, chunk_files};
 use crate::pack::{
     AssetHandle, Certificate, ChunkEntry, CommonHeader, EncodeError, FileEntry, FileLocation,
-    IndexRef, IndexV1, MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TBPK_CURRENT_VERSION,
-    TableOfContents, Target, TbManifest, TbPack, TbSignature,
-};
-use crate::pack::{
-    DEFAULT_CHUNK_SIZE, HEADER_LEN, INDEX, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
-    MIN_CHUNK_SIZE, TOC_LEN, ZSTD_LEVEL, pack_digest,
+    IndexRef, IndexV1, MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TableOfContents,
+    Target, TbManifest, TbPack, TbSignature, pack_digest,
 };
 use crate::{ManifestLoadError, ManifestSideError, ManifestSource, SideAssets};
 use ed25519_dalek::{Signer, SigningKey};
+use runtime_consts::integrity::INDEX;
+use runtime_consts::pack::{
+    DEFAULT_CHUNK_SIZE, HEADER_LEN, MAX_CHUNK_SIZE, MAX_MANIFEST_LEN, MAX_SIGNATURE_LEN,
+    MIN_CHUNK_SIZE, TBPK_CURRENT_VERSION, TOC_LEN, ZSTD_LEVEL,
+};
 use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;

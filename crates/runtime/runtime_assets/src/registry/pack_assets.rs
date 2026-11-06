@@ -1,5 +1,6 @@
 use bevy::asset::{Asset, AssetServer, Handle};
 use bevy::ecs::system::{Res, SystemParam};
+use runtime_consts::pack::PACK_ASSET_SOURCE;
 use snafu::{OptionExt, Snafu};
 
 use crate::pack::AssetHandle;
@@ -27,6 +28,6 @@ impl PackAssets<'_> {
             .registry
             .resolve(h)
             .context(UnknownHandleSnafu { handle: h.clone() })?;
-        Ok(self.server.load(format!("pack://{path}")))
+        Ok(self.server.load(format!("{}://{path}", PACK_ASSET_SOURCE)))
     }
 }

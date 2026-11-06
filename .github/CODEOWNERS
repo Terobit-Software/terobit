@@ -1,1 +1,5 @@
-.github/workflows/ @Terobit-Software/head-development
+.github/** @Terobit-Software/head-development
+**/Cargo.toml @Terobit-Software/head-development
+LICENSE.md @Terobit-Software/head-development
+README.md @Terobit-Software/head-development
+.gitignore @Terobit-Software/head-development

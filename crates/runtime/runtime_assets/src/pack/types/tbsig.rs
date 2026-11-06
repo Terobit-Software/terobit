@@ -1,4 +1,5 @@
 use crate::pack::{Certificate, CommonHeader, EncodeError, MagicValue, encode_file};
+use runtime_consts::pack::TBSIG_CURRENT_VERSION;
 use serde_with::{Bytes, serde_as};
 
 /// a `.tbsig` file
@@ -52,5 +53,3 @@ impl SignatureV1 {
         &self.signature
     }
 }
-
-pub const TBSIG_CURRENT_VERSION: u16 = 1;

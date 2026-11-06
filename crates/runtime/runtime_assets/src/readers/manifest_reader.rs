@@ -1,3 +1,4 @@
+use runtime_consts::pack::SCRIPT_EXTENSION;
 use serde::Deserialize;
 use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use std::collections::{BTreeMap, BTreeSet};
@@ -98,7 +99,8 @@ pub enum ManifestValidateError {
     SharedAndSide { id: String, target: Target },
 
     #[snafu(display(
-        "{target:?} script `{id}` points to `{path}`, but scripts must be `.wasm` files"
+        "{target:?} script `{id}` points to `{path}`, but scripts must be `{}` files",
+        SCRIPT_EXTENSION
     ))]
     ScriptNotWasm {
         id: String,
@@ -207,7 +209,7 @@ impl ManifestSource {
             }
             for (id, path) in &side.scripts {
                 ensure!(
-                    path.ends_with(".wasm"),
+                    path.ends_with(SCRIPT_EXTENSION),
                     ScriptNotWasmSnafu { id, path, target }
                 );
             }
@@ -260,6 +262,11 @@ impl ManifestSource {
     /// the client and server namespaces are separate
     pub(crate) fn assets_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
         self.assets.iter().chain(&self.side(target).assets)
+    }
+
+    /// `(id, path)` of every script one side runs. scripts are never shared
+    pub(crate) fn scripts_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
+        self.side(target).scripts.iter()
     }
 
     /// every path one side references, deduplicated and sorted in byte order

@@ -1,3 +1,4 @@
+use runtime_consts::pack::SELF_NAMESPACE;
 use snafu::{OptionExt, Snafu, ensure};
 use std::fmt;
 use std::str::FromStr;
@@ -25,7 +26,7 @@ pub enum HandleError {
     InvalidNamespace { namespace: String, id: String },
 
     #[snafu(display(
-        "handle `{namespace}:{id}` uses namespace `{namespace}`, but only `self` is supported for now"
+        "handle `{namespace}:{id}` uses namespace `{namespace}`, but only `{SELF_NAMESPACE}` is supported for now"
     ))]
     UnsupportedNamespace { namespace: String, id: String },
 
@@ -48,7 +49,7 @@ impl AssetHandle {
             InvalidNamespaceSnafu { namespace, id }
         );
         ensure!(
-            namespace == "self",
+            namespace == SELF_NAMESPACE,
             UnsupportedNamespaceSnafu { namespace, id }
         );
         ensure!(

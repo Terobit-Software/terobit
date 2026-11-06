@@ -5,6 +5,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
+use runtime_consts::pack::LARGE_FILE_THRESHOLD;
+use runtime_consts::paths::TBPK_GENERATOR_OUT;
+use runtime_consts::units::{KIB, MIB};
 use runtime_run_flags::RuntimeFlags;
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info};
@@ -115,10 +118,7 @@ enum PkgenError {
 /// generated examples go here, relative to the workspace root. the folder is gitignored
 const EXAMPLES_DIR: &str = "tests/examples/source_to_tbpk/generated";
 /// packs from `--auto` go in a folder per example under here, so they don't overwrite each other
-const PACKS_DIR: &str = "out/tbpk_generator";
-
-const KIB: u64 = 1024;
-const MIB: u64 = 1024 * KIB;
+const PACKS_DIR: &str = TBPK_GENERATOR_OUT;
 
 /// files per pack folder, so no single folder gets huge
 const FILES_PER_GROUP: usize = 20;
@@ -130,7 +130,7 @@ const DEFAULT_RANDOM_MAX: u64 = MIB;
 /// the size classes, in bytes, inclusive. large starts above the 256 KiB large file threshold
 const XSMALL: (u64, u64) = (1, 64);
 const SMALL: (u64, u64) = (65, 4 * KIB);
-const LARGE: (u64, u64) = (256 * KIB + 1, 4 * MIB);
+const LARGE: (u64, u64) = (LARGE_FILE_THRESHOLD + 1, 4 * MIB);
 const XLARGE: (u64, u64) = (8 * MIB, 16 * MIB);
 
 /// how random the file bytes are, which decides how well they compress
@@ -391,7 +391,8 @@ fn presets(entropy: Entropy) -> Vec<Example> {
 
 fn main() -> ExitCode {
     // returning ExitCode (instead of process::exit) lets the guard drop and flush logs
-    let _guard = runtime_logging::init_logging("Tbpk", "Regen");
+    let (first, last) = runtime_consts::logging::EXAMPLE_GENERATOR;
+    let _guard = runtime_logging::init_logging(first, last);
 
     let args = match Args::from_flags(&RuntimeFlags::read()) {
         Ok(args) => args,

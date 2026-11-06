@@ -1,0 +1,7 @@
+realm_id = 1
+owner_id = 1
+pack_version = 1
+access = "free"
+
+[client.scripts]
+"self:main" = "scripts/client.wasm"

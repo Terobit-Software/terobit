@@ -1,10 +1,12 @@
 [package]
 name = "run_client_script"
-version = "0.1.0"
+version.workspace = true
+publish.workspace = true
 edition = "2024"
 
 [dependencies]
+client_consts.workspace = true
 tracing.workspace = true
 runtime_logging.workspace = true
-clap.workspace = true
+runtime_run_flags.workspace = true
 snafu.workspace = true

@@ -1,9 +1,10 @@
+use runtime_consts::pack::{DEV_MANIFEST_FILE, HEADER_LEN};
 use snafu::{ResultExt, Snafu, ensure};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::pack::{HEADER_LEN, Target};
+use crate::pack::Target;
 use crate::registry::{PackRegistry, TbpkSource};
 use crate::{ManifestLoadError, ManifestSource, RuntimePackConfig};
 
@@ -12,7 +13,7 @@ use crate::{ManifestLoadError, ManifestSource, RuntimePackConfig};
 #[snafu(visibility(pub(crate)))]
 pub enum PackReadError {
     #[snafu(display(
-        "`{}` is a directory, but reading dev directories as packs is off (`allow_dir_read` is false, run with `--dev` to enable it)",
+        "`{}` is a directory, but reading dev directories as packs is off (`allow_dir_read` is false, the client turns it on in developer mode)",
         path.display()
     ))]
     DirReadNotAllowed { path: PathBuf },
@@ -63,7 +64,7 @@ impl PackReader {
 
             info!("Path is directory, continuing as a developer package. Assuming newest version");
 
-            let manifest = ManifestSource::from_path(&path.join("manifest.toml"))
+            let manifest = ManifestSource::from_path(&path.join(DEV_MANIFEST_FILE))
                 .context(DevManifestSnafu { path })?;
             registry.set(TbpkSource::dev(&manifest, target));
 

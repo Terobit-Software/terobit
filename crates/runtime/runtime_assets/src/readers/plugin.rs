@@ -2,6 +2,7 @@ use crate::PackReader;
 use crate::pack::Target;
 use crate::registry::{PackAssetReader, PackRegistry};
 use bevy::{asset::io::AssetSourceBuilder, prelude::*};
+use runtime_consts::pack::PACK_ASSET_SOURCE;
 use std::path::Path;
 use tracing::info;
 
@@ -13,6 +14,13 @@ pub struct RuntimePackReaderPlugin;
 pub struct LoadPackFileEvent {
     pub path: Box<Path>,
     /// the side reading the pack, only the shared entries and this side's are loaded
+    pub target: Target,
+}
+
+/// a pack was read into the `PackRegistry`, its assets and scripts can be loaded now
+#[derive(Event)]
+pub struct PackReadEvent {
+    /// the side that read the pack
     pub target: Target,
 }
 
@@ -36,6 +44,7 @@ impl RuntimePackReaderPlugin {
         e: On<LoadPackFileEvent>,
         config: Res<RuntimePackConfig>,
         registry: Res<PackRegistry>,
+        mut commands: Commands,
     ) {
         let LoadPackFileEvent { path, target } = e.event();
 
@@ -45,7 +54,10 @@ impl RuntimePackReaderPlugin {
                 path.display(),
                 snafu::Report::from_error(&e)
             ),
-            Ok(()) => tracing::info!("Read pack `{}` successfully", path.display()),
+            Ok(()) => {
+                tracing::info!("Read pack `{}` successfully", path.display());
+                commands.trigger(PackReadEvent { target: *target });
+            }
         }
     }
 }
@@ -55,7 +67,7 @@ impl Plugin for RuntimePackReaderPlugin {
         let registry = PackRegistry::default();
         app.insert_resource(registry.clone());
         app.register_asset_source(
-            "pack",
+            PACK_ASSET_SOURCE,
             AssetSourceBuilder::new(move || Box::new(PackAssetReader(registry.clone()))),
         );
         app.add_observer(Self::scan_pack);

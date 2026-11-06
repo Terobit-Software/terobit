@@ -21,7 +21,8 @@ Ids like `B1` and `F1` are items in the [TODO](../../../TODO.md).
 
 ```rust
 use runtime_assets::pack::writers::PackWriter;
-use runtime_assets::pack::{Target, ZSTD_LEVEL};
+use runtime_assets::pack::Target;
+use runtime_consts::pack::ZSTD_LEVEL;
 
 let mut writer = PackWriter::new().with_zstd_level(Some(ZSTD_LEVEL))?;
 writer.load_manifest("tests/examples/source_to_tbpk/basic1/manifest.toml".into())?;

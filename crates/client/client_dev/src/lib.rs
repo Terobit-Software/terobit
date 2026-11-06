@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use client_consts::flags::DEV;
 use runtime_run_flags::RuntimeFlags;
 
 #[cfg(feature = "dev")]
@@ -23,7 +24,7 @@ impl Plugin for ClientDevPlugin {
             .world()
             .resource::<RuntimeFlags>()
             .get_flags()
-            .contains_key("--dev")
+            .contains_key(DEV)
         {
             #[cfg(feature = "dev")]
             {
@@ -32,7 +33,8 @@ impl Plugin for ClientDevPlugin {
             }
             #[cfg(not(feature = "dev"))]
             tracing::warn!(
-                "Ignoring --dev, this client was built without the `dev` feature. Build it with `--features dev` (`cargo rcl` does) to use developer mode"
+                "Ignoring {}, this client was built without the `dev` feature. Build it with `--features dev` (`cargo rcl` does) to use developer mode",
+                DEV
             );
         }
 
