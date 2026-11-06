@@ -1,0 +1,6 @@
+[package]
+name = "runtime_consts"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
