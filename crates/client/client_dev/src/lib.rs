@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use runtime_consts::flags::DEV;
+use client_consts::flags::DEV;
 use runtime_run_flags::RuntimeFlags;
 
 #[cfg(feature = "dev")]

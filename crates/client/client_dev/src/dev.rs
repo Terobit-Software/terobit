@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use client_consts::flags::PACK_FILE;
 use runtime_assets::pack::Target;
 use runtime_assets::{LoadPackFileEvent, RuntimePackConfig};
-use runtime_consts::flags::PACK_FILE;
 use runtime_run_flags::RuntimeFlags;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};

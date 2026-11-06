@@ -4,7 +4,7 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
-runtime_consts.workspace = true
+client_consts.workspace = true
 tracing.workspace = true
 runtime_logging.workspace = true
 clap.workspace = true

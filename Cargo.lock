@@ -2331,12 +2331,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
+name = "client_consts"
+version = "0.1.0"
+
+[[package]]
 name = "client_dev"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "client_consts",
  "runtime_assets",
- "runtime_consts",
  "runtime_run_flags",
  "tracing",
 ]
@@ -5787,7 +5791,7 @@ name = "run_client_script"
 version = "0.1.0"
 dependencies = [
  "clap",
- "runtime_consts",
+ "client_consts",
  "runtime_logging",
  "snafu",
  "tracing",
@@ -6497,10 +6501,10 @@ name = "terobit_client"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "client_consts",
  "client_dev",
  "runtime_animation",
  "runtime_audio",
- "runtime_consts",
  "runtime_core",
  "runtime_input",
  "runtime_logging",

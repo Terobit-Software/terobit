@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, ExitStatus};
 
 use clap::Parser;
-use runtime_consts::flags::{DEV, PACK_FILE};
-use runtime_consts::paths::{CLIENT_BIN, CLIENT_OUT};
+use client_consts::flags::{DEV, PACK_FILE};
+use client_consts::paths::{CLIENT_BIN, CLIENT_OUT};
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info, warn};
 
@@ -95,7 +95,7 @@ enum RunError {
 
 fn main() -> ExitCode {
     // returning ExitCode (instead of process::exit) lets the guard drop and flush logs
-    let (first, last) = runtime_consts::logging::RUN_CLIENT_SCRIPT;
+    let (first, last) = client_consts::logging::RUN_CLIENT_SCRIPT;
     let _guard = runtime_logging::init_logging(first, last);
 
     match run(Args::parse()) {

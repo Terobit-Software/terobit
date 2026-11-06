@@ -1,4 +1,3 @@
-use runtime_consts::flags::DEV;
 use runtime_consts::pack::{DEV_MANIFEST_FILE, HEADER_LEN};
 use snafu::{ResultExt, Snafu, ensure};
 use std::fs::File;
@@ -14,9 +13,8 @@ use crate::{ManifestLoadError, ManifestSource, RuntimePackConfig};
 #[snafu(visibility(pub(crate)))]
 pub enum PackReadError {
     #[snafu(display(
-        "`{}` is a directory, but reading dev directories as packs is off (`allow_dir_read` is false, run with `{}` to enable it)",
-        path.display(),
-        DEV
+        "`{}` is a directory, but reading dev directories as packs is off (`allow_dir_read` is false, the client turns it on in developer mode)",
+        path.display()
     ))]
     DirReadNotAllowed { path: PathBuf },
 

@@ -11,7 +11,7 @@ use runtime_ui::RuntimeUiPlugins;
 use runtime_window::RuntimeWindowPlugins;
 
 fn main() {
-    let (first, last) = runtime_consts::logging::CLIENT;
+    let (first, last) = client_consts::logging::CLIENT;
     let _guard = runtime_logging::init_logging(first, last);
 
     // order matters: core (assets) before window/render, render before ui
