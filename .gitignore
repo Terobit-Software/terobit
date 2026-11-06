@@ -13,3 +13,6 @@ out
 tests/examples/source_to_tbpk/many_large1
 tests/examples/source_to_tbpk/many_large2
 tests/examples/source_to_tbpk/generated
+
+# built from tests/examples/sdk/hello_world1, rebuild instead of committing
+tests/examples/source_to_tbpk/hello_world1/scripts/*.wasm
