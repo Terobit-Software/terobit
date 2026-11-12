@@ -5,11 +5,11 @@
 /// (nothing) -> (nothing)
 ///
 /// ```rust
-/// use terobit_v1::main;
+/// use terobit_v1::prelude::*;
 ///
 /// #[main]
 /// fn main () {
-///     println!("This code is run when the script is loaded.");
+///     log("This code is run when the script is loaded.");
 /// }
 /// ```
 pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
@@ -27,11 +27,11 @@ pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
 /// (nothing) -> (nothing)
 ///
 /// ```rust
-/// use terobit_v1::update;
+/// use terobit_v1::prelude::*;
 ///
 /// #[update::pre_render]
 /// fn pre_render () {
-///     println!("This code is run every frame BEFORE rendering.");
+///     log("This code is run every frame BEFORE rendering.");
 /// }
 /// ```
 pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
@@ -43,11 +43,11 @@ pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
 /// (nothing) -> (nothing)
 ///
 /// ```rust
-/// use terobit_v1::update;
+/// use terobit_v1::prelude::*;
 ///
 /// #[update::post_rendering]
 /// fn post_rendering () {
-///     println!("This code is run every frame AFTER rendering.");
+///     log("This code is run every frame AFTER rendering.");
 /// }
 /// ```
 pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
@@ -59,11 +59,11 @@ pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
 /// (nothing) -> (nothing)
 ///
 /// ```rust
-/// use terobit_v1::update;
+/// use terobit_v1::prelude::*;
 ///
 /// #[update::pre_physics]
 /// fn pre_physics () {
-///     println!("This code is run every frame BEFORE physics.");
+///     log("This code is run every frame BEFORE physics.");
 /// }
 /// ```
 pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
@@ -75,11 +75,11 @@ pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 /// (nothing) -> (nothing)
 ///
 /// ```rust
-/// use terobit_v1::update;
+/// use terobit_v1::prelude::*;
 ///
 /// #[update::post_physics]
 /// fn post_physics () {
-///     println!("This code is run every frame AFTER physics.");
+///     log("This code is run every frame AFTER physics.");
 /// }
 /// ```
 pub const POST_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_post_physics_update";
