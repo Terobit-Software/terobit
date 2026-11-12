@@ -5,7 +5,6 @@
 #![no_std]
 
 pub mod endpoints;
-pub mod info_structs;
 
 pub mod crosspoints;
 pub mod ecs;
