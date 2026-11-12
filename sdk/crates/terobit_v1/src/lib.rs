@@ -10,3 +10,5 @@ mod log;
 pub use log::*;
 
 pub mod prelude;
+
+pub mod ecs;
