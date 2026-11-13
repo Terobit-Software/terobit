@@ -6,5 +6,8 @@ pub use query::*;
 mod modifiers;
 pub use modifiers::*;
 
-mod entities;
-pub use entities::*;
+mod commands;
+pub use commands::*;
+
+mod entity;
+pub use entity::*;
