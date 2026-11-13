@@ -83,3 +83,28 @@ pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 /// }
 /// ```
 pub const POST_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_post_physics_update";
+
+// command buffer:
+//   at the end of every cycle the host reads `len` bytes from `ptr`,
+//   applies them, then calls `clear`.
+
+/// Pointer to the start of the command buffer in guest memory.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (pointer to command buffer)
+pub const COMMANDS_PTR_ENDPOINT: &str = "_terobit_v1_commands_ptr";
+
+/// Byte length of the command buffer.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (byte length of command buffer)
+pub const COMMANDS_LEN_ENDPOINT: &str = "_terobit_v1_commands_len";
+
+/// Empties the command buffer. Called by the host after it has read it.
+///
+/// `fn()` -> `()`
+///
+/// (nothing) -> (nothing)
+pub const COMMANDS_CLEAR_ENDPOINT: &str = "_terobit_v1_commands_clear";

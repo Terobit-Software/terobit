@@ -6,5 +6,6 @@
 
 pub mod endpoints;
 
+pub mod commands;
 pub mod crosspoints;
 pub mod ecs;
