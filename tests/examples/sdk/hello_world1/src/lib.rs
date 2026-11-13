@@ -8,5 +8,9 @@ fn main() {
 #[update::pre_render]
 fn update() {
     log("yee");
-    let q = Query::<With<Transform>>::query();
+}
+
+#[update::post_render]
+fn spawn() {
+    Commands::spawn();
 }
