@@ -79,7 +79,7 @@ pub struct Query<F: QueryFilter>(PhantomData<F>);
 
 impl<F: QueryFilter> Query<F> {
     /// The terms this query was built from, in the order they were written.
-    pub const TERMS: &'static [Term] = F::TERMS;
+    pub(crate) const TERMS: &'static [Term] = F::TERMS;
 
     // TODO: call the host once the ECS ABI exists; for now this only
     // resolves the filter.
@@ -87,7 +87,7 @@ impl<F: QueryFilter> Query<F> {
         Self(PhantomData)
     }
 
-    pub fn terms(&self) -> &'static [Term] {
+    pub(crate) fn terms(&self) -> &'static [Term] {
         F::TERMS
     }
 }
