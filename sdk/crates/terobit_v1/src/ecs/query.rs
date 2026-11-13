@@ -75,7 +75,7 @@ impl_query_filter_for_tuple!(A, B, C, D, E, F, G, H);
 /// ```rust,ignore
 /// let q = Query::<(With<(Name, Transform)>, Write<Mesh>)>::query();
 /// ```
-pub struct Query<F: QueryFilter>(PhantomData<F>);
+pub struct Query<F: QueryFilter>(PhantomData<F>, bool);
 
 impl<F: QueryFilter> Query<F> {
     /// The terms this query was built from, in the order they were written.
@@ -84,10 +84,15 @@ impl<F: QueryFilter> Query<F> {
     // TODO: call the host once the ECS ABI exists; for now this only
     // resolves the filter.
     pub fn query() -> Self {
-        Self(PhantomData)
+        Self(PhantomData, false)
     }
 
     pub(crate) fn terms(&self) -> &'static [Term] {
         F::TERMS
+    }
+
+    pub fn direct(mut self) -> Self {
+        self.1 = true;
+        self
     }
 }
