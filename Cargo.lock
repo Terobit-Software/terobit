@@ -6456,6 +6456,7 @@ version = "0.1.0"
 name = "terobit_v1"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "terobit_v1_abi",
  "terobit_v1_macros",
 ]
