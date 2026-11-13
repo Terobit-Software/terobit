@@ -10,6 +10,9 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    # bump the requirement in Cargo.toml too, not just Cargo.lock, so the
+    # manifest always shows the version actually being built against
+    versioning-strategy: increase
     # the zstd version is pinned by manifest v1 (docs/formats/tbman/v1.md#compression).
     # a new one can change chunk bytes, so it only moves with a new manifest version
     ignore:
