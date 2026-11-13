@@ -25,15 +25,6 @@ pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::prelude::*;
-///
-/// #[update::pre_render]
-/// fn pre_render () {
-///     log("This code is run every frame BEFORE rendering.");
-/// }
-/// ```
 pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
 
 /// Called every frame after rendering and physics. Update stage 4 (final).
@@ -41,15 +32,6 @@ pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::prelude::*;
-///
-/// #[update::post_rendering]
-/// fn post_rendering () {
-///     log("This code is run every frame AFTER rendering.");
-/// }
-/// ```
 pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
 
 /// Called before rendering and physics. Update stage 1 (first).
@@ -57,15 +39,6 @@ pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::prelude::*;
-///
-/// #[update::pre_physics]
-/// fn pre_physics () {
-///     log("This code is run every frame BEFORE physics.");
-/// }
-/// ```
 pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 
 /// Called every frame after physics, but before pre-rendering. Update stage 2.
@@ -73,15 +46,6 @@ pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::prelude::*;
-///
-/// #[update::post_physics]
-/// fn post_physics () {
-///     log("This code is run every frame AFTER physics.");
-/// }
-/// ```
 pub const POST_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_post_physics_update";
 
 // command buffer:
