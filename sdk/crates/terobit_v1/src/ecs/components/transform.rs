@@ -21,6 +21,25 @@ impl Transform {
         rotation: [0.0, 0.0, 0.0, 1.0],
         scale: [1.0, 1.0, 1.0],
     };
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn translation(mut self, translation: [f32; 3]) -> Self {
+        self.translation = translation;
+        self
+    }
+
+    pub fn rotation(mut self, rotation: [f32; 4]) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    pub fn scale(mut self, scale: [f32; 3]) -> Self {
+        self.scale = scale;
+        self
+    }
 }
 
 impl Default for Transform {
