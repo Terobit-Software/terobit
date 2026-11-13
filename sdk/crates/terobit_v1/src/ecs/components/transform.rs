@@ -1,4 +1,4 @@
-use crate::ecs::components::Component;
+use crate::ecs::components::{Component, ComponentId};
 
 /// Position, rotation and scale of an entity.
 ///
@@ -12,10 +12,11 @@ pub struct Transform {
     pub scale: [f32; 3],
 }
 
-impl Transform {
-    /// The component ID used in queries, e.g. `Read<{ Transform::ID }>`.
-    pub const ID: Component = 1;
+impl Component for Transform {
+    const ID: ComponentId = 1;
+}
 
+impl Transform {
     pub const IDENTITY: Self = Self {
         translation: [0.0, 0.0, 0.0],
         rotation: [0.0, 0.0, 0.0, 1.0],

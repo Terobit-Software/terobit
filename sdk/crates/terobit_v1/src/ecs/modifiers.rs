@@ -1,31 +1,28 @@
-use crate::ecs::components::Component;
+use core::marker::PhantomData;
 
-/// With
+use crate::ecs::components::{ComponentId, Components};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct With<const C: Component>;
+macro_rules! modifier {
+    ($(#[$doc:meta])* $name:ident) => {
+        $(#[$doc])*
+        pub struct $name<T: Components>(PhantomData<T>);
 
-impl<const C: Component> With<C> {
-    /// The component ID this filter requires.
-    pub const COMPONENT: Component = C;
+        impl<T: Components> $name<T> {
+            /// The component IDs this modifier applies to.
+            pub const COMPONENTS: &'static [ComponentId] = T::IDS;
+        }
+    };
 }
 
-/// Read
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Read<const C: Component>;
-
-impl<const C: Component> Read<C> {
-    /// The component ID this filter requires.
-    pub const COMPONENT: Component = C;
-}
-
-/// Write
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Write<const C: Component>;
-
-impl<const C: Component> Write<C> {
-    /// The component ID this filter requires.
-    pub const COMPONENT: Component = C;
-}
+modifier!(
+    /// Only match entities that have `T`.
+    With
+);
+modifier!(
+    /// Read access to `T`.
+    Read
+);
+modifier!(
+    /// Write access to `T`.
+    Write
+);
