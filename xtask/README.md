@@ -8,9 +8,10 @@ cargo xtask --help
 cargo x run client --help
 ```
 
-## run client
+## run client (`cargo x r cl`)
 
-Builds the client and runs it from a clean folder.
+Builds the client and runs it from a clean folder. `r` is short for `run` and `cl` for
+`client`, so `cargo x r cl` is the same as `cargo xtask run client`.
 
 Running from `target/` mixes build output with whatever the client writes at runtime.
 Copying the binary into a fresh `out/client` means every run starts clean, and the

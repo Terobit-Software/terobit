@@ -21,7 +21,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Build and run a binary
-    #[command(subcommand)]
+    #[command(subcommand, visible_alias = "r")]
     Run(run::RunCommand),
 }
 

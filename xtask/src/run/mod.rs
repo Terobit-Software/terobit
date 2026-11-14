@@ -8,6 +8,7 @@ use snafu::{ResultExt, Snafu};
 #[derive(Debug, Subcommand)]
 pub enum RunCommand {
     /// Build the client and run it from a clean `out/client`
+    #[command(visible_alias = "cl")]
     Client(client::ClientArgs),
 }
 
