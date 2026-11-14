@@ -1,7 +1,7 @@
 # example_generator (`cargo regen`)
 
 Writes example dev directories full of generated files, for testing and benchmarking
-`cargo pkgen` and the chunker on packs bigger than the hand-made examples.
+`cargo xtask pkgen` and the chunker on packs bigger than the hand-made examples.
 
 ## Run
 
@@ -18,7 +18,7 @@ cargo regen --type random --min 1 --max 65536 --entropy med
 | `--min`     | smallest file in bytes, `--type random` only               | 1                  |
 | `--max`     | largest file in bytes, `--type random` only                | 1 MiB              |
 | `--entropy` | `low`, `med`, `high`: how well the files compress          | `high`             |
-| `--auto`    | run `cargo pkgen` on each example afterwards               | off                |
+| `--auto`    | run `cargo xtask pkgen` on each example afterwards               | off                |
 
 | type     | file sizes                 | default count |
 |----------|----------------------------|---------------|

@@ -13,7 +13,7 @@ together, see [ARCHITECTURE](docs/ARCHITECTURE.md).
 |------------------------------|---------------------------------------------------------------------------|
 | format docs (`docs/formats`) | detailed and mostly current, all versions still draft                     |
 | manifest.toml loading        | works, validated, well tested                                             |
-| pack writing (`cargo pkgen`) | works, writes unsigned v1 archives                                        |
+| pack writing (`cargo xtask pkgen`) | works, writes unsigned v1 archives                                        |
 | pack reading                 | stub: only checks a file is at least 24 bytes                             |
 | dev directory loading        | works: assets load by handle through `pack://`, only the reading side's entries |
 | signing / licenses           | signing exists in the writer, no key loading, no verification             |
@@ -74,7 +74,7 @@ Roughly in the order they depend on each other.
   manifest and signature, index hash, then chunk reads that check the hash before
   decompressing.
   - Needs: `Deserialize` on every format type (they only derive `Serialize` now).
-  - Test: a round trip, `cargo pkgen` on `basic1`, read every file back, compare bytes. Then
+  - Test: a round trip, `cargo xtask pkgen` on `basic1`, read every file back, compare bytes. Then
     add the golden files [VERSIONING](docs/formats/common/VERSIONING.md#golden-files)
     describes.
 

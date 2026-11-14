@@ -1,11 +1,12 @@
 //! Workspace tasks, run with `cargo xtask <command>` (or `cargo x`) from the workspace root
 
+mod pkgen;
 mod run;
 
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use snafu::Report;
+use snafu::{Report, ResultExt, Snafu};
 use tracing::{error, info};
 
 /// `(first, last)` names passed to `init_logging`
@@ -23,6 +24,19 @@ enum Command {
     /// Build and run a binary
     #[command(subcommand, visible_alias = "r")]
     Run(run::RunCommand),
+
+    /// Build .tbpk packs with tbpk_generator
+    Pkgen(pkgen::PkgenArgs),
+}
+
+/// a task failed
+#[derive(Debug, Snafu)]
+enum TaskError {
+    #[snafu(display("run failed"))]
+    Run { source: run::RunError },
+
+    #[snafu(display("pkgen failed"))]
+    Pkgen { source: pkgen::PkgenError },
 }
 
 fn main() -> ExitCode {
@@ -32,7 +46,8 @@ fn main() -> ExitCode {
     let _guard = runtime_logging::init_logging(LOG_NAME.0, LOG_NAME.1);
 
     let result = match cli.command {
-        Command::Run(command) => run::run(command),
+        Command::Run(command) => run::run(command).context(RunSnafu),
+        Command::Pkgen(args) => pkgen::run(args).context(PkgenSnafu),
     };
 
     match result {

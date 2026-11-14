@@ -35,7 +35,7 @@ for (target, name) in [(Target::Client, "client"), (Target::Server, "server")] {
 
 Build and write one target before building the next. The writer only keeps the most
 recently built pack. Add `.with_signer(PackSigner::new(key, cert)?)` to sign. Without it
-the pack has an empty signature section. `cargo pkgen` wraps all of this.
+the pack has an empty signature section. `cargo xtask pkgen` wraps all of this.
 
 ### Start loading a pack
 

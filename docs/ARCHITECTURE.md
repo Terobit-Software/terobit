@@ -13,7 +13,7 @@ for whoever hosts the game.
 ```
 dev directory (manifest.toml + files)
    |
-   |  cargo pkgen (tbpk_generator)                          working
+   |  cargo xtask pkgen (tbpk_generator)                    working
    v
 <realm_id>-<pack_version>.client.tbpk    .server.tbpk       unsigned
    |
@@ -34,7 +34,7 @@ release build can't read a dev directory.
 | [terobit_client](../bins/terobit_client/README.md) | the game client players run                  | empty window       |
 | [terobit_server](../bins/terobit_server/README.md) | runs server packs, hosts players             | hello world        |
 | [terobit_editor](../bins/terobit_editor/README.md) | client plus tools, replaces `--dev` and pkgen | hello world       |
-| [tbpk_generator](../bins/tbpk_generator/README.md) | `cargo pkgen`, builds packs                  | working            |
+| [tbpk_generator](../bins/tbpk_generator/README.md) | `cargo xtask pkgen`, builds packs            | working            |
 | [xtask](../xtask/README.md)                      | `cargo xtask`, workspace tasks like `run client` | working  |
 | [example_generator](../scripts/example_generator/README.md) | `cargo regen`, makes test dev directories | working       |
 

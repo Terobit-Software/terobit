@@ -94,10 +94,10 @@ enum GenerateError {
     },
 }
 
-/// `cargo pkgen` couldn't pack an example
+/// `cargo xtask pkgen` couldn't pack an example
 #[derive(Debug, Snafu)]
 enum PkgenError {
-    #[snafu(display("failed to start `{cargo} pkgen` for {name}, is cargo on PATH?"))]
+    #[snafu(display("failed to start `{cargo} xtask pkgen` for {name}, is cargo on PATH?"))]
     StartCargo {
         cargo: String,
         name: String,
@@ -105,7 +105,7 @@ enum PkgenError {
     },
 
     #[snafu(display(
-        "`cargo pkgen --manifest {}` for {name} failed with {status}, see its output above",
+        "`cargo xtask pkgen --manifest {}` for {name} failed with {status}, see its output above",
         manifest.display()
     ))]
     PkgenFailed {
@@ -287,7 +287,7 @@ impl Example {
 /// `--count <n>` files per side, defaults per type
 /// `--min <bytes>` `--max <bytes>` file size range for `--type random`, defaults to 1 B - 1 MiB
 /// `--entropy <low|med|high>` how random the file bytes are, defaults to high
-/// `--auto` run `cargo pkgen` on the example afterwards
+/// `--auto` run `cargo xtask pkgen` on the example afterwards
 struct Args {
     examples: Vec<Example>,
     auto: bool,
@@ -608,19 +608,19 @@ impl Content {
     }
 }
 
-/// `cargo pkgen` with the example's manifest. later flags win, so these replace the alias's
+/// `cargo xtask pkgen` with the example's manifest. later flags win, so these replace any given before them
 fn pkgen(root: &Path, name: &str, dir: &Path) -> Result<(), PkgenError> {
     let manifest = dir.join("manifest.toml");
     let out: PathBuf = Path::new(PACKS_DIR).join(name);
     info!(
-        "Running cargo pkgen on {name}, packs go to {}",
+        "Running cargo xtask pkgen on {name}, packs go to {}",
         out.display()
     );
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let status = Command::new(&cargo)
         .current_dir(root)
-        .arg("pkgen")
+        .args(["xtask", "pkgen"])
         .arg("--manifest")
         .arg(&manifest)
         .arg("--out")

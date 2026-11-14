@@ -17,7 +17,7 @@ Then, from the repo root:
 
 ```sh
 cargo test --workspace                                                   # run the tests
-cargo pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
+cargo xtask pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
 cargo xtask run client                                                   # build and run the client
 ```
 
@@ -34,7 +34,7 @@ Build and run the client. builds `terobit_client` with the `dev` feature, copies
 |--strip-defaults|runs without the default dev flags (`--dev`, `--pack-file ...`)|
 |--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
-### cargo pkgen
+### cargo xtask pkgen
 Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](bins/tbpk_generator/README.md).
 
 |args|desc|

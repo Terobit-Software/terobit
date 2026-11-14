@@ -14,7 +14,7 @@ same `runtime_assets` code that will read them, so the format only has one imple
 From the workspace root:
 
 ```sh
-cargo pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
+cargo xtask pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
 ```
 
 | flag           | value                    | default                 | notes                                                     |
