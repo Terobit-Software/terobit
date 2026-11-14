@@ -10,14 +10,19 @@ use tracing::info;
 
 /// package name of the pack generator, run by `cargo xtask pkgen`
 pub const TBPK_GENERATOR: &str = "tbpk_generator";
-/// package name of the example generator, run by `cargo xtask regen`
-pub const EXAMPLE_GENERATOR: &str = "example_generator";
 
 #[derive(Debug, Args)]
 pub struct PassthroughArgs {
     /// Flags passed to the binary as is, see its README
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
+}
+
+impl PassthroughArgs {
+    /// for tasks that run a binary themselves, like `regen --auto`
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args }
+    }
 }
 
 /// the binary couldn't be started or failed

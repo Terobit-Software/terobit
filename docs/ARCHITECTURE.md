@@ -35,8 +35,7 @@ release build can't read a dev directory.
 | [terobit_server](../bins/terobit_server/README.md) | runs server packs, hosts players             | hello world        |
 | [terobit_editor](../bins/terobit_editor/README.md) | client plus tools, replaces `--dev` and pkgen | hello world       |
 | [tbpk_generator](../bins/tbpk_generator/README.md) | `cargo xtask pkgen`, builds packs            | working            |
-| [xtask](../xtask/README.md)                      | `cargo xtask`, workspace tasks like `run client` | working  |
-| [example_generator](../scripts/example_generator/README.md) | `cargo xtask regen`, makes test dev directories | working |
+| [xtask](../xtask/README.md)                      | `cargo xtask`: `run client`, `pkgen`, `regen` | working   |
 
 ## Crates
 

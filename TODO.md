@@ -144,13 +144,13 @@ Roughly in the order they depend on each other.
   `resource::<RuntimeFlags>()` (`client_dev/src/lib.rs:24`). Use `get_resource` and warn,
   like it already does for `RuntimePackConfig`.
 
-- [ ] **C6. One argument parser.** `xtask` uses clap. `tbpk_generator` and
-  `example_generator` use `RuntimeFlags` and validate by hand, so they have no `--help`.
+- [ ] **C6. One argument parser.** `xtask` uses clap. `tbpk_generator` uses
+  `RuntimeFlags` and validates by hand, so it has no `--help`.
   clap is already a workspace dependency.
 
-- [ ] **C7. Rewrite `example_generator`.** Its first line says it needs a rewrite. It also
-  has no size class between 4 KiB and 256 KiB, the sizes that fill shared small-file
-  chunks, unless you use `--type random`.
+- [ ] **C7. Rewrite `cargo xtask regen`** (`xtask/src/regen.rs`). Its module doc says it
+  needs a rewrite. It also has no size class between 4 KiB and 256 KiB, the sizes that
+  fill shared small-file chunks, unless you use `--type random`.
 
 - [ ] **C8. `basic1_should_fail` copies 8.7 MB of assets it never reads.** It only tests that
   `self:cube.material` is rejected, which fails before any file is opened. Keep only its

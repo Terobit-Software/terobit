@@ -1,6 +1,7 @@
 //! Workspace tasks, run with `cargo xtask <command>` (or `cargo x`) from the workspace root
 
 mod passthrough;
+mod regen;
 mod run;
 
 use std::process::ExitCode;
@@ -28,8 +29,8 @@ enum Command {
     /// Build .tbpk packs with tbpk_generator
     Pkgen(passthrough::PassthroughArgs),
 
-    /// Write generated example dev directories with example_generator
-    Regen(passthrough::PassthroughArgs),
+    /// Write generated example dev directories for testing pkgen and the chunker
+    Regen(regen::RegenArgs),
 }
 
 /// a task failed
@@ -37,6 +38,9 @@ enum Command {
 enum TaskError {
     #[snafu(display("run failed"))]
     Run { source: run::RunError },
+
+    #[snafu(display("regen failed"))]
+    Regen { source: regen::RegenError },
 
     #[snafu(display("{package} failed"))]
     Passthrough {
@@ -54,7 +58,7 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Run(command) => run::run(command).context(RunSnafu),
         Command::Pkgen(args) => passthrough(passthrough::TBPK_GENERATOR, args),
-        Command::Regen(args) => passthrough(passthrough::EXAMPLE_GENERATOR, args),
+        Command::Regen(args) => regen::run(args).context(RegenSnafu),
     };
 
     match result {

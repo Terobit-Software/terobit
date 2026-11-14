@@ -5,8 +5,10 @@ publish.workspace = true
 edition = "2024"
 
 [dependencies]
+blake3.workspace = true
 clap.workspace = true
 client_consts.workspace = true
+runtime_consts.workspace = true
 runtime_logging.workspace = true
 snafu.workspace = true
 tracing.workspace = true

@@ -28,9 +28,6 @@ members = [
     "crates/runtime/runtime_api",
     "crates/runtime/runtime_consts",
 
-    # other
-    "scripts/example_generator",
-
     # sdk
     "sdk/crates/terobit_v1",
     "sdk/crates/terobit_v1_abi",

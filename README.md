@@ -45,7 +45,7 @@ Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_versio
 |--zstd-level|zstd level chunks are compressed at, or `none` to store them uncompressed. defaults to `ZSTD_LEVEL`, any other level changes chunk bytes and hashes|
 
 ### cargo xtask regen
-Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped. See [README](scripts/example_generator/README.md).
+Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped. See [README](xtask/README.md#regen).
 
 |args|desc|
 |--|--|
@@ -54,7 +54,7 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 |--min|smallest file size in bytes, only with `--type random`. defaults to 1|
 |--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
 |--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
-|--auto|runs pkgen on each example afterwards, packs go to `out/tbpk_generator/<example>`|
+|--auto|packs each example with tbpk_generator afterwards, packs go to `out/tbpk_generator/<example>`|
 
 ## Layout
 Here is the outline of the layout for the project:
