@@ -39,6 +39,9 @@ members = [
 
     # examples
     "tests/examples/sdk/hello_world1",
+
+    # tooling
+    "xtask",
 ]
 
 [workspace.package]
