@@ -1,6 +1,6 @@
 use bevy::{
     ecs::resource::Resource,
-    prelude::{App, Plugin},
+    prelude::{App, First, IntoScheduleConfigs, Plugin, Update},
 };
 use runtime_consts::sandbox::WASM_FUEL;
 
@@ -8,6 +8,7 @@ pub struct RuntimeSandboxPlugin;
 
 mod host;
 mod loader;
+mod update;
 pub use loader::*;
 
 #[derive(Resource)]
@@ -55,5 +56,17 @@ impl Plugin for RuntimeSandboxPlugin {
 
         app.add_observer(observe_load_module_event);
         app.add_observer(observe_pack_read_event);
+
+        app.add_systems(
+            Update,
+            (
+                update::pre_physics_update,
+                update::post_physics_update,
+                update::pre_render_update,
+            )
+                .chain(),
+        );
+        // the previous frame has been rendered by the time `First` runs
+        app.add_systems(First, update::post_render_update);
     }
 }
