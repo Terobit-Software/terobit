@@ -44,7 +44,7 @@ Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_versio
 |--target|client, server, or both. defaults to both|
 |--zstd-level|zstd level chunks are compressed at, or `none` to store them uncompressed. defaults to `ZSTD_LEVEL`, any other level changes chunk bytes and hashes|
 
-### cargo regen
+### cargo xtask regen
 Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped. See [README](scripts/example_generator/README.md).
 
 |args|desc|
@@ -84,7 +84,7 @@ A temporary directory for binary outputs. Also includes `.tbpk` files in `/out/t
 Contains scripts run in some of the [aliases](#commands). 
 
 ### /tests
-The directory containing tests and examples for local testing. `/tests/examples/source_to_tbpk` holds dev directories (`basic1`, `many_small1`, and `basic1_should_fail`, which must fail to load). In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s (gitignored, made by `cargo regen`).
+The directory containing tests and examples for local testing. `/tests/examples/source_to_tbpk` holds dev directories (`basic1`, `many_small1`, and `basic1_should_fail`, which must fail to load). In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s (gitignored, made by `cargo xtask regen`).
 
 ### /.gitignore
 Gitignore.

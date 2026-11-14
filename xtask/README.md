@@ -56,6 +56,21 @@ cargo x run client --pack-file tests/examples/source_to_tbpk/hello_world1
 
 Exits with failure if the build or the client fails.
 
+## pkgen and regen
+
+`cargo x pkgen` runs `tbpk_generator` and `cargo x regen` runs `example_generator`, both
+built with the `release` profile. Every argument after the command is passed through
+unchanged, and those binaries read them with `RuntimeFlags`, so see their READMEs for the
+flags:
+
+- [tbpk_generator](../bins/tbpk_generator/README.md)
+- [example_generator](../scripts/example_generator/README.md)
+
+```sh
+cargo x pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
+cargo x regen --type mix --count 500 --auto
+```
+
 ## TODO
 
 - [ ] build SDK scripts and copy them into their pack before running

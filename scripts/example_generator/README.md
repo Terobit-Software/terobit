@@ -1,4 +1,4 @@
-# example_generator (`cargo regen`)
+# example_generator (`cargo xtask regen`)
 
 Writes example dev directories full of generated files, for testing and benchmarking
 `cargo xtask pkgen` and the chunker on packs bigger than the hand-made examples.
@@ -6,9 +6,9 @@ Writes example dev directories full of generated files, for testing and benchmar
 ## Run
 
 ```sh
-cargo regen                                  # every type at its default count
-cargo regen --type mix --count 500 --auto    # one example, then pack it
-cargo regen --type random --min 1 --max 65536 --entropy med
+cargo xtask regen                                  # every type at its default count
+cargo xtask regen --type mix --count 500 --auto    # one example, then pack it
+cargo xtask regen --type random --min 1 --max 65536 --entropy med
 ```
 
 | flag        | value                                                      | default            |

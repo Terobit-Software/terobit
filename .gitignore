@@ -9,7 +9,7 @@ out
 !.github
 !_bindings*
 
-# large test packs, regenerate with `cargo regen`
+# large test packs, regenerate with `cargo xtask regen`
 tests/examples/source_to_tbpk/many_large1
 tests/examples/source_to_tbpk/many_large2
 tests/examples/source_to_tbpk/generated
