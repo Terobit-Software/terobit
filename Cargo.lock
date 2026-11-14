@@ -8336,6 +8336,10 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "client_consts",
+ "runtime_logging",
+ "snafu",
+ "tracing",
 ]
 
 [[package]]
