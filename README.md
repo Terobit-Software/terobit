@@ -18,20 +18,21 @@ Then, from the repo root:
 ```sh
 cargo test --workspace                                                   # run the tests
 cargo pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
-cargo rcl                                                                # build and run the client
+cargo xtask run client                                                   # build and run the client
 ```
 
 CI runs `cargo fmt --all --check`, `cargo check --workspace --all-targets` and the tests with [nextest](https://nexte.st), plus `client_dev`'s tests with `--features dev`. Run `cargo fmt --all` before pushing.
 
 ## Commands
 
-### cargo rcl
-Build and run the client. builds `terobit_client` with the `dev` feature, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](scripts/run_client_script/README.md).
+### cargo xtask run client
+Build and run the client. builds `terobit_client` with the `dev` feature, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](xtask/README.md). `cargo x` is a shorter alias for `cargo xtask`.
 
 |args|desc|
 |----|----|
-|--final, -f|builds with the release profile instead of release-dev and without the `dev` feature, and runs without the dev flags|
-|--strip-defaults, -s|runs without the default dev flags (`--dev`, `--pack-file ...`)|
+|--final|builds with the release profile instead of release-dev and without the `dev` feature, and runs without the dev flags|
+|--strip-defaults|runs without the default dev flags (`--dev`, `--pack-file ...`)|
+|--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
 ### cargo pkgen
 Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](bins/tbpk_generator/README.md).
@@ -120,7 +121,7 @@ Generates .tbpk files from a manifest and asset directory. Working, writes unsig
 Runs and parses .client.tbpk files. Currently opens an empty window. With `--dev` it loads a dev directory's assets, but nothing uses them yet. See [README](bins/terobit_client/README.md).
 
 ### Editor (terobit_editor)
-Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, tbpk_generator and `cargo rcl` stand in for it. See [README](bins/terobit_editor/README.md).
+Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, tbpk_generator and `cargo xtask run client` stand in for it. See [README](bins/terobit_editor/README.md).
 
 ### Server (terobit_server)
 Runs .server.tbpk files, and handles client connections for realm servers. Not started. See [README](bins/terobit_server/README.md).

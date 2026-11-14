@@ -6,7 +6,7 @@ replaces both `tbpk_generator` and the client's `--dev` mode.
 ## State
 
 Not started. `main` prints "Hello, world!" and the crate has no dependencies. Use
-`cargo pkgen` and `cargo rcl` in the meantime.
+`cargo pkgen` and `cargo xtask run client` in the meantime.
 
 ## Plan
 

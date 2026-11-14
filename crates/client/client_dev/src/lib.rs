@@ -33,7 +33,7 @@ impl Plugin for ClientDevPlugin {
             }
             #[cfg(not(feature = "dev"))]
             tracing::warn!(
-                "Ignoring {}, this client was built without the `dev` feature. Build it with `--features dev` (`cargo rcl` does) to use developer mode",
+                "Ignoring {}, this client was built without the `dev` feature. Build it with `--features dev` (`cargo xtask run client` does) to use developer mode",
                 DEV
             );
         }

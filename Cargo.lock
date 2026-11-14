@@ -5754,17 +5754,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "run_client_script"
-version = "0.1.0"
-dependencies = [
- "client_consts",
- "runtime_logging",
- "runtime_run_flags",
- "snafu",
- "tracing",
-]
-
-[[package]]
 name = "runtime_animation"
 version = "0.1.0"
 dependencies = [

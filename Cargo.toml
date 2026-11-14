@@ -29,7 +29,6 @@ members = [
     "crates/runtime/runtime_consts",
 
     # other
-    "scripts/run_client_script",
     "scripts/example_generator",
 
     # sdk

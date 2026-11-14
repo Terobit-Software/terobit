@@ -38,7 +38,7 @@ Fix these first. Each one stops something that looks finished from working.
 
 - [x] **B8.** `--dev` only exists in builds with the `dev` feature (`client_dev/dev`,
   forwarded by `terobit_client/dev`). Other builds don't compile developer mode and ignore
-  `--dev` with a warning. `cargo rcl` turns the feature on unless `--final`, and CI runs
+  `--dev` with a warning. `cargo xtask run client` turns the feature on unless `--final`, and CI runs
   `client_dev`'s tests both ways.
 
 - [x] **B9.** Logs are named after the program (`tbpk-generator.log.<date>`) and every OS
@@ -144,7 +144,7 @@ Roughly in the order they depend on each other.
   `resource::<RuntimeFlags>()` (`client_dev/src/lib.rs:24`). Use `get_resource` and warn,
   like it already does for `RuntimePackConfig`.
 
-- [ ] **C6. One argument parser.** `run_client_script` uses clap. `tbpk_generator` and
+- [ ] **C6. One argument parser.** `xtask` uses clap. `tbpk_generator` and
   `example_generator` use `RuntimeFlags` and validate by hand, so they have no `--help`.
   clap is already a workspace dependency.
 
