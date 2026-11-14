@@ -6406,19 +6406,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
-name = "tbpk_generator"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "runtime_assets",
- "runtime_consts",
- "runtime_logging",
- "runtime_run_flags",
- "snafu",
- "tracing",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8315,6 +8302,7 @@ dependencies = [
  "blake3",
  "clap",
  "client_consts",
+ "runtime_assets",
  "runtime_consts",
  "runtime_logging",
  "snafu",

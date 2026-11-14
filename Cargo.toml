@@ -2,7 +2,6 @@
 resolver = "3"
 members = [
     # binaries
-    "bins/tbpk_generator",
     "bins/terobit_client",
     "bins/terobit_editor",
     "bins/terobit_server",

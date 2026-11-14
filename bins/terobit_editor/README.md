@@ -1,7 +1,7 @@
 # terobit_editor
 
 Will be the main editing suite for realms: the client plus tools. Once it exists it
-replaces both `tbpk_generator` and the client's `--dev` mode.
+replaces both `cargo xtask pkgen` and the client's `--dev` mode.
 
 ## State
 

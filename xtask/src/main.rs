@@ -1,6 +1,6 @@
 //! Workspace tasks, run with `cargo xtask <command>` (or `cargo x`) from the workspace root
 
-mod passthrough;
+mod pkgen;
 mod regen;
 mod run;
 
@@ -26,8 +26,8 @@ enum Command {
     #[command(subcommand, visible_alias = "r")]
     Run(run::RunCommand),
 
-    /// Build .tbpk packs with tbpk_generator
-    Pkgen(passthrough::PassthroughArgs),
+    /// Build .tbpk packs from a dev directory's manifest.toml
+    Pkgen(pkgen::PkgenArgs),
 
     /// Write generated example dev directories for testing pkgen and the chunker
     Regen(regen::RegenArgs),
@@ -42,11 +42,8 @@ enum TaskError {
     #[snafu(display("regen failed"))]
     Regen { source: regen::RegenError },
 
-    #[snafu(display("{package} failed"))]
-    Passthrough {
-        package: &'static str,
-        source: passthrough::PassthroughError,
-    },
+    #[snafu(display("pkgen failed"))]
+    Pkgen { source: pkgen::PkgenError },
 }
 
 fn main() -> ExitCode {
@@ -57,7 +54,7 @@ fn main() -> ExitCode {
 
     let result = match cli.command {
         Command::Run(command) => run::run(command).context(RunSnafu),
-        Command::Pkgen(args) => passthrough(passthrough::TBPK_GENERATOR, args),
+        Command::Pkgen(args) => pkgen::run(&args).context(PkgenSnafu),
         Command::Regen(args) => regen::run(args).context(RegenSnafu),
     };
 
@@ -71,8 +68,4 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-fn passthrough(package: &'static str, args: passthrough::PassthroughArgs) -> Result<(), TaskError> {
-    passthrough::run(package, args).context(PassthroughSnafu { package })
 }

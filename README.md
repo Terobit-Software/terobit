@@ -35,7 +35,7 @@ Build and run the client. builds `terobit_client` with the `dev` feature, copies
 |--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
 ### cargo xtask pkgen
-Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](bins/tbpk_generator/README.md).
+Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](xtask/README.md#pkgen).
 
 |args|desc|
 |--|--|
@@ -54,7 +54,7 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 |--min|smallest file size in bytes, only with `--type random`. defaults to 1|
 |--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
 |--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
-|--auto|packs each example with tbpk_generator afterwards, packs go to `out/tbpk_generator/<example>`|
+|--auto|packs each example like `cargo xtask pkgen` afterwards, packs go to `out/tbpk_generator/<example>`|
 
 ## Layout
 Here is the outline of the layout for the project:
@@ -78,7 +78,7 @@ Contains all the crates for the repo. `/crates/runtime` holds crates any binary 
 Contains the documentation for the project. [ARCHITECTURE](docs/ARCHITECTURE.md) explains how everything fits together. In `/docs/formats` is the documentation for custom file types.
 
 ### /out
-A temporary directory for binary outputs. Also includes `.tbpk` files in `/out/tbpk_generator` usually.
+A temporary directory for binary outputs. Also includes `.tbpk` files from `cargo xtask pkgen` in `/out/tbpk_generator` usually.
 
 ### /scripts
 Contains scripts run in some of the [aliases](#commands). 
@@ -114,14 +114,11 @@ What's broken, missing and out of date, with why and how for each item.
 
 ## Binaries
 
-### Pack Generator (tbpk_generator)
-Generates .tbpk files from a manifest and asset directory. Working, writes unsigned packs. See [README](bins/tbpk_generator/README.md).
-
 ### Client (terobit_client)
 Runs and parses .client.tbpk files. Currently opens an empty window. With `--dev` it loads a dev directory's assets, but nothing uses them yet. See [README](bins/terobit_client/README.md).
 
 ### Editor (terobit_editor)
-Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, tbpk_generator and `cargo xtask run client` stand in for it. See [README](bins/terobit_editor/README.md).
+Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, `cargo xtask pkgen` and `cargo xtask run client` stand in for it. See [README](bins/terobit_editor/README.md).
 
 ### Server (terobit_server)
 Runs .server.tbpk files, and handles client connections for realm servers. Not started. See [README](bins/terobit_server/README.md).

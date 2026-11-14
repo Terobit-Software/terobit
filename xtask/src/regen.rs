@@ -9,13 +9,13 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::{Args, ValueEnum};
-use runtime_consts::pack::LARGE_FILE_THRESHOLD;
+use runtime_consts::pack::{LARGE_FILE_THRESHOLD, ZSTD_LEVEL};
 use runtime_consts::paths::TBPK_GENERATOR_OUT;
 use runtime_consts::units::{KIB, MIB};
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info};
 
-use crate::passthrough;
+use crate::pkgen;
 
 /// generated examples go here, relative to the workspace root. the folder is gitignored
 const EXAMPLES_DIR: &str = "tests/examples/source_to_tbpk/generated";
@@ -62,7 +62,7 @@ pub struct RegenArgs {
     #[arg(long, value_enum, default_value_t = Entropy::High)]
     entropy: Entropy,
 
-    /// Run `cargo xtask pkgen` on each example afterwards, packs go to `out/tbpk_generator/<name>`
+    /// Pack each example afterwards like `cargo xtask pkgen`, packs go to `out/tbpk_generator/<name>`
     #[arg(long)]
     auto: bool,
 }
@@ -540,23 +540,16 @@ impl Content {
     }
 }
 
-/// packs the example with tbpk_generator, same as `cargo xtask pkgen`
-fn pkgen(root: &Path, name: &str, dir: &Path) -> Result<(), passthrough::PassthroughError> {
-    let manifest = dir.join("manifest.toml");
-    let out = root.join(PACKS_DIR).join(name);
-    info!("Packing {name}, packs go to {}", out.display());
-
-    let args = [
-        "--manifest".as_ref(),
-        manifest.as_os_str(),
-        "--out".as_ref(),
-        out.as_os_str(),
-    ]
-    .map(|arg| arg.to_string_lossy().into_owned());
-    passthrough::run(
-        passthrough::TBPK_GENERATOR,
-        passthrough::PassthroughArgs::new(args.to_vec()),
-    )
+/// packs the example, same as `cargo xtask pkgen --manifest <dir>/manifest.toml --out <out>`
+fn pkgen(root: &Path, name: &str, dir: &Path) -> Result<(), pkgen::PkgenError> {
+    let args = pkgen::PkgenArgs {
+        manifest: dir.join("manifest.toml"),
+        out: root.join(PACKS_DIR).join(name),
+        target: pkgen::TargetArg::Both,
+        zstd_level: pkgen::ZstdLevel(Some(ZSTD_LEVEL)),
+    };
+    info!("Packing {name}, packs go to {}", args.out.display());
+    pkgen::run(&args)
 }
 
 #[cfg(test)]

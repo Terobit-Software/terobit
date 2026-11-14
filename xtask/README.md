@@ -58,13 +58,37 @@ Exits with failure if the build or the client fails.
 
 ## pkgen
 
-`cargo x pkgen` runs [tbpk_generator](../bins/tbpk_generator/README.md), built with the
-`release` profile. Every argument after `pkgen` is passed through unchanged, and
-tbpk_generator reads them with `RuntimeFlags`, so see its README for the flags.
+Builds `.tbpk` packs from a dev directory. It stands in for the editor's publish step until
+the editor exists.
+
+The platform takes archives, and released clients will only load archives. This turns a
+`manifest.toml` and the files it lists into one client pack and one server pack, using the
+same `runtime_assets` code that will read them, so the format only has one implementation.
 
 ```sh
 cargo x pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
 ```
+
+| flag           | value                    | default                 | notes                                                     |
+|----------------|--------------------------|-------------------------|-----------------------------------------------------------|
+| `--manifest`   | path to `manifest.toml`  | required                | asset paths are relative to its folder                    |
+| `--out`        | folder                   | `out/tbpk_generator`    | created if missing                                        |
+| `--target`     | `client`, `server`, `both` | `both`                |                                                           |
+| `--zstd-level` | a number, or `none`      | `ZSTD_LEVEL` (5)        | any other value changes chunk bytes and hashes, so only use it to test speed and size |
+
+Output is `<out>/<realm_id>-<pack_version>.client.tbpk` and `.server.tbpk`. The example
+above writes `out/tbpk_generator/1-1.client.tbpk` and `1-1.server.tbpk`.
+
+### How it works
+
+1. `PackWriter::new().with_zstd_level(...)`, then `load_manifest`, which validates the
+   manifest
+2. for each target, `build_tbpk` then `write_tbpk_out`. If one target fails it's logged and
+   the other still builds. The task fails if any target failed
+
+See [building a pack](../docs/ARCHITECTURE.md#building-a-pack) for what `PackWriter`
+does inside. Packs are always unsigned for now, nothing loads a signing key yet (F2), and
+it prints a few hundred lines even for a tiny pack (C1).
 
 ## regen
 
@@ -84,7 +108,7 @@ cargo x regen --type random --min 1 --max 65536 --entropy med
 | `--min`     | smallest file in bytes, `--type random` only               | 1                  |
 | `--max`     | largest file in bytes, `--type random` only                | 1 MiB              |
 | `--entropy` | `low`, `med`, `high`: how well the files compress          | `high`             |
-| `--auto`    | pack each example with tbpk_generator afterwards           | off                |
+| `--auto`    | pack each example like `cargo x pkgen` afterwards          | off                |
 
 | type     | file sizes                 | default count |
 |----------|----------------------------|---------------|
@@ -120,3 +144,7 @@ example fails, the rest still run and the task exits with failure.
 - [ ] regen: rewrite it, its module doc says so (C7)
 - [ ] regen: add a size class between 4 KiB and 256 KiB. Those are the files that share
   small-file chunks, and only `--type random` makes them now (C7)
+- [ ] pkgen: load a signing key and certificate, pass them with `with_signer` (F2)
+- [ ] pkgen: after writing, read the pack back and compare every file, once the reader
+  exists (F1)
+- [ ] pkgen: `--chunk-size` for testing, once the writer supports it (F10)

@@ -55,7 +55,7 @@ them is a bug.
   The doc records libzstd 1.5.7, and `zstd` and `zstd-sys` are pinned with `=` in
   `Cargo.toml`.
 - [x] **D2.** `pack::writers` only compiles with `runtime_assets`' `writer` feature, so the
-  client doesn't ship the pack writer. `tbpk_generator` turns it on.
+  client doesn't ship the pack writer. `xtask` turns it on for `pkgen`.
 
 - [x] **D3.** The README said `cargo rcl` runs the client with `--pack-file .`. It passes
   the absolute path of `tests/examples/source_to_tbpk/basic1`. Fixed in the README.
@@ -79,7 +79,7 @@ Roughly in the order they depend on each other.
     describes.
 
 - [ ] **F2. Signing keys and signature checks.**
-  `PackSigner` can sign, but nothing loads a key (`tbpk_generator` has a TODO for it),
+  `PackSigner` can sign, but nothing loads a key (`xtask/src/pkgen.rs` has a TODO for it),
   nothing verifies a `.tbsig`, no root public keys are built in, and the revocation list
   has no format yet.
 
@@ -144,9 +144,8 @@ Roughly in the order they depend on each other.
   `resource::<RuntimeFlags>()` (`client_dev/src/lib.rs:24`). Use `get_resource` and warn,
   like it already does for `RuntimePackConfig`.
 
-- [ ] **C6. One argument parser.** `xtask` uses clap. `tbpk_generator` uses
-  `RuntimeFlags` and validates by hand, so it has no `--help`.
-  clap is already a workspace dependency.
+- [x] **C6. One argument parser.** The workspace tools (`run client`, `pkgen`, `regen`)
+  are all in `xtask` and use clap, so they all have `--help`.
 
 - [ ] **C7. Rewrite `cargo xtask regen`** (`xtask/src/regen.rs`). Its module doc says it
   needs a rewrite. It also has no size class between 4 KiB and 256 KiB, the sizes that

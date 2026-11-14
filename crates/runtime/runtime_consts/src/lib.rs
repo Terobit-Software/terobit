@@ -8,7 +8,6 @@
 #![no_std]
 
 pub mod integrity;
-pub mod logging;
 pub mod pack;
 pub mod paths;
 pub mod sandbox;
