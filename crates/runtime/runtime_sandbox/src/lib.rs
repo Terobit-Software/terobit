@@ -2,7 +2,7 @@ use bevy::{
     ecs::resource::Resource,
     prelude::{App, First, IntoScheduleConfigs, Plugin, Update},
 };
-use runtime_consts::sandbox::WASM_FUEL;
+use runtime_consts::sandbox::{WASM_CYCLE_TICKS, WASM_EPOCH_TICK};
 
 pub struct RuntimeSandboxPlugin;
 
@@ -22,7 +22,7 @@ pub struct RuntimeSandboxResource {
 impl Plugin for RuntimeSandboxPlugin {
     fn build(&self, app: &mut App) {
         let mut config = wasmtime::Config::default();
-        config.consume_fuel(true);
+        config.epoch_interruption(true);
 
         let engine = match wasmtime::Engine::new(&config) {
             Ok(v) => v,
@@ -30,13 +30,12 @@ impl Plugin for RuntimeSandboxPlugin {
         };
         tracing::info!("Created wasm engine");
 
+        spawn_epoch_ticker(&engine);
+
         let mut store = wasmtime::Store::new(&engine, ());
         tracing::info!("Created wasm store");
 
-        match store.set_fuel(WASM_FUEL) {
-            Ok(()) => tracing::info!("Allocated {} fuel successfully", WASM_FUEL),
-            Err(e) => tracing::error!("FAILED to allocate {} fuel with reason {}", WASM_FUEL, e),
-        }
+        store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
         let mut linker = wasmtime::Linker::new(&engine);
         tracing::info!("Created wasm linker");
@@ -68,5 +67,27 @@ impl Plugin for RuntimeSandboxPlugin {
         );
         // the previous frame has been rendered by the time `First` runs
         app.add_systems(First, update::post_render_update);
+    }
+}
+
+/// increments the engine's epoch every `WASM_EPOCH_TICK` so store deadlines measure wall-clock time.
+/// holds only a weak handle, so the thread exits once the engine is dropped
+fn spawn_epoch_ticker(engine: &wasmtime::Engine) {
+    let weak = engine.weak();
+    let spawned = std::thread::Builder::new()
+        .name("wasm-epoch-ticker".into())
+        .spawn(move || {
+            loop {
+                std::thread::sleep(WASM_EPOCH_TICK);
+                match weak.upgrade() {
+                    Some(engine) => engine.increment_epoch(),
+                    None => break,
+                }
+            }
+        });
+
+    match spawned {
+        Ok(_) => tracing::info!("Started wasm epoch ticker ({:?})", WASM_EPOCH_TICK),
+        Err(e) => panic!("FAILED TO START WASM EPOCH TICKER: {}", e),
     }
 }

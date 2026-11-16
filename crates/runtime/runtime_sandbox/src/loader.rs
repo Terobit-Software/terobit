@@ -5,6 +5,7 @@ use bevy::ecs::{
     system::{Res, ResMut},
 };
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
+use runtime_consts::sandbox::WASM_CYCLE_TICKS;
 
 #[derive(Event)]
 pub struct LoadModuleEvent {
@@ -95,6 +96,9 @@ pub fn observe_load_module_event(
             return;
         }
     };
+
+    // instantiation may run the module's start function, so give it a cycle budget
+    sandbox.store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
     match sandbox.linker.instantiate(&mut sandbox.store, &module) {
         Ok(v) => {
