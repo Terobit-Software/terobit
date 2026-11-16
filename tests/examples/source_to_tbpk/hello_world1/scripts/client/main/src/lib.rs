@@ -7,7 +7,7 @@ fn main() {
 
 #[update::pre_render]
 fn update() {
-    log("yee");
+    log("yeea");
 }
 
 #[update::post_render]

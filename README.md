@@ -42,8 +42,8 @@ Build a pack's client scripts, then run the client on its dev directory, or on i
 |----|----|
 |--manifest|required, the pack's `manifest.toml`|
 |--package|packs the client side into `out/tbpk_generator` and runs that `.tbpk`|
-|--final|builds like `run client --final`, and passes `--final` to each script's `build.sh`|
-|--strip-defaults|runs without the default dev flags|
+|--final|builds like `run client --final`, and passes `--final` to each script's `build.sh`. the client then runs without `--pack-file`, so it doesn't load the scripts (xtask warns)|
+|--strip-defaults|runs without the default dev flags, so like `--final` the scripts aren't loaded (xtask warns)|
 
 ### cargo xtask pkgen
 Build .tbpk packs from a manifest.toml. Builds each target's scripts first, the same as `runbuild`. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](xtask/README.md#pkgen).

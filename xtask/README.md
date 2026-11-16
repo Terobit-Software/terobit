@@ -66,7 +66,7 @@ cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.tom
 
 Only `[client.scripts]` are built, since only the client runs. With `--final` or
 `--strip-defaults` the client gets no `--pack-file`, so the scripts are built but nothing
-loads them. The client doesn't load scripts from a `.tbpk` yet, only from a dev directory,
+loads them, and xtask warns about it before building the client. The client doesn't load scripts from a `.tbpk` yet, only from a dev directory,
 so `--package` runs the pack without its scripts for now.
 
 ### Script source folders

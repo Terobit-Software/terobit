@@ -178,7 +178,20 @@ pub fn run_build(args: RunBuildClientArgs) -> Result<(), ClientError> {
         scripts::build_side(&source, Target::Client, args.r#final).context(BuildScriptsSnafu)?;
         source.get_root().to_path_buf()
     };
-    info!("Running the client on {}", pack_file.display());
+    if args.r#final || args.strip_defaults {
+        // the client only loads a pack in dev mode, which these leave off
+        warn!(
+            "Running the client without --dev and --pack-file because of {}, it won't load {} or the scripts just built",
+            if args.r#final {
+                "--final"
+            } else {
+                "--strip-defaults"
+            },
+            pack_file.display()
+        );
+    } else {
+        info!("Running the client on {}", pack_file.display());
+    }
 
     // absolute, since the client runs with out_dir as its working directory
     launch(
