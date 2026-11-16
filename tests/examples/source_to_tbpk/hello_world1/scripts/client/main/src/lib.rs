@@ -1,16 +1,12 @@
-use terobit_v1::prelude::*;
+use terobit_v1::{ecs::Command, prelude::*};
 
 #[main]
 fn main() {
     log("yuh");
 }
 
-#[update::pre_render]
-fn update() {
-    log("yeea");
-}
-
 #[update::post_render]
 fn spawn() {
+    log("spawning spawn command");
     Commands::spawn();
 }
