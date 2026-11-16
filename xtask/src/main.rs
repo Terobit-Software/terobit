@@ -3,6 +3,7 @@
 mod pkgen;
 mod regen;
 mod run;
+mod scripts;
 
 use std::process::ExitCode;
 
@@ -25,6 +26,10 @@ enum Command {
     /// Build and run a binary
     #[command(subcommand, visible_alias = "r")]
     Run(run::RunCommand),
+
+    /// Build a pack's scripts, optionally package it, then run a binary on it
+    #[command(subcommand, name = "runbuild", visible_aliases = ["rb", "br"])]
+    RunBuild(run::RunBuildCommand),
 
     /// Build .tbpk packs from a dev directory's manifest.toml
     Pkgen(pkgen::PkgenArgs),
@@ -54,7 +59,8 @@ fn main() -> ExitCode {
 
     let result = match cli.command {
         Command::Run(command) => run::run(command).context(RunSnafu),
-        Command::Pkgen(args) => pkgen::run(&args).context(PkgenSnafu),
+        Command::RunBuild(command) => run::run_build(command).context(RunSnafu),
+        Command::Pkgen(args) => pkgen::run(&args).map(drop).context(PkgenSnafu),
         Command::Regen(args) => regen::run(args).context(RegenSnafu),
     };
 

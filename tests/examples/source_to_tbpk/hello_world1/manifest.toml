@@ -4,4 +4,4 @@ pack_version = 1
 access = "free"
 
 [client.scripts]
-"self:main" = "scripts/client.wasm"
+"self:main" = "scripts/client/main.wasm"

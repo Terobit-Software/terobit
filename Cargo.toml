@@ -33,7 +33,7 @@ members = [
     "sdk/crates/terobit_v1_macros",
 
     # examples
-    "tests/examples/sdk/hello_world1",
+    "tests/examples/source_to_tbpk/hello_world1/scripts/client/main",
 
     # tooling
     "xtask",

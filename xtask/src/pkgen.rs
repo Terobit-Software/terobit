@@ -1,5 +1,6 @@
 //! `cargo xtask pkgen`: builds `.tbpk` packs from a dev directory. it stands in for the
-//! editor's publish step until the editor exists
+//! editor's publish step until the editor exists. each target's scripts are built first,
+//! see [`crate::scripts`]
 
 use std::fmt;
 use std::num::ParseIntError;
@@ -12,6 +13,8 @@ use runtime_consts::pack::ZSTD_LEVEL;
 use runtime_consts::paths::TBPK_GENERATOR_OUT;
 use snafu::{Report, ResultExt, Snafu, ensure};
 use tracing::{error, info, warn};
+
+use crate::scripts::{self, ScriptError};
 
 #[derive(Debug, Args)]
 pub struct PkgenArgs {
@@ -31,6 +34,10 @@ pub struct PkgenArgs {
     /// level than the default changes chunk bytes and hashes, so only use it to test speed and size
     #[arg(long, value_parser = parse_zstd_level, default_value_t = ZstdLevel(Some(ZSTD_LEVEL)))]
     pub zstd_level: ZstdLevel,
+
+    /// Pass `--final` to each script's build.sh
+    #[arg(long = "final")]
+    pub r#final: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -98,6 +105,16 @@ pub enum PkgenError {
         source: Box<PackWriterError>,
     },
 
+    #[snafu(display("failed to read the loaded manifest to build the {target:?} scripts"))]
+    ScriptsManifest {
+        target: Target,
+        #[snafu(source(from(PackWriterError, Box::new)))]
+        source: Box<PackWriterError>,
+    },
+
+    #[snafu(display("failed to build the {target:?} scripts"))]
+    BuildScripts { target: Target, source: ScriptError },
+
     #[snafu(display("failed to build the {target:?} pack"))]
     BuildPack {
         target: Target,
@@ -120,9 +137,10 @@ pub enum PkgenError {
     TargetsFailed { failed: Vec<Target>, total: usize },
 }
 
-/// a failed target is logged and doesn't stop the other, the error only says which failed
-#[tracing::instrument(skip_all, fields(manifest = %args.manifest.display()))]
-pub fn run(args: &PkgenArgs) -> Result<(), PkgenError> {
+/// a failed target is logged and doesn't stop the other, the error only says which failed.
+/// returns the written packs' paths, in the order of `args.target`
+#[tracing::instrument(skip_all, fields(manifest = %args.manifest.display(), r#final = args.r#final))]
+pub fn run(args: &PkgenArgs) -> Result<Vec<PathBuf>, PkgenError> {
     let targets = args.target.targets();
     info!("Output folder: {}", args.out.display());
     info!("Targets: {targets:?}");
@@ -149,11 +167,12 @@ pub fn run(args: &PkgenArgs) -> Result<(), PkgenError> {
     info!("Packs will be named {stem}.<target>.tbpk");
 
     let mut failed = Vec::new();
+    let mut written = Vec::new();
     for &target in targets {
         let target_start = std::time::Instant::now();
         info!("Generating {target:?} pack");
         let path = args.out.join(format!("{stem}.{}.tbpk", side_name(target)));
-        if let Err(e) = write_pack(&mut writer, target, &path) {
+        if let Err(e) = write_pack(&mut writer, target, &path, args.r#final) {
             error!(
                 "Skipping the {target:?} pack after {:?}: {}",
                 target_start.elapsed(),
@@ -167,6 +186,7 @@ pub fn run(args: &PkgenArgs) -> Result<(), PkgenError> {
             path.display(),
             target_start.elapsed()
         );
+        written.push(path);
     }
 
     ensure!(
@@ -177,10 +197,19 @@ pub fn run(args: &PkgenArgs) -> Result<(), PkgenError> {
         }
     );
     info!("Generated all packs in {:?}", start.elapsed());
-    Ok(())
+    Ok(written)
 }
 
-fn write_pack(writer: &mut PackWriter, target: Target, path: &Path) -> Result<(), PkgenError> {
+fn write_pack(
+    writer: &mut PackWriter,
+    target: Target,
+    path: &Path,
+    is_final: bool,
+) -> Result<(), PkgenError> {
+    let source = writer
+        .get_manifest_source()
+        .context(ScriptsManifestSnafu { target })?;
+    scripts::build_side(source, target, is_final).context(BuildScriptsSnafu { target })?;
     writer
         .build_tbpk(target)
         .context(BuildPackSnafu { target })?;
@@ -220,6 +249,7 @@ mod fn_tests {
         assert_eq!(args.out, Path::new(TBPK_GENERATOR_OUT));
         assert!(matches!(args.target, TargetArg::Both));
         assert_eq!(args.zstd_level.0, Some(ZSTD_LEVEL));
+        assert!(!args.r#final);
     }
 
     #[test]

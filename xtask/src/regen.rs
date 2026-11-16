@@ -547,9 +547,10 @@ fn pkgen(root: &Path, name: &str, dir: &Path) -> Result<(), pkgen::PkgenError> {
         out: root.join(PACKS_DIR).join(name),
         target: pkgen::TargetArg::Both,
         zstd_level: pkgen::ZstdLevel(Some(ZSTD_LEVEL)),
+        r#final: false,
     };
     info!("Packing {name}, packs go to {}", args.out.display());
-    pkgen::run(&args)
+    pkgen::run(&args).map(drop)
 }
 
 #[cfg(test)]

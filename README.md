@@ -19,6 +19,7 @@ Then, from the repo root:
 cargo test --workspace                                                   # run the tests
 cargo xtask pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
 cargo xtask run client                                                   # build and run the client
+cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.toml   # build a pack's scripts, then run the client on it
 ```
 
 CI runs `cargo fmt --all --check`, `cargo check --workspace --all-targets` and the tests with [nextest](https://nexte.st), plus `client_dev`'s tests with `--features dev`. Run `cargo fmt --all` before pushing.
@@ -34,8 +35,18 @@ Build and run the client. builds `terobit_client` with the `dev` feature, copies
 |--strip-defaults|runs without the default dev flags (`--dev`, `--pack-file ...`)|
 |--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
+### cargo xtask runbuild client
+Build a pack's client scripts, then run the client on its dev directory, or on its client pack with `--package`. `rb`, `br` and `runbuild` are the same command, so `cargo x rb cl --manifest <path>/manifest.toml` works. A script path like `scripts/client/main.wasm` with a `scripts/client/main/build.sh` is built by running `sh build.sh` in that folder, which writes `script.wasm`, copied over `main.wasm`. See [README](xtask/README.md#runbuild-client-cargo-x-rb-cl).
+
+|args|desc|
+|----|----|
+|--manifest|required, the pack's `manifest.toml`|
+|--package|packs the client side into `out/tbpk_generator` and runs that `.tbpk`|
+|--final|builds like `run client --final`, and passes `--final` to each script's `build.sh`|
+|--strip-defaults|runs without the default dev flags|
+
 ### cargo xtask pkgen
-Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](xtask/README.md#pkgen).
+Build .tbpk packs from a manifest.toml. Builds each target's scripts first, the same as `runbuild`. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](xtask/README.md#pkgen).
 
 |args|desc|
 |--|--|

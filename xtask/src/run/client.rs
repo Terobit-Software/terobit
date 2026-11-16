@@ -1,5 +1,7 @@
 //! `cargo xtask run client`: builds the client and runs it from a clean `out/client`, so
-//! runtime output never mixes with `target/` and the working directory looks like an install
+//! runtime output never mixes with `target/` and the working directory looks like an install.
+//! `cargo xtask runbuild client` builds a pack's client scripts (and packs it with
+//! `--package`) first, then does the same
 
 use std::fs;
 use std::io;
@@ -9,8 +11,16 @@ use std::process::{Command, ExitStatus};
 use clap::Args;
 use client_consts::flags::{DEV, PACK_FILE};
 use client_consts::paths::{CLIENT_BIN, CLIENT_OUT};
-use snafu::{ResultExt, Snafu, ensure};
+use runtime_assets::ManifestSource;
+use runtime_assets::pack::Target;
+use runtime_consts::pack::ZSTD_LEVEL;
+use runtime_consts::paths::TBPK_GENERATOR_OUT;
+use snafu::{OptionExt, ResultExt, Snafu, ensure};
 use tracing::{info, warn};
+
+use crate::pkgen::{self, PkgenArgs, PkgenError, TargetArg, ZstdLevel};
+use crate::scripts::{self, ScriptError};
+use runtime_assets::ManifestLoadError;
 
 /// pack loaded when `--pack-file` isn't given, relative to the workspace root
 const DEFAULT_PACK_FILE: &str = "tests/examples/source_to_tbpk/basic1";
@@ -32,6 +42,26 @@ pub struct ClientArgs {
         conflicts_with_all = ["final", "strip_defaults"],
     )]
     pack_file: PathBuf,
+}
+
+#[derive(Debug, Args)]
+pub struct RunBuildClientArgs {
+    /// The pack's manifest.toml, relative to the current directory
+    #[arg(long)]
+    manifest: PathBuf,
+
+    /// Build the client pack with pkgen and run that, instead of the dev directory
+    #[arg(long)]
+    package: bool,
+
+    /// Build with the `release` profile and without the `dev` feature, run without the dev
+    /// flags, and pass `--final` to each script's build.sh
+    #[arg(long = "final")]
+    r#final: bool,
+
+    /// Run without the dev flags
+    #[arg(long)]
+    strip_defaults: bool,
 }
 
 #[derive(Debug)]
@@ -93,16 +123,85 @@ pub enum ClientError {
 
     #[snafu(display("the client `{}` exited with {status}", bin.display()))]
     ClientFailed { bin: PathBuf, status: ExitStatus },
+
+    #[snafu(display("failed to load manifest `{}`", path.display()))]
+    LoadManifest {
+        path: PathBuf,
+        #[snafu(source(from(ManifestLoadError, Box::new)))]
+        source: Box<ManifestLoadError>,
+    },
+
+    #[snafu(display("failed to build the client scripts"))]
+    BuildScripts { source: ScriptError },
+
+    #[snafu(display("failed to package `{}`", manifest.display()))]
+    Package {
+        manifest: PathBuf,
+        #[snafu(source(from(PkgenError, Box::new)))]
+        source: Box<PkgenError>,
+    },
+
+    #[snafu(display("pkgen succeeded but returned no client pack, this is a bug in xtask"))]
+    NoClientPack,
 }
 
-#[tracing::instrument(skip_all, fields(r#final = args.r#final, pack_file = ?args.pack_file))]
+/// `cargo xtask run client`
 pub fn run(args: ClientArgs) -> Result<(), ClientError> {
     let cwd = std::env::current_dir().context(CurrentDirSnafu)?;
+    // absolute, since the client runs with out_dir as its working directory
+    let pack_file = cwd.join(&args.pack_file);
+    launch(&cwd, args.r#final, args.strip_defaults, &pack_file)
+}
+
+/// `cargo xtask runbuild client`: builds the client scripts into the dev directory, or packs
+/// it with `--package` (which builds them too), then runs the client on it
+#[tracing::instrument(skip_all, fields(manifest = ?args.manifest, package = args.package, r#final = args.r#final))]
+pub fn run_build(args: RunBuildClientArgs) -> Result<(), ClientError> {
+    let cwd = std::env::current_dir().context(CurrentDirSnafu)?;
+
+    let pack_file = if args.package {
+        let pkgen_args = PkgenArgs {
+            manifest: args.manifest.clone(),
+            out: PathBuf::from(TBPK_GENERATOR_OUT),
+            target: TargetArg::Client,
+            zstd_level: ZstdLevel(Some(ZSTD_LEVEL)),
+            r#final: args.r#final,
+        };
+        let packs = pkgen::run(&pkgen_args).context(PackageSnafu {
+            manifest: &args.manifest,
+        })?;
+        packs.into_iter().next().context(NoClientPackSnafu)?
+    } else {
+        let source = ManifestSource::from_path(&args.manifest).context(LoadManifestSnafu {
+            path: &args.manifest,
+        })?;
+        scripts::build_side(&source, Target::Client, args.r#final).context(BuildScriptsSnafu)?;
+        source.get_root().to_path_buf()
+    };
+    info!("Running the client on {}", pack_file.display());
+
+    // absolute, since the client runs with out_dir as its working directory
+    launch(
+        &cwd,
+        args.r#final,
+        args.strip_defaults,
+        &cwd.join(pack_file),
+    )
+}
+
+/// builds the client, stages it in a clean `out/client` and runs it there with the dev flags
+/// pointing at `pack_file` (an absolute path), unless `is_final` or `strip_defaults`
+#[tracing::instrument(skip_all, fields(is_final, strip_defaults, pack_file = ?pack_file))]
+fn launch(
+    cwd: &Path,
+    is_final: bool,
+    strip_defaults: bool,
+    pack_file: &Path,
+) -> Result<(), ClientError> {
     let assets_dir = cwd.join("bins").join(CLIENT_BIN).join("assets");
     let out_dir = cwd.join(CLIENT_OUT);
     info!("cwd: {cwd:?}, out dir: {out_dir:?}");
 
-    let is_final = args.r#final;
     let profile = if is_final {
         BuildProfile::Release
     } else {
@@ -110,11 +209,10 @@ pub fn run(args: ClientArgs) -> Result<(), ClientError> {
     };
     info!("profile: {profile:?}");
 
-    // absolute, since the client runs with out_dir as its working directory
-    let pack_file = cwd.join(&args.pack_file).to_string_lossy().into_owned();
+    let pack_file = pack_file.to_string_lossy().into_owned();
 
     let mut flags: Vec<&str> = vec![];
-    if !is_final && !args.strip_defaults {
+    if !is_final && !strip_defaults {
         flags.extend([DEV, PACK_FILE, &pack_file]);
     }
     info!("client flags: {flags:?}");

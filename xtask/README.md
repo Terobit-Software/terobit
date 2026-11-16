@@ -21,7 +21,7 @@ client's working directory looks like a real install.
 cargo x run client                    # release-dev build with the dev feature, runs with the dev flags
 cargo x run client --final            # release build without the dev feature, runs with no flags
 cargo x run client --strip-defaults   # release-dev build with the dev feature, runs with no flags
-cargo x run client --pack-file tests/examples/source_to_tbpk/hello_world1   # dev run with another pack
+cargo x run client --pack-file tests/examples/source_to_tbpk/basic1   # dev run with another pack
 ```
 
 | flag                 | what it does                                                     |
@@ -30,17 +30,8 @@ cargo x run client --pack-file tests/examples/source_to_tbpk/hello_world1   # de
 | `--strip-defaults`   | runs without the dev flags                                       |
 | `--pack-file <path>` | the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults` |
 
-### Testing an SDK script
-
-The `hello_world1` pack runs `tests/examples/sdk/hello_world1` as its client script. The
-`.wasm` is gitignored, so build and copy it in first:
-
-```sh
-cargo build -p hello_world1 --target wasm32-unknown-unknown --profile release-dev
-mkdir -p tests/examples/source_to_tbpk/hello_world1/scripts
-cp target/wasm32-unknown-unknown/release-dev/hello_world1.wasm tests/examples/source_to_tbpk/hello_world1/scripts/client.wasm
-cargo x run client --pack-file tests/examples/source_to_tbpk/hello_world1
-```
+`run client` doesn't build scripts. Use [`runbuild client`](#runbuild-client-cargo-x-rb-cl)
+for a pack with script source folders.
 
 ### What it does
 
@@ -55,6 +46,47 @@ cargo x run client --pack-file tests/examples/source_to_tbpk/hello_world1
    given
 
 Exits with failure if the build or the client fails.
+
+## runbuild client (`cargo x rb cl`)
+
+Builds a pack's client scripts, then runs the client on it like `run client`. `rb`, `br` and
+`runbuild` are the same command.
+
+```sh
+cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.toml             # build the scripts, run the dev directory
+cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.toml --package   # build the scripts and the client pack, run the pack
+```
+
+| flag                 | what it does                                                     |
+|----------------------|------------------------------------------------------------------|
+| `--manifest <path>`  | required, the pack's `manifest.toml`, relative to the current directory |
+| `--package`          | packs the client side like `cargo x pkgen --target client` into `out/tbpk_generator` and runs that `.tbpk`, instead of the dev directory |
+| `--final`            | builds the client like `run client --final`, and passes `--final` to each script's `build.sh` |
+| `--strip-defaults`   | runs without the dev flags                                       |
+
+Only `[client.scripts]` are built, since only the client runs. With `--final` or
+`--strip-defaults` the client gets no `--pack-file`, so the scripts are built but nothing
+loads them. The client doesn't load scripts from a `.tbpk` yet, only from a dev directory,
+so `--package` runs the pack without its scripts for now.
+
+### Script source folders
+
+A script path in the manifest can have a source folder next to it: the same path without
+`.wasm`. For `"self:main" = "scripts/client/main.wasm"` that's `scripts/client/main/`.
+
+1. if the folder has a `build.sh`, its old `script.wasm` is deleted and
+   `sh build.sh` runs from inside the folder, or `sh build.sh --final` with `--final`.
+   It must write `script.wasm` into the folder, which is copied over
+   `scripts/client/main.wasm`. A failed build stops the task
+2. without the folder (or with a folder but no `build.sh`, which warns), the `.wasm`
+   already at the path is used. It's an error if it doesn't exist
+
+`cargo x pkgen` does the same for each target it packs.
+
+`tests/examples/source_to_tbpk/hello_world1` is an example. Its client script is the Rust
+SDK crate in `scripts/client/main/`, a workspace member, whose `build.sh` builds it for
+`wasm32-unknown-unknown` with the `release-dev` profile (`release` with `--final`) and copies
+the output to `script.wasm`. The built `.wasm` files are gitignored.
 
 ## pkgen
 
@@ -75,6 +107,7 @@ cargo x pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
 | `--out`        | folder                   | `out/tbpk_generator`    | created if missing                                        |
 | `--target`     | `client`, `server`, `both` | `both`                |                                                           |
 | `--zstd-level` | a number, or `none`      | `ZSTD_LEVEL` (5)        | any other value changes chunk bytes and hashes, so only use it to test speed and size |
+| `--final`      |                          | off                     | passed to each script's `build.sh`                        |
 
 Output is `<out>/<realm_id>-<pack_version>.client.tbpk` and `.server.tbpk`. The example
 above writes `out/tbpk_generator/1-1.client.tbpk` and `1-1.server.tbpk`.
@@ -83,8 +116,9 @@ above writes `out/tbpk_generator/1-1.client.tbpk` and `1-1.server.tbpk`.
 
 1. `PackWriter::new().with_zstd_level(...)`, then `load_manifest`, which validates the
    manifest
-2. for each target, `build_tbpk` then `write_tbpk_out`. If one target fails it's logged and
-   the other still builds. The task fails if any target failed
+2. for each target, builds its scripts (see [script source folders](#script-source-folders)),
+   then `build_tbpk` and `write_tbpk_out`. If one target fails it's logged and the other
+   still builds. The task fails if any target failed
 
 See [building a pack](../docs/ARCHITECTURE.md#building-a-pack) for what `PackWriter`
 does inside. Packs are always unsigned for now, nothing loads a signing key yet (F2), and
@@ -138,7 +172,8 @@ example fails, the rest still run and the task exits with failure.
 
 ## TODO
 
-- [ ] build SDK scripts and copy them into their pack before running
+- [x] build SDK scripts and copy them into their pack before running (`cargo x rb cl`)
+- [ ] the client loads 0 scripts from a `.tbpk`, so `rb cl --package` runs without them
 - [ ] pass extra arguments through to the client (`cargo x run client -- --some-flag`)
 - [ ] create `bins/terobit_client/assets` or drop step 3
 - [ ] regen: rewrite it, its module doc says so (C7)

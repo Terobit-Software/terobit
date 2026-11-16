@@ -34,7 +34,7 @@ release build can't read a dev directory.
 | [terobit_client](../bins/terobit_client/README.md) | the game client players run                  | empty window       |
 | [terobit_server](../bins/terobit_server/README.md) | runs server packs, hosts players             | hello world        |
 | [terobit_editor](../bins/terobit_editor/README.md) | client plus tools, replaces `--dev` and pkgen | hello world       |
-| [xtask](../xtask/README.md)                      | `cargo xtask`: `run client`, `pkgen`, `regen` | working   |
+| [xtask](../xtask/README.md)                      | `cargo xtask`: `run client`, `runbuild client`, `pkgen`, `regen` | working   |
 
 ## Crates
 

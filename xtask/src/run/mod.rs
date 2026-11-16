@@ -1,4 +1,4 @@
-//! `cargo xtask run <target>`
+//! `cargo xtask run <target>` and `cargo xtask runbuild <target>`
 
 mod client;
 
@@ -12,7 +12,14 @@ pub enum RunCommand {
     Client(client::ClientArgs),
 }
 
-/// a `run` task failed
+#[derive(Debug, Subcommand)]
+pub enum RunBuildCommand {
+    /// Build the client scripts of a pack, optionally package it, then run the client on it
+    #[command(visible_alias = "cl")]
+    Client(client::RunBuildClientArgs),
+}
+
+/// a `run` or `runbuild` task failed
 #[derive(Debug, Snafu)]
 pub enum RunError {
     #[snafu(display("failed to run the client"))]
@@ -22,5 +29,11 @@ pub enum RunError {
 pub fn run(command: RunCommand) -> Result<(), RunError> {
     match command {
         RunCommand::Client(args) => client::run(args).context(ClientSnafu),
+    }
+}
+
+pub fn run_build(command: RunBuildCommand) -> Result<(), RunError> {
+    match command {
+        RunBuildCommand::Client(args) => client::run_build(args).context(ClientSnafu),
     }
 }
