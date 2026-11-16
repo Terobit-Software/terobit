@@ -6,6 +6,7 @@ use runtime_consts::sandbox::{WASM_CYCLE_TICKS, WASM_EPOCH_TICK};
 
 pub struct RuntimeSandboxPlugin;
 
+pub mod commands;
 mod host;
 mod loader;
 mod update;
