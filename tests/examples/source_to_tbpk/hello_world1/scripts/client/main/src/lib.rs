@@ -1,4 +1,4 @@
-use terobit_v1::{ecs::Command, prelude::*};
+use terobit_v1::prelude::*;
 
 #[main]
 fn main() {
