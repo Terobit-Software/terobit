@@ -8,4 +8,5 @@ fn main() {
 #[update::post_render]
 fn spawn() {
     Entity::new();
+    log(&format!("fps: {:#?}", 1.0 / FrameInfo::get().delta_secs()));
 }
