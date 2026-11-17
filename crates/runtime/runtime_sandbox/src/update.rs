@@ -14,7 +14,8 @@ fn call_entrypoint(sandbox: &mut RuntimeSandboxResource, commands: &mut Commands
 
     store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
-    for instance in instances.iter() {
+    for script in instances.iter() {
+        let instance = &script.instance;
         let Ok(func) = instance.get_typed_func::<(), ()>(&mut *store, name) else {
             continue;
         };

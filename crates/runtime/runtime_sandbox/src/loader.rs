@@ -4,6 +4,7 @@ use bevy::ecs::{
     observer::On,
     system::{Res, ResMut},
 };
+use bevy::time::Time;
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 use runtime_consts::sandbox::WASM_CYCLE_TICKS;
 
@@ -74,6 +75,7 @@ pub fn observe_pack_read_event(
 pub fn observe_load_module_event(
     event: On<LoadModuleEvent>,
     registry: Res<PackRegistry>,
+    time: Res<Time>,
     mut _sand: ResMut<crate::RuntimeSandboxResource>,
     mut commands: Commands,
 ) {
@@ -104,7 +106,11 @@ pub fn observe_load_module_event(
     match sandbox.linker.instantiate(&mut sandbox.store, &module) {
         Ok(v) => {
             tracing::info!("Loaded module `{}`", handle);
-            sandbox.instances.push(v);
+            sandbox.instances.push(crate::ScriptInstance {
+                instance: v,
+                loaded_at: time.elapsed(),
+                frame: 0,
+            });
 
             if let Err(e) = prep_instance(&v, &mut sandbox.store) {
                 tracing::error!(

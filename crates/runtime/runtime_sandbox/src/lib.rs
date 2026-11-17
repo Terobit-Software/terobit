@@ -7,16 +7,26 @@ use runtime_consts::sandbox::{WASM_CYCLE_TICKS, WASM_EPOCH_TICK};
 pub struct RuntimeSandboxPlugin;
 
 pub mod commands;
+pub mod frame_info;
 mod host;
 mod loader;
 mod update;
 pub use loader::*;
 
+/// A loaded script and the per-script state the host tracks for it.
+pub struct ScriptInstance {
+    pub instance: wasmtime::Instance,
+    /// `Time::elapsed()` when the script was loaded.
+    pub loaded_at: std::time::Duration,
+    /// Frame number the next frame info write will carry, starting at 0.
+    pub frame: u64,
+}
+
 #[derive(Resource)]
 pub struct RuntimeSandboxResource {
     pub engine: wasmtime::Engine,
     pub store: wasmtime::Store<()>,
-    pub instances: Vec<wasmtime::Instance>,
+    pub instances: Vec<ScriptInstance>,
     pub linker: wasmtime::Linker<()>,
 }
 
@@ -60,6 +70,7 @@ impl Plugin for RuntimeSandboxPlugin {
         app.add_systems(
             Update,
             (
+                frame_info::write_frame_info_update,
                 update::pre_physics_update,
                 update::post_physics_update,
                 update::pre_render_update,

@@ -5836,6 +5836,7 @@ name = "runtime_sandbox"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bytemuck",
  "runtime_assets",
  "runtime_consts",
  "snafu",
