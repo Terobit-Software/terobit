@@ -1,8 +1,9 @@
 //! Host side of the guest command buffer (see `terobit_v1_abi::commands`).
 
+use bevy::ecs::system::Commands;
 use snafu::{OptionExt, ResultExt, Snafu};
 use terobit_v1_abi::{
-    commands::{HEADER_LEN, Opcode},
+    commands::{HEADER_LEN, Opcode, SPAWN},
     endpoints,
 };
 
@@ -68,6 +69,44 @@ pub fn read_commands(
     })?;
 
     Ok(commands)
+}
+
+/// Reads `instance`'s command buffer and applies every record to the scene.
+///
+/// Guests that don't export a command buffer are skipped.
+pub fn read_and_apply_commands(
+    instance: &wasmtime::Instance,
+    store: &mut wasmtime::Store<()>,
+    commands: &mut Commands,
+) {
+    match read_commands(instance, store) {
+        Ok(guest_commands) => apply_commands(commands, &guest_commands),
+        Err(ReadCommandsError::MissingExport { name, .. }) => {
+            tracing::trace!("guest has no `{}`, skipping its command buffer", name);
+        }
+        Err(e) => tracing::error!(
+            "Failed to read guest command buffer: {}",
+            snafu::Report::from_error(&e)
+        ),
+    }
+}
+
+/// Applies guest command records to the scene.
+pub fn apply_commands(commands: &mut Commands, guest_commands: &[GuestCommand]) {
+    for command in guest_commands {
+        match command.opcode {
+            SPAWN => {
+                // TODO: spawn with the components in the payload once `Spawn` encodes them.
+                let entity = commands.spawn_empty().id();
+                tracing::debug!("guest spawned {:?}", entity);
+            }
+            opcode => tracing::warn!(
+                "unknown guest command opcode {} ({} byte payload), skipping",
+                opcode,
+                command.payload.len()
+            ),
+        }
+    }
 }
 
 /// Parses the command buffer at `ptr..ptr + len` in guest `memory`.

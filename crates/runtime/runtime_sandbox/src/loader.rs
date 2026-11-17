@@ -75,6 +75,7 @@ pub fn observe_load_module_event(
     event: On<LoadModuleEvent>,
     registry: Res<PackRegistry>,
     mut _sand: ResMut<crate::RuntimeSandboxResource>,
+    mut commands: Commands,
 ) {
     let handle = event.handle.clone();
     tracing::info!("New load module request from {}", handle);
@@ -112,6 +113,9 @@ pub fn observe_load_module_event(
                     snafu::Report::from_error(&e)
                 );
             }
+
+            // apply anything main queued, even if it failed partway through
+            crate::commands::read_and_apply_commands(&v, &mut sandbox.store, &mut commands);
         }
         Err(e) => {
             tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
