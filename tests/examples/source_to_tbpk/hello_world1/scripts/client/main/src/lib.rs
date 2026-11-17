@@ -1,4 +1,4 @@
-use terobit_v1::prelude::*;
+use terobit_v1::{ecs::Entity, prelude::*};
 
 #[main]
 fn main() {
@@ -7,6 +7,5 @@ fn main() {
 
 #[update::post_render]
 fn spawn() {
-    log("spawning spawn command");
-    Commands::spawn();
+    Entity::new();
 }

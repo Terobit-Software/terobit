@@ -1,4 +1,4 @@
-pub mod components;
+pub(crate) mod components;
 
 mod query;
 pub use query::*;
