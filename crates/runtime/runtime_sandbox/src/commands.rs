@@ -98,7 +98,7 @@ pub fn apply_commands(commands: &mut Commands, guest_commands: &[GuestCommand]) 
             SPAWN => {
                 // TODO: spawn with the components in the payload once `Spawn` encodes them.
                 let entity = commands.spawn_empty().id();
-                tracing::debug!("guest spawned {:?}", entity);
+                tracing::info!("guest spawned {:?}", entity);
             }
             opcode => tracing::warn!(
                 "unknown guest command opcode {} ({} byte payload), skipping",
