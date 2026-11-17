@@ -1,5 +1,9 @@
-pub type EntityId = u32;
+use crate::ecs::Commands;
 
-pub struct Entity {
-    id: EntityId,
+pub struct Entity {}
+
+impl Entity {
+    pub fn new() -> () {
+        Commands::spawn();
+    }
 }
