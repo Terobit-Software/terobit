@@ -1,3 +1,4 @@
+use core::cell::Cell;
 use std::time::Duration;
 
 /// Timing information for the current frame.
@@ -18,8 +19,7 @@ pub struct FrameInfo {
 impl FrameInfo {
     /// Fetches the timing information for the current frame from the host drop spot.
     pub fn get() -> Self {
-        // TODO: grab from the data that the host fills in
-        Self::default()
+        FRAME_INFO.with(Cell::get)
     }
 
     /// Time since the previous frame.
@@ -46,4 +46,23 @@ impl FrameInfo {
     pub fn frame(&self) -> u64 {
         self.frame
     }
+}
+
+// check the stated sizes are the same
+const _: () =
+    assert!(size_of::<FrameInfo>() == size_of::<terobit_v1_abi::frame_info::FrameInfo>() as usize);
+
+thread_local! {
+    /// Drop spot the host writes the current frame's [`FrameInfo`] into.
+    static FRAME_INFO: Cell<FrameInfo> = const {
+        Cell::new(FrameInfo { delta_secs: 0.0, elapsed_secs: 0.0, frame: 0 })
+    };
+}
+
+// Export the host uses to find the drop spot.
+// Name matches `terobit_v1_abi::endpoints::FRAME_INFO_PTR_ENDPOINT`.
+
+#[unsafe(no_mangle)]
+pub extern "C" fn _terobit_v1_frame_info_ptr() -> i32 {
+    FRAME_INFO.with(|info| info.as_ptr() as i32)
 }

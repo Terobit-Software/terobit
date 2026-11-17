@@ -72,3 +72,14 @@ pub const COMMANDS_LEN_ENDPOINT: &str = "_terobit_v1_commands_len";
 ///
 /// (nothing) -> (nothing)
 pub const COMMANDS_CLEAR_ENDPOINT: &str = "_terobit_v1_commands_clear";
+
+// frame info buffer:
+//   before each frame's first update stage the host writes one
+//   `crate::frame_info::FrameInfo` to `ptr`.
+
+/// Pointer to the start of the frame info buffer in guest memory.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (pointer to frame info buffer)
+pub const FRAME_INFO_PTR_ENDPOINT: &str = "_terobit_v1_frame_info_ptr";
