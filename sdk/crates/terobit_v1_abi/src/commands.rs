@@ -20,6 +20,4 @@ pub type Opcode = u32;
 pub const HEADER_LEN: usize = 8;
 
 /// Spawn a new entity.
-///
-/// Payload: TODO.
 pub const SPAWN: Opcode = 0;

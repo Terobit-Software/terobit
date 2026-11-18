@@ -24,6 +24,6 @@ impl Entity {
 
 impl Drop for Entity {
     fn drop(&mut self) {
-        Commands::spawn();
+        Commands::spawn(std::mem::take(&mut self.components));
     }
 }

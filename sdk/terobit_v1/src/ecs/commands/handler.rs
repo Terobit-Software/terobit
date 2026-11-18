@@ -1,3 +1,4 @@
+use crate::ecs::components::ComponentId;
 use core::cell::RefCell;
 
 use terobit_v1_abi::commands::HEADER_LEN;
@@ -31,8 +32,8 @@ impl Commands {
     }
 
     /// Queues a [`Spawn`].
-    pub fn spawn() {
-        Self::push(Spawn::new());
+    pub fn spawn(components: Vec<(ComponentId, Vec<u8>)>) {
+        Self::push(Spawn::new(components));
     }
 
     /// Asks the host to apply everything queued so far, then clears the buffer.
