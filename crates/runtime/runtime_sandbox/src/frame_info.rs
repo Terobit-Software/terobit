@@ -11,10 +11,16 @@ use crate::{RuntimeSandboxResource, ScriptInstance};
 
 #[derive(Debug, Snafu)]
 pub enum WriteFrameInfoError {
-    #[snafu(display("guest is missing frame info export `{}`", endpoints::FRAME_INFO_PTR_ENDPOINT))]
+    #[snafu(display(
+        "guest is missing frame info export `{}`",
+        endpoints::FRAME_INFO_PTR_ENDPOINT
+    ))]
     MissingExport { source: wasmtime::Error },
 
-    #[snafu(display("guest frame info export `{}` failed", endpoints::FRAME_INFO_PTR_ENDPOINT))]
+    #[snafu(display(
+        "guest frame info export `{}` failed",
+        endpoints::FRAME_INFO_PTR_ENDPOINT
+    ))]
     ExportFailed { source: wasmtime::Error },
 
     #[snafu(display("guest has no exported `memory`"))]
