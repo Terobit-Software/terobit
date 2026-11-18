@@ -9,7 +9,11 @@ pub struct Spawn {
 
 impl Spawn {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
+    }
+
+    pub fn with(&mut self) -> Self {
+        
     }
 }
 
