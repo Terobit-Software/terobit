@@ -1,10 +1,15 @@
 use terobit_v1_abi::commands::{Opcode, SPAWN};
 
-use crate::ecs::Command;
+use crate::ecs::{
+    Command,
+    components::{Component, ComponentId},
+};
 
 /// Spawns a new entity.
+#[derive(Default)]
 pub struct Spawn {
-    // TODO: components to spawn the entity with.
+    // id, raw bytes
+    components: Vec<(ComponentId, Vec<u8>)>,
 }
 
 impl Spawn {
@@ -12,14 +17,10 @@ impl Spawn {
         Self::default()
     }
 
-    pub fn with(&mut self) -> Self {
-        
-    }
-}
-
-impl Default for Spawn {
-    fn default() -> Self {
-        Self::new()
+    pub fn with<C: Component + bytemuck::Pod>(mut self, component: C) -> Self {
+        self.components
+            .push((C::ID, bytemuck::bytes_of(&component).to_vec()));
+        self
     }
 }
 
