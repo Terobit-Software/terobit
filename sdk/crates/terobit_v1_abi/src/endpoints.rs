@@ -3,15 +3,6 @@
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::prelude::*;
-///
-/// #[main]
-/// fn main () {
-///     log("This code is run when the script is loaded.");
-/// }
-/// ```
 pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
 
 // update order:
