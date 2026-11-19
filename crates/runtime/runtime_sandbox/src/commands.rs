@@ -1,6 +1,6 @@
 //! Host side of the guest command buffer (see `terobit_v1_abi::commands`).
 
-use bevy::ecs::system::Commands;
+use bevy::ecs::{entity::Entity, system::Commands};
 use snafu::{OptionExt, ResultExt, Snafu};
 use terobit_v1_abi::{
     commands::{HEADER_LEN, Opcode, SPAWN},
@@ -91,13 +91,15 @@ pub fn read_and_apply_commands(
     }
 }
 
+mod spawn;
+
 /// Applies guest command records to the scene.
 pub fn apply_commands(commands: &mut Commands, guest_commands: &[GuestCommand]) {
     for command in guest_commands {
         match command.opcode {
             SPAWN => {
-                // TODO: spawn with the components in the payload once `Spawn` encodes them.
-                let entity = commands.spawn_empty().id();
+                let entity = spawn::command(commands, command);
+
                 tracing::info!("guest spawned {:?}", entity);
             }
             opcode => tracing::warn!(
