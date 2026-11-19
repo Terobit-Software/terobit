@@ -115,11 +115,7 @@ pub fn observe_load_module_event(
 
             match prep_instance(&v, &mut sandbox.store) {
                 Ok(()) => {
-                    crate::commands::read_and_apply_commands(
-                        &v,
-                        &mut sandbox.store,
-                        &mut commands,
-                    );
+                    crate::commands::read_and_apply_commands(&v, &mut sandbox.store, &mut commands);
                 }
                 // main never ran, so the guest is clean; nothing was queued
                 Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {

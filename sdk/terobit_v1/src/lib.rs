@@ -11,6 +11,9 @@ pub mod frame_info;
 mod log;
 pub use log::*;
 
+mod window;
+pub use window::*;
+
 pub mod prelude;
 
 pub mod ecs;

@@ -7,7 +7,7 @@ fn main() {
 
 #[update::post_render]
 fn spawn() {
-    for i in 0..1000000 {
+    for i in 0..1000 {
         Entity::new().with(Transform::new()).spawn();
     }
     log(&format!("fps: {:#?}", 1.0 / FrameInfo::get().delta_secs()));

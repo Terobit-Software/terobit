@@ -31,7 +31,10 @@ impl ScriptInstance {
     /// Marks the script dead after a trap so the host stops touching it.
     pub fn poison(&mut self, reason: &str) {
         if !self.poisoned {
-            tracing::error!("poisoning script instance, it will no longer run: {}", reason);
+            tracing::error!(
+                "poisoning script instance, it will no longer run: {}",
+                reason
+            );
         }
         self.poisoned = true;
     }
@@ -71,6 +74,13 @@ impl Plugin for RuntimeSandboxPlugin {
             Err(e) => tracing::error!("FAILED to link host log with reason {}", e),
         }
 
+        let pending_title = host::window::PendingTitle::default();
+        match host::window::link(&mut linker, &pending_title) {
+            Ok(()) => tracing::info!("Linked host set_title"),
+            Err(e) => tracing::error!("FAILED to link host set_title with reason {}", e),
+        }
+        app.insert_resource(pending_title);
+
         app.insert_resource(RuntimeSandboxResource {
             engine,
             store,
@@ -94,6 +104,7 @@ impl Plugin for RuntimeSandboxPlugin {
         );
         // the previous frame has been rendered by the time `First` runs
         app.add_systems(First, update::post_render_update);
+        app.add_systems(Update, host::window::apply_pending_title);
     }
 }
 
