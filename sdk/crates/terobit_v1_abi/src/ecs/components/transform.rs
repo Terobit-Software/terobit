@@ -9,3 +9,4 @@ pub struct Transform {
     pub rotation: [f32; 4],
     pub scale: [f32; 3],
 }
+pub const TRANSFORM_COMPONENT_ID: u32 = 1;

@@ -92,6 +92,7 @@ pub fn read_and_apply_commands(
 }
 
 mod spawn;
+pub(crate) mod util;
 
 /// Applies guest command records to the scene.
 pub fn apply_commands(commands: &mut Commands, guest_commands: &[GuestCommand]) {

@@ -13,7 +13,7 @@ pub struct Transform {
 }
 
 impl Component for Transform {
-    const ID: ComponentId = 1;
+    const ID: ComponentId = terobit_v1_abi::ecs::components::transform::TRANSFORM_COMPONENT_ID;
 }
 
 impl Transform {
