@@ -7,6 +7,6 @@ fn main() {
 
 #[update::post_render]
 fn spawn() {
-    Entity::new().with(Transform::new());
+    Entity::new().with(Transform::new()).spawn();
     log(&format!("fps: {:#?}", 1.0 / FrameInfo::get().delta_secs()));
 }

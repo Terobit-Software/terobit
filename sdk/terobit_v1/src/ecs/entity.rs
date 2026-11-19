@@ -3,8 +3,9 @@ use crate::ecs::{
     components::{Component, ComponentId},
 };
 
-/// Builds an entity. It is spawned when the builder is dropped.
+/// Builds an entity. Call [`spawn`](Self::spawn) to queue it.
 #[derive(Default)]
+#[must_use = "an entity is only created when `.spawn()` is called"]
 pub struct Entity {
     // id, raw bytes
     components: Vec<(ComponentId, Vec<u8>)>,
@@ -20,10 +21,9 @@ impl Entity {
             .push((C::ID, bytemuck::bytes_of(&component).to_vec()));
         self
     }
-}
 
-impl Drop for Entity {
-    fn drop(&mut self) {
-        Commands::spawn(std::mem::take(&mut self.components));
+    /// Queues the spawn. The host creates the entity when it next reads commands.
+    pub fn spawn(self) {
+        Commands::spawn(self.components);
     }
 }
