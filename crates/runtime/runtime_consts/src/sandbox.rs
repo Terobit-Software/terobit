@@ -5,10 +5,10 @@ pub const WASM_EPOCH_TICK: Duration = Duration::from_millis(1);
 
 /// wall-clock budget for each update cycle (pre-physics, post-physics, pre-render, post-render)
 /// and for module instantiation, shared across all instances
-pub const WASM_CYCLE_BUDGET: Duration = Duration::from_millis(60);
+pub const WASM_CYCLE_BUDGET: Duration = Duration::from_millis(5000 / 4); // max of 5 seconds across all updates before poison
 
 /// wall-clock budget for an instance's main entrypoint
-pub const MAIN_WASM_BUDGET: Duration = Duration::from_millis(500);
+pub const MAIN_WASM_BUDGET: Duration = Duration::from_millis(5000); // instantiate, max 5 seconds
 
 /// converts a time budget into a number of epoch ticks (rounded up, at least 1)
 pub const fn budget_ticks(budget: Duration) -> u64 {
