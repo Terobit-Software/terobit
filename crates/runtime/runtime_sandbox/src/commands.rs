@@ -101,7 +101,7 @@ pub fn apply_commands(commands: &mut Commands, guest_commands: &[GuestCommand]) 
             SPAWN => {
                 let entity = spawn::command(commands, command);
 
-                tracing::info!("guest spawned {:?}", entity);
+                // tracing::info!("guest spawned {:?}", entity);
             }
             opcode => tracing::warn!(
                 "unknown guest command opcode {} ({} byte payload), skipping",

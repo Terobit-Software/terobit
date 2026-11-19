@@ -61,11 +61,12 @@ pub fn write_frame_info_update(mut sandbox: ResMut<RuntimeSandboxResource>, time
         store, instances, ..
     } = &mut *sandbox;
 
-    for script in instances.iter_mut() {
+    for script in instances.iter_mut().filter(|s| !s.poisoned) {
         let ScriptInstance {
             instance,
             loaded_at,
             frame,
+            ..
         } = script;
 
         let info = FrameInfo {

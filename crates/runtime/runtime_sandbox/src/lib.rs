@@ -20,6 +20,21 @@ pub struct ScriptInstance {
     pub loaded_at: std::time::Duration,
     /// Frame number the next frame info write will carry, starting at 0.
     pub frame: u64,
+    /// Set once a call into the script traps. A trap doesn't unwind, so the
+    /// guest may be stuck mid-write (held `RefCell` borrows, a half-encoded
+    /// command, a heap left mid-allocation). The host never calls into or reads
+    /// from a poisoned instance again.
+    pub poisoned: bool,
+}
+
+impl ScriptInstance {
+    /// Marks the script dead after a trap so the host stops touching it.
+    pub fn poison(&mut self, reason: &str) {
+        if !self.poisoned {
+            tracing::error!("poisoning script instance, it will no longer run: {}", reason);
+        }
+        self.poisoned = true;
+    }
 }
 
 #[derive(Resource)]

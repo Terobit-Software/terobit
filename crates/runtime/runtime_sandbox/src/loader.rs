@@ -106,22 +106,41 @@ pub fn observe_load_module_event(
     match sandbox.linker.instantiate(&mut sandbox.store, &module) {
         Ok(v) => {
             tracing::info!("Loaded module `{}`", handle);
-            sandbox.instances.push(crate::ScriptInstance {
+            let mut script = crate::ScriptInstance {
                 instance: v,
                 loaded_at: time.elapsed(),
                 frame: 0,
-            });
+                poisoned: false,
+            };
 
-            if let Err(e) = prep_instance(&v, &mut sandbox.store) {
-                tracing::error!(
-                    "Failed to prep module `{}`: {}",
-                    handle,
-                    snafu::Report::from_error(&e)
-                );
+            match prep_instance(&v, &mut sandbox.store) {
+                Ok(()) => {
+                    crate::commands::read_and_apply_commands(
+                        &v,
+                        &mut sandbox.store,
+                        &mut commands,
+                    );
+                }
+                // main never ran, so the guest is clean; nothing was queued
+                Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {
+                    tracing::error!(
+                        "Failed to prep module `{}`: {}",
+                        handle,
+                        snafu::Report::from_error(&e)
+                    );
+                }
+                // main trapped partway: drop whatever it queued and stop running it
+                Err(e @ prep::InstancePrepError::MainFailed { .. }) => {
+                    tracing::error!(
+                        "Failed to prep module `{}`: {}",
+                        handle,
+                        snafu::Report::from_error(&e)
+                    );
+                    script.poison(&format!("main of `{}` trapped", handle));
+                }
             }
 
-            // apply anything main queued, even if it failed partway through
-            crate::commands::read_and_apply_commands(&v, &mut sandbox.store, &mut commands);
+            sandbox.instances.push(script);
         }
         Err(e) => {
             tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
