@@ -1,6 +1,6 @@
 //! Host side of the guest command buffer (see `terobit_v1_abi::commands`).
 
-use bevy::ecs::{entity::Entity, system::Commands};
+use bevy::ecs::system::Commands;
 use snafu::{OptionExt, ResultExt, Snafu};
 use terobit_v1_abi::{
     commands::{HEADER_LEN, Opcode, SPAWN},
