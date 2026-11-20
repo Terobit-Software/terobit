@@ -5767,6 +5767,7 @@ dependencies = [
  "snafu",
  "toml",
  "tracing",
+ "wasmparser 0.261.0",
  "zstd 0.14.3",
  "zstd-sys",
 ]

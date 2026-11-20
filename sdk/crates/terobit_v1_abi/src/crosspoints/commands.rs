@@ -1,4 +1,5 @@
-#[link(wasm_import_module = "host")]
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "terobit_v1")]
 unsafe extern "C" {
     /// Asks the host to read and apply the command buffer now, instead of
     /// waiting for the end of the cycle. The guest clears the buffer after

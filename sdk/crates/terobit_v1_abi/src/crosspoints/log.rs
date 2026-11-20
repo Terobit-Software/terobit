@@ -1,4 +1,5 @@
-#[link(wasm_import_module = "host")]
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "terobit_v1")]
 unsafe extern "C" {
     /// Logs a UTF-8 message to the host.
     ///

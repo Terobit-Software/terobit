@@ -63,6 +63,8 @@ blake3 = "1.8.7"
 ed25519-dalek = "3.0.0"
 snafu = "0.9.2"
 wasmtime = "50.0.3"
+# same version wasmtime 50 uses, so there is one copy
+wasmparser = { version = "0.261.0", default-features = false, features = ["std"] }
 syn = { version = "3.0.10", features = ["full"] }
 quote = "1.0.47"
 bytemuck = { version = "1.25.2", default-features = false, features = ["derive"] }

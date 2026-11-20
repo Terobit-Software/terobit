@@ -17,3 +17,13 @@ pub use window::*;
 pub mod prelude;
 
 pub mod ecs;
+
+/// Host functions are wasm imports from `terobit_v1`, which only exist inside the sandbox.
+/// Off wasm32 the SDK still compiles (for docs, tests and tooling), but calling one panics.
+#[cfg(not(target_arch = "wasm32"))]
+#[track_caller]
+pub(crate) fn outside_sandbox(function: &str) {
+    panic!(
+        "`{function}` calls the terobit host, which only exists when the script runs as wasm32 inside terobit"
+    )
+}

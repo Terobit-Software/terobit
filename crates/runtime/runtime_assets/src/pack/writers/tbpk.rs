@@ -4,6 +4,7 @@ use crate::pack::{
     IndexRef, IndexV1, MagicValue, ManifestV1, Purpose, SignatureV1, Signed, TableOfContents,
     Target, TbManifest, TbPack, TbSignature, pack_digest,
 };
+use crate::script_imports::{ScriptImportError, check_script_imports};
 use crate::{ManifestLoadError, ManifestSideError, ManifestSource, SideAssets};
 use ed25519_dalek::{Signer, SigningKey};
 use runtime_consts::integrity::INDEX;
@@ -61,6 +62,22 @@ pub enum PackWriterError {
         target: Target,
         #[snafu(source(from(ManifestSideError, Box::new)))]
         source: Box<ManifestSideError>,
+    },
+
+    #[snafu(display("failed to read {target:?} script `{id}` at `{}`", path.display()))]
+    ReadScript {
+        target: Target,
+        id: String,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("{target:?} script `{id}` at `{}` can't be packed", path.display()))]
+    ScriptImports {
+        target: Target,
+        id: String,
+        path: PathBuf,
+        source: ScriptImportError,
     },
 
     #[snafu(display("failed to chunk the {target:?} files from `{}`", root.display()))]
@@ -311,8 +328,32 @@ impl PackWriter {
         self.manifest_source.as_ref().context(NoManifestSnafu)
     }
 
+    /// refuses the pack if any of one side's scripts imports from a module the host doesn't
+    /// provide, so a bad script fails here instead of when a player loads it
+    fn check_scripts(&self, target: Target) -> Result<(), PackWriterError> {
+        let source = self.get_manifest_source()?;
+        let mut count = 0;
+        for (id, path) in source.scripts_for(target) {
+            let path = source.get_root().join(path);
+            let wasm = std::fs::read(&path).context(ReadScriptSnafu {
+                target,
+                id,
+                path: &path,
+            })?;
+            check_script_imports(&wasm).context(ScriptImportsSnafu {
+                target,
+                id,
+                path: &path,
+            })?;
+            count += 1;
+        }
+        info!("Checked the imports of {count} {target:?} scripts");
+        Ok(())
+    }
+
     /// reads and compresses every file on one side, returns the file list it chunked
     fn chunk(&mut self, target: Target) -> Result<Vec<FileEntry>, PackWriterError> {
+        self.check_scripts(target)?;
         info!("Chunking {target:?} files");
         let source = self.get_manifest_source()?;
         let files = source

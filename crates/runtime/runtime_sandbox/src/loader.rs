@@ -6,6 +6,7 @@ use bevy::ecs::{
     world::{Mut, World},
 };
 use bevy::time::Time;
+use runtime_assets::script_imports::{ScriptImportError, check_script_imports};
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 use runtime_consts::sandbox::WASM_CYCLE_TICKS;
 
@@ -33,6 +34,11 @@ pub enum ModuleLoadError {
         handle: AssetHandle,
         source: std::io::Error,
     },
+    #[snafu(display("refusing to load module `{handle}`"))]
+    Imports {
+        handle: AssetHandle,
+        source: ScriptImportError,
+    },
 }
 
 fn get_module_bytes(
@@ -52,9 +58,16 @@ fn get_module_bytes(
             path: path.clone(),
         })?;
 
-    std::fs::read(full).context(ReadSnafu {
+    let bytes = std::fs::read(full).context(ReadSnafu {
         handle: handle.clone(),
-    })
+    })?;
+
+    // packs are checked when they're written, but a pack can come from anywhere
+    check_script_imports(&bytes).context(ImportsSnafu {
+        handle: handle.clone(),
+    })?;
+
+    Ok(bytes)
 }
 
 /// loads every script of a freshly read pack

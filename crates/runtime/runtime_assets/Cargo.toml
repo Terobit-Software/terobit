@@ -18,6 +18,7 @@ serde_with.workspace = true
 blake3.workspace = true
 ed25519-dalek.workspace = true
 snafu.workspace = true
+wasmparser.workspace = true
 
 [features]
 default = []

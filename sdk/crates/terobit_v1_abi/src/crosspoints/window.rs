@@ -1,4 +1,5 @@
-#[link(wasm_import_module = "host")]
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "terobit_v1")]
 unsafe extern "C" {
     /// Sets the primary window's title to a UTF-8 string.
     ///

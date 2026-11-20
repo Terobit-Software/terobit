@@ -1,5 +1,10 @@
 use core::time::Duration;
 
+/// wasm import modules this build of the host provides. a script may only import from these,
+/// the pack writer and the loader both refuse anything else (tbman v1, "scripts").
+/// a new api version adds its module here, and old ones stay as long as games use them
+pub const HOST_MODULES: &[&str] = &["terobit_v1"];
+
 /// how often the engine's epoch is incremented; the granularity of every wasm time budget
 pub const WASM_EPOCH_TICK: Duration = Duration::from_millis(1);
 

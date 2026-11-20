@@ -1,5 +1,6 @@
 use crate::HostState;
 use std::sync::{Arc, Mutex};
+use terobit_v1_abi::crosspoints::HOST_MODULE;
 
 use bevy::{
     ecs::{query::With, resource::Resource, system::Query},
@@ -10,22 +11,22 @@ use wasmtime::{Caller, Linker, Result, bail};
 
 /// The last title a guest asked for, waiting to be applied to the primary window.
 ///
-/// The store has no access to the world, so `host::set_title` writes here and
+/// The store has no access to the world, so `terobit_v1::set_title` writes here and
 /// [`apply_pending_title`] copies it into the window.
 #[derive(Resource, Clone, Default)]
 pub(crate) struct PendingTitle(Arc<Mutex<Option<String>>>);
 
-/// links `host::set_title` (see `terobit_v1_abi::crosspoints::window`).
+/// links `terobit_v1::set_title` (see `terobit_v1_abi::crosspoints::window`).
 pub(crate) fn link(linker: &mut Linker<HostState>, pending: &PendingTitle) -> Result<()> {
     let pending = pending.clone();
     linker.func_wrap(
-        "host",
+        HOST_MODULE,
         "set_title",
         move |caller: Caller<'_, HostState>, ptr: i32, len: i32| {
             set_title(caller, &pending, ptr, len)
         },
     )?;
-    tracing::info!("Linked host::set_title");
+    tracing::info!("Linked {HOST_MODULE}::set_title");
     Ok(())
 }
 

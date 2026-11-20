@@ -1,3 +1,4 @@
+use terobit_v1_abi::crosspoints::HOST_MODULE;
 use wasmtime::{Caller, Linker, Result, bail};
 
 use crate::{
@@ -5,8 +6,9 @@ use crate::{
     commands::{apply_commands, read_commands_from_memory},
 };
 
+/// links `terobit_v1::flush_commands` (see `terobit_v1_abi::crosspoints::commands`).
 pub(crate) fn link(linker: &mut Linker<HostState>) -> Result<()> {
-    linker.func_wrap("host", "flush_commands", flush_commands)?;
+    linker.func_wrap(HOST_MODULE, "flush_commands", flush_commands)?;
     Ok(())
 }
 
