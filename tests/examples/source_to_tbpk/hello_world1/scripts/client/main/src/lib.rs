@@ -5,11 +5,13 @@ fn main() {
     log("yuh");
 }
 
+fn print_fps() {
+    log(&format!("fps: {:#?}", 1.0 / FrameInfo::get().delta_secs()));
+}
+
 #[update::post_render]
 fn spawn() {
-    for i in 0..1000 {
-        Entity::new().with(Transform::new()).spawn();
-    }
-    set_title("test title");
-    log(&format!("fps: {:#?}", 1.0 / FrameInfo::get().delta_secs()));
+    // add query code
+
+    print_fps();
 }
