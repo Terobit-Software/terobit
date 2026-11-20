@@ -12,6 +12,7 @@ mod host;
 mod loader;
 mod update;
 pub use loader::*;
+pub use host::state::HostState;
 
 /// A loaded script and the per-script state the host tracks for it.
 pub struct ScriptInstance {
@@ -43,9 +44,9 @@ impl ScriptInstance {
 #[derive(Resource)]
 pub struct RuntimeSandboxResource {
     pub engine: wasmtime::Engine,
-    pub store: wasmtime::Store<()>,
+    pub store: wasmtime::Store<HostState>,
     pub instances: Vec<ScriptInstance>,
-    pub linker: wasmtime::Linker<()>,
+    pub linker: wasmtime::Linker<HostState>,
 }
 
 impl Plugin for RuntimeSandboxPlugin {
@@ -61,7 +62,7 @@ impl Plugin for RuntimeSandboxPlugin {
 
         spawn_epoch_ticker(&engine);
 
-        let mut store = wasmtime::Store::new(&engine, ());
+        let mut store = wasmtime::Store::new(&engine, HostState::default());
         tracing::info!("Created wasm store");
 
         store.set_epoch_deadline(WASM_CYCLE_TICKS);
@@ -69,6 +70,7 @@ impl Plugin for RuntimeSandboxPlugin {
         let mut linker = wasmtime::Linker::new(&engine);
         tracing::info!("Created wasm linker");
 
+        // link logging
         match host::log::link(&mut linker) {
             Ok(()) => tracing::info!("Linked host log"),
             Err(e) => tracing::error!("FAILED to link host log with reason {}", e),
@@ -80,6 +82,11 @@ impl Plugin for RuntimeSandboxPlugin {
             Err(e) => tracing::error!("FAILED to link host set_title with reason {}", e),
         }
         app.insert_resource(pending_title);
+
+        match host::flush::link(&mut linker) {
+            Ok(()) => tracing::info!("Linked host flush_commands"),
+            Err(e) => tracing::error!("FAILED to link host flush_commands with reason {}", e),
+        }
 
         app.insert_resource(RuntimeSandboxResource {
             engine,

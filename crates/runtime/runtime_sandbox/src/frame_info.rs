@@ -1,5 +1,6 @@
 //! Host side of the guest frame info buffer (see `terobit_v1_abi::frame_info`).
 
+use crate::HostState;
 use bevy::{
     ecs::system::{Res, ResMut},
     time::Time,
@@ -36,7 +37,7 @@ pub enum WriteFrameInfoError {
 /// Writes `info` into `instance`'s frame info buffer.
 pub fn write_frame_info(
     instance: &wasmtime::Instance,
-    store: &mut wasmtime::Store<()>,
+    store: &mut wasmtime::Store<HostState>,
     info: &FrameInfo,
 ) -> Result<(), WriteFrameInfoError> {
     let ptr = instance

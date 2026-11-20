@@ -1,3 +1,4 @@
+use crate::HostState;
 use std::sync::{Arc, Mutex};
 
 use bevy::{
@@ -15,18 +16,18 @@ use wasmtime::{Caller, Linker, Result, bail};
 pub(crate) struct PendingTitle(Arc<Mutex<Option<String>>>);
 
 /// links `host::set_title` (see `terobit_v1_abi::crosspoints::window`).
-pub(crate) fn link(linker: &mut Linker<()>, pending: &PendingTitle) -> Result<()> {
+pub(crate) fn link(linker: &mut Linker<HostState>, pending: &PendingTitle) -> Result<()> {
     let pending = pending.clone();
     linker.func_wrap(
         "host",
         "set_title",
-        move |caller: Caller<'_, ()>, ptr: i32, len: i32| set_title(caller, &pending, ptr, len),
+        move |caller: Caller<'_, HostState>, ptr: i32, len: i32| set_title(caller, &pending, ptr, len),
     )?;
     tracing::info!("Linked host::set_title");
     Ok(())
 }
 
-fn set_title(mut caller: Caller<'_, ()>, pending: &PendingTitle, ptr: i32, len: i32) -> Result<()> {
+fn set_title(mut caller: Caller<'_, HostState>, pending: &PendingTitle, ptr: i32, len: i32) -> Result<()> {
     let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
         bail!("guest has no exported `memory`");
     };

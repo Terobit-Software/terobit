@@ -1,6 +1,8 @@
 //! Host side of the guest command buffer (see `terobit_v1_abi::commands`).
 
-use bevy::ecs::system::Commands;
+use bevy::ecs::{system::Commands, world::World};
+
+use crate::HostState;
 use snafu::{OptionExt, ResultExt, Snafu};
 use terobit_v1_abi::{
     commands::{HEADER_LEN, Opcode, SPAWN},
@@ -44,7 +46,7 @@ pub enum ReadCommandsError {
 /// The buffer is only cleared once it has been read and parsed successfully.
 pub fn read_commands(
     instance: &wasmtime::Instance,
-    store: &mut wasmtime::Store<()>,
+    store: &mut wasmtime::Store<HostState>,
 ) -> Result<Vec<GuestCommand>, ReadCommandsError> {
     let ptr = call_i32(instance, store, endpoints::COMMANDS_PTR_ENDPOINT)?;
     let len = call_i32(instance, store, endpoints::COMMANDS_LEN_ENDPOINT)?;
@@ -76,11 +78,14 @@ pub fn read_commands(
 /// Guests that don't export a command buffer are skipped.
 pub fn read_and_apply_commands(
     instance: &wasmtime::Instance,
-    store: &mut wasmtime::Store<()>,
-    commands: &mut Commands,
+    store: &mut wasmtime::Store<HostState>,
+    world: &mut World,
 ) {
     match read_commands(instance, store) {
-        Ok(guest_commands) => apply_commands(commands, &guest_commands),
+        Ok(guest_commands) => {
+            apply_commands(&mut world.commands(), &guest_commands);
+            world.flush();
+        }
         Err(ReadCommandsError::MissingExport { name, .. }) => {
             tracing::trace!("guest has no `{}`, skipping its command buffer", name);
         }
@@ -160,7 +165,7 @@ pub fn parse_commands(mut buffer: &[u8]) -> Result<Vec<GuestCommand>, ReadComman
 
 fn call_i32(
     instance: &wasmtime::Instance,
-    store: &mut wasmtime::Store<()>,
+    store: &mut wasmtime::Store<HostState>,
     name: &'static str,
 ) -> Result<i32, ReadCommandsError> {
     instance
