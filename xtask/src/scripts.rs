@@ -1,8 +1,9 @@
 //! builds a dev directory's scripts before they're packed or run.
 //!
 //! a script path like `scripts/client/main.wasm` can have a source folder next to it, the
-//! same path without `.wasm` (`scripts/client/main/`). if that folder has a `build.sh`, it's
-//! run from inside the folder as `sh build.sh` (`sh build.sh --final` for final builds) and
+//! same path without `.wasm` (`scripts/client/main/`). if that folder has a `build.py`, it's
+//! run from inside the folder as `python build.py` (`python build.py --final` for final
+//! builds, `python3` instead of `python` outside Windows) and
 //! must write `script.wasm` into the folder, which is then copied over `main.wasm`. without
 //! the folder, the `.wasm` already there is used as is
 
@@ -18,7 +19,10 @@ use snafu::{ResultExt, Snafu, ensure};
 use tracing::{info, warn};
 
 /// script that builds a script's source folder
-pub const BUILD_SCRIPT: &str = "build.sh";
+pub const BUILD_SCRIPT: &str = "build.py";
+
+/// interpreter `BUILD_SCRIPT` runs with, most Unix installs only have `python3`
+const PYTHON: &str = if cfg!(windows) { "python" } else { "python3" };
 
 /// file `BUILD_SCRIPT` writes into the source folder
 pub const BUILD_OUTPUT: &str = "script.wasm";
@@ -32,7 +36,7 @@ pub enum ScriptError {
     #[snafu(display("failed to remove the old build output `{}`", path.display()))]
     RemoveOld { path: PathBuf, source: io::Error },
 
-    #[snafu(display("failed to start `{command}` in `{}`, is `sh` on PATH?", dir.display()))]
+    #[snafu(display("failed to start `{command}` in `{}`, is `{PYTHON}` on PATH?", dir.display()))]
     StartBuild {
         command: String,
         dir: PathBuf,
@@ -93,9 +97,9 @@ pub fn build_side(
         let wasm = root.join(path);
         // the manifest only accepts paths ending in SCRIPT_EXTENSION
         let dir = root.join(path.strip_suffix(SCRIPT_EXTENSION).unwrap_or(path));
-        let build_sh = dir.join(BUILD_SCRIPT);
+        let build_script = dir.join(BUILD_SCRIPT);
 
-        if build_sh.is_file() {
+        if build_script.is_file() {
             build_one(&dir, &wasm, is_final)?;
             continue;
         }
@@ -125,7 +129,7 @@ pub fn build_side(
 
 /// runs `BUILD_SCRIPT` in `dir` and copies its output to `wasm`
 fn build_one(dir: &Path, wasm: &Path, is_final: bool) -> Result<(), ScriptError> {
-    // a stale output would hide a build.sh that stopped writing one
+    // a stale output would hide a build script that stopped writing one
     let output = dir.join(BUILD_OUTPUT);
     if output.exists() {
         fs::remove_file(&output).context(RemoveOldSnafu { path: &output })?;
@@ -135,9 +139,9 @@ fn build_one(dir: &Path, wasm: &Path, is_final: bool) -> Result<(), ScriptError>
     if is_final {
         args.push(FINAL_FLAG);
     }
-    let command = format!("sh {}", args.join(" "));
+    let command = format!("{PYTHON} {}", args.join(" "));
     info!("Building script with `{command}` in {}...", dir.display());
-    let status = Command::new("sh")
+    let status = Command::new(PYTHON)
         .args(&args)
         .current_dir(dir)
         .status()

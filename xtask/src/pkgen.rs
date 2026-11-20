@@ -35,7 +35,7 @@ pub struct PkgenArgs {
     #[arg(long, value_parser = parse_zstd_level, default_value_t = ZstdLevel(Some(ZSTD_LEVEL)))]
     pub zstd_level: ZstdLevel,
 
-    /// Pass `--final` to each script's build.sh
+    /// Pass `--final` to each script's build.py
     #[arg(long = "final")]
     pub r#final: bool,
 }

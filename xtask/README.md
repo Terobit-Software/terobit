@@ -61,7 +61,7 @@ cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.tom
 |----------------------|------------------------------------------------------------------|
 | `--manifest <path>`  | required, the pack's `manifest.toml`, relative to the current directory |
 | `--package`          | packs the client side like `cargo x pkgen --target client` into `out/tbpk_generator` and runs that `.tbpk`, instead of the dev directory |
-| `--final`            | builds the client like `run client --final`, and passes `--final` to each script's `build.sh` |
+| `--final`            | builds the client like `run client --final`, and passes `--final` to each script's `build.py` |
 | `--strip-defaults`   | runs without the dev flags                                       |
 
 Only `[client.scripts]` are built, since only the client runs. With `--final` or
@@ -74,17 +74,18 @@ so `--package` runs the pack without its scripts for now.
 A script path in the manifest can have a source folder next to it: the same path without
 `.wasm`. For `"self:main" = "scripts/client/main.wasm"` that's `scripts/client/main/`.
 
-1. if the folder has a `build.sh`, its old `script.wasm` is deleted and
-   `sh build.sh` runs from inside the folder, or `sh build.sh --final` with `--final`.
+1. if the folder has a `build.py`, its old `script.wasm` is deleted and
+   `python build.py` runs from inside the folder, or `python build.py --final` with `--final`
+   (`python3` instead of `python` outside Windows).
    It must write `script.wasm` into the folder, which is copied over
    `scripts/client/main.wasm`. A failed build stops the task
-2. without the folder (or with a folder but no `build.sh`, which warns), the `.wasm`
+2. without the folder (or with a folder but no `build.py`, which warns), the `.wasm`
    already at the path is used. It's an error if it doesn't exist
 
 `cargo x pkgen` does the same for each target it packs.
 
 `tests/examples/source_to_tbpk/hello_world1` is an example. Its client script is the Rust
-SDK crate in `scripts/client/main/`, a workspace member, whose `build.sh` builds it for
+SDK crate in `scripts/client/main/`, a workspace member, whose `build.py` builds it for
 `wasm32-unknown-unknown` with the `release-dev` profile (`release` with `--final`) and copies
 the output to `script.wasm`. The built `.wasm` files are gitignored.
 
@@ -107,7 +108,7 @@ cargo x pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml
 | `--out`        | folder                   | `out/tbpk_generator`    | created if missing                                        |
 | `--target`     | `client`, `server`, `both` | `both`                |                                                           |
 | `--zstd-level` | a number, or `none`      | `ZSTD_LEVEL` (5)        | any other value changes chunk bytes and hashes, so only use it to test speed and size |
-| `--final`      |                          | off                     | passed to each script's `build.sh`                        |
+| `--final`      |                          | off                     | passed to each script's `build.py`                        |
 
 Output is `<out>/<realm_id>-<pack_version>.client.tbpk` and `.server.tbpk`. The example
 above writes `out/tbpk_generator/1-1.client.tbpk` and `1-1.server.tbpk`.

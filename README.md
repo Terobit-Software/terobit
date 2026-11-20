@@ -36,13 +36,13 @@ Build and run the client. builds `terobit_client` with the `dev` feature, copies
 |--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
 ### cargo xtask runbuild client
-Build a pack's client scripts, then run the client on its dev directory, or on its client pack with `--package`. `rb`, `br` and `runbuild` are the same command, so `cargo x rb cl --manifest <path>/manifest.toml` works. A script path like `scripts/client/main.wasm` with a `scripts/client/main/build.sh` is built by running `sh build.sh` in that folder, which writes `script.wasm`, copied over `main.wasm`. See [README](xtask/README.md#runbuild-client-cargo-x-rb-cl).
+Build a pack's client scripts, then run the client on its dev directory, or on its client pack with `--package`. `rb`, `br` and `runbuild` are the same command, so `cargo x rb cl --manifest <path>/manifest.toml` works. A script path like `scripts/client/main.wasm` with a `scripts/client/main/build.py` is built by running `python build.py` in that folder, which writes `script.wasm`, copied over `main.wasm`. See [README](xtask/README.md#runbuild-client-cargo-x-rb-cl).
 
 |args|desc|
 |----|----|
 |--manifest|required, the pack's `manifest.toml`|
 |--package|packs the client side into `out/tbpk_generator` and runs that `.tbpk`|
-|--final|builds like `run client --final`, and passes `--final` to each script's `build.sh`. the client then runs without `--pack-file`, so it doesn't load the scripts (xtask warns)|
+|--final|builds like `run client --final`, and passes `--final` to each script's `build.py`. the client then runs without `--pack-file`, so it doesn't load the scripts (xtask warns)|
 |--strip-defaults|runs without the default dev flags, so like `--final` the scripts aren't loaded (xtask warns)|
 
 ### cargo xtask pkgen

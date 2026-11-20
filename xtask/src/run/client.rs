@@ -55,7 +55,7 @@ pub struct RunBuildClientArgs {
     package: bool,
 
     /// Build with the `release` profile and without the `dev` feature, run without the dev
-    /// flags, and pass `--final` to each script's build.sh
+    /// flags, and pass `--final` to each script's build.py
     #[arg(long = "final")]
     r#final: bool,
 

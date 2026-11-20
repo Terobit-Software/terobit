@@ -14,5 +14,5 @@ tests/examples/source_to_tbpk/many_large1
 tests/examples/source_to_tbpk/many_large2
 tests/examples/source_to_tbpk/generated
 
-# built by each script's build.sh, rebuild with `cargo x pkgen` or `cargo x rb cl`
+# built by each script's build.py, rebuild with `cargo x pkgen` or `cargo x rb cl`
 tests/examples/source_to_tbpk/hello_world1/scripts/**/*.wasm
