@@ -11,10 +11,10 @@
 
 use bevy::{
     ecs::system::EntityCommands,
-    math::{Quat, Vec3},
+    math::{Quat, Vec3, Vec4},
     transform::components::Transform,
 };
-use snafu::{OptionExt, Snafu};
+use snafu::{OptionExt, Snafu, ensure};
 use terobit_v1_abi::ecs::components::transform::{self, TRANSFORM_COMPONENT_ID};
 
 /// Size of a component record header (id + data length).
@@ -31,6 +31,9 @@ pub enum DecodeComponentsError {
         expected: usize,
         got: usize,
     },
+
+    #[snafu(display("component {id} has non-finite or degenerate transform values"))]
+    InvalidTransform { id: u32 },
 }
 
 /// Decodes every component in `payload` and inserts it onto `entity`.
@@ -73,10 +76,19 @@ fn insert_component(
     match id {
         TRANSFORM_COMPONENT_ID => {
             let t: transform::Transform = read(id, data)?;
+            let translation = Vec3::from_array(t.translation);
+            let scale = Vec3::from_array(t.scale);
+            ensure!(
+                translation.is_finite() && scale.is_finite(),
+                InvalidTransformSnafu { id }
+            );
+            let rotation = Vec4::from_array(t.rotation)
+                .try_normalize()
+                .context(InvalidTransformSnafu { id })?;
             entity.insert(Transform {
-                translation: Vec3::from_array(t.translation),
-                rotation: Quat::from_array(t.rotation),
-                scale: Vec3::from_array(t.scale),
+                translation,
+                rotation: Quat::from_vec4(rotation),
+                scale,
             });
         }
         id => tracing::warn!(
