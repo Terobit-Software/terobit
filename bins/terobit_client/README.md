@@ -7,7 +7,7 @@ The game client. It will load a realm's client pack and run it.
 The usual way, which builds, copies to `out/client` and runs with the dev flags:
 
 ```sh
-cargo rcl
+cargo xtask run client
 ```
 
 Or directly:
@@ -26,8 +26,8 @@ On Linux you need the same system libraries as CI:
 | `--dev`              | developer mode: lets the client read a dev directory in place of a `.tbpk` |
 | `--pack-file <path>` | the `.tbpk` file or dev directory to load. Only read with `--dev` for now. Extra paths after the first are ignored with a warning |
 
-Both flags only work in builds with the `dev` cargo feature, which `cargo rcl` turns on and
-`cargo rcl --final` doesn't. Other builds ignore `--dev` with a warning, so a release
+Both flags only work in builds with the `dev` cargo feature, which `cargo xtask run client` turns on and
+`cargo xtask run client --final` doesn't. Other builds ignore `--dev` with a warning, so a release
 client can never read a dev directory.
 
 ## How it works
@@ -52,5 +52,5 @@ core, input, scene, window, render, ui, animation, audio, picking. Client plugin
 - [ ] read `.tbpk` archives (F1) and load them without `--dev` (F4)
 - [ ] check licenses for `Licensed` realms (F3)
 - [ ] run client scripts (F6)
-- [ ] `cargo rcl` copies `bins/terobit_client/assets`, which doesn't exist. Add it once the
+- [ ] `cargo xtask run client` copies `bins/terobit_client/assets`, which doesn't exist. Add it once the
   client has bundled assets (fonts, UI), or drop that step

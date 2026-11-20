@@ -28,6 +28,9 @@ impl PackAssets<'_> {
             .registry
             .resolve(h)
             .context(UnknownHandleSnafu { handle: h.clone() })?;
-        Ok(self.server.load(format!("{}://{path}", PACK_ASSET_SOURCE)))
+
+        Ok(self
+            .server
+            .load(format!("{}://{}", PACK_ASSET_SOURCE, path)))
     }
 }

@@ -3,15 +3,6 @@
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::main;
-///
-/// #[main]
-/// fn main () {
-///     println!("This code is run when the script is loaded.");
-/// }
-/// ```
 pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
 
 // update order:
@@ -25,15 +16,6 @@ pub const MAIN_ENTRYPOINT: &str = "_terobit_v1_main";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::pre_render]
-/// fn pre_render () {
-///     println!("This code is run every frame BEFORE rendering.");
-/// }
-/// ```
 pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
 
 /// Called every frame after rendering and physics. Update stage 4 (final).
@@ -41,15 +23,6 @@ pub const PRE_RENDER_ENTRYPOINT: &str = "_terobit_v1_pre_render_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::post_rendering]
-/// fn post_rendering () {
-///     println!("This code is run every frame AFTER rendering.");
-/// }
-/// ```
 pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
 
 /// Called before rendering and physics. Update stage 1 (first).
@@ -57,15 +30,6 @@ pub const POST_RENDER_ENTRYPOINT: &str = "_terobit_v1_post_render_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::pre_physics]
-/// fn pre_physics () {
-///     println!("This code is run every frame BEFORE physics.");
-/// }
-/// ```
 pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 
 /// Called every frame after physics, but before pre-rendering. Update stage 2.
@@ -73,13 +37,40 @@ pub const PRE_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_pre_physics_update";
 /// `fn()` -> `()`
 ///
 /// (nothing) -> (nothing)
-///
-/// ```rust
-/// use terobit_v1::update;
-///
-/// #[update::post_physics]
-/// fn post_physics () {
-///     println!("This code is run every frame AFTER physics.");
-/// }
-/// ```
 pub const POST_PHYSICS_ENTRYPOINT: &str = "_terobit_v1_post_physics_update";
+
+// command buffer:
+//   at the end of every cycle the host reads `len` bytes from `ptr`,
+//   applies them, then calls `clear`.
+
+/// Pointer to the start of the command buffer in guest memory.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (pointer to command buffer)
+pub const COMMANDS_PTR_ENDPOINT: &str = "_terobit_v1_commands_ptr";
+
+/// Byte length of the command buffer.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (byte length of command buffer)
+pub const COMMANDS_LEN_ENDPOINT: &str = "_terobit_v1_commands_len";
+
+/// Empties the command buffer. Called by the host after it has read it.
+///
+/// `fn()` -> `()`
+///
+/// (nothing) -> (nothing)
+pub const COMMANDS_CLEAR_ENDPOINT: &str = "_terobit_v1_commands_clear";
+
+// frame info buffer:
+//   before each frame's first update stage the host writes one
+//   `crate::frame_info::FrameInfo` to `ptr`.
+
+/// Pointer to the start of the frame info buffer in guest memory.
+///
+/// `fn()` -> `i32`
+///
+/// (nothing) -> (pointer to frame info buffer)
+pub const FRAME_INFO_PTR_ENDPOINT: &str = "_terobit_v1_frame_info_ptr";

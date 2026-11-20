@@ -9,4 +9,6 @@ targets = [
     "x86_64-unknown-linux-gnu", # intel
     # windows
     "x86_64-pc-windows-msvc", # intel, amd
+    # scripts
+    "wasm32-unknown-unknown",
 ]

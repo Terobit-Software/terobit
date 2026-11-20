@@ -4,7 +4,9 @@ use bevy::ecs::{
     observer::On,
     system::{Res, ResMut},
 };
+use bevy::time::Time;
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
+use runtime_consts::sandbox::WASM_CYCLE_TICKS;
 
 #[derive(Event)]
 pub struct LoadModuleEvent {
@@ -73,7 +75,9 @@ pub fn observe_pack_read_event(
 pub fn observe_load_module_event(
     event: On<LoadModuleEvent>,
     registry: Res<PackRegistry>,
+    time: Res<Time>,
     mut _sand: ResMut<crate::RuntimeSandboxResource>,
+    mut commands: Commands,
 ) {
     let handle = event.handle.clone();
     tracing::info!("New load module request from {}", handle);
@@ -96,18 +100,43 @@ pub fn observe_load_module_event(
         }
     };
 
+    // instantiation may run the module's start function, so give it a cycle budget
+    sandbox.store.set_epoch_deadline(WASM_CYCLE_TICKS);
+
     match sandbox.linker.instantiate(&mut sandbox.store, &module) {
         Ok(v) => {
             tracing::info!("Loaded module `{}`", handle);
-            sandbox.instances.push(v);
+            let mut script = crate::ScriptInstance {
+                instance: v,
+                loaded_at: time.elapsed(),
+                frame: 0,
+                poisoned: false,
+            };
 
-            if let Err(e) = prep_instance(&v, &mut sandbox.store) {
-                tracing::error!(
-                    "Failed to prep module `{}`: {}",
-                    handle,
-                    snafu::Report::from_error(&e)
-                );
+            match prep_instance(&v, &mut sandbox.store) {
+                Ok(()) => {
+                    crate::commands::read_and_apply_commands(&v, &mut sandbox.store, &mut commands);
+                }
+                // main never ran, so the guest is clean; nothing was queued
+                Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {
+                    tracing::error!(
+                        "Failed to prep module `{}`: {}",
+                        handle,
+                        snafu::Report::from_error(&e)
+                    );
+                }
+                // main trapped partway: drop whatever it queued and stop running it
+                Err(e @ prep::InstancePrepError::MainFailed { .. }) => {
+                    tracing::error!(
+                        "Failed to prep module `{}`: {}",
+                        handle,
+                        snafu::Report::from_error(&e)
+                    );
+                    script.poison(&format!("main of `{}` trapped", handle));
+                }
             }
+
+            sandbox.instances.push(script);
         }
         Err(e) => {
             tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);

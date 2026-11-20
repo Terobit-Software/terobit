@@ -5,6 +5,8 @@
 #![no_std]
 
 pub mod endpoints;
-pub mod info_structs;
 
+pub mod commands;
 pub mod crosspoints;
+pub mod ecs;
+pub mod frame_info;

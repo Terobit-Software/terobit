@@ -265,7 +265,7 @@ impl ManifestSource {
     }
 
     /// `(id, path)` of every script one side runs. scripts are never shared
-    pub(crate) fn scripts_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
+    pub fn scripts_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
         self.side(target).scripts.iter()
     }
 

@@ -17,24 +17,36 @@ Then, from the repo root:
 
 ```sh
 cargo test --workspace                                                   # run the tests
-cargo pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
-cargo rcl                                                                # build and run the client
+cargo xtask pkgen --manifest tests/examples/source_to_tbpk/basic1/manifest.toml  # build example packs
+cargo xtask run client                                                   # build and run the client
+cargo x rb cl --manifest tests/examples/source_to_tbpk/hello_world1/manifest.toml   # build a pack's scripts, then run the client on it
 ```
 
 CI runs `cargo fmt --all --check`, `cargo check --workspace --all-targets` and the tests with [nextest](https://nexte.st), plus `client_dev`'s tests with `--features dev`. Run `cargo fmt --all` before pushing.
 
 ## Commands
 
-### cargo rcl
-Build and run the client. builds `terobit_client` with the `dev` feature, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](scripts/run_client_script/README.md).
+### cargo xtask run client
+Build and run the client. builds `terobit_client` with the `dev` feature, copies it and `bins/terobit_client/assets` (if it exists) into a fresh `out/client`, and runs it from there with `--dev --pack-file <repo>/tests/examples/source_to_tbpk/basic1`. See [README](xtask/README.md). `cargo x` is a shorter alias for `cargo xtask`.
 
 |args|desc|
 |----|----|
-|--final, -f|builds with the release profile instead of release-dev and without the `dev` feature, and runs without the dev flags|
-|--strip-defaults, -s|runs without the default dev flags (`--dev`, `--pack-file ...`)|
+|--final|builds with the release profile instead of release-dev and without the `dev` feature, and runs without the dev flags|
+|--strip-defaults|runs without the default dev flags (`--dev`, `--pack-file ...`)|
+|--pack-file|the pack or dev directory to load, relative to the current directory. defaults to `tests/examples/source_to_tbpk/basic1`. can't be used with `--final` or `--strip-defaults`|
 
-### cargo pkgen
-Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](bins/tbpk_generator/README.md).
+### cargo xtask runbuild client
+Build a pack's client scripts, then run the client on its dev directory, or on its client pack with `--package`. `rb`, `br` and `runbuild` are the same command, so `cargo x rb cl --manifest <path>/manifest.toml` works. A script path like `scripts/client/main.wasm` with a `scripts/client/main/build.py` is built by running `python build.py` in that folder, which writes `script.wasm`, copied over `main.wasm`. See [README](xtask/README.md#runbuild-client-cargo-x-rb-cl).
+
+|args|desc|
+|----|----|
+|--manifest|required, the pack's `manifest.toml`|
+|--package|packs the client side into `out/tbpk_generator` and runs that `.tbpk`|
+|--final|builds like `run client --final`, and passes `--final` to each script's `build.py`. the client then runs without `--pack-file`, so it doesn't load the scripts (xtask warns)|
+|--strip-defaults|runs without the default dev flags, so like `--final` the scripts aren't loaded (xtask warns)|
+
+### cargo xtask pkgen
+Build .tbpk packs from a manifest.toml. Builds each target's scripts first, the same as `runbuild`. packs are named `<realm_id>-<pack_version>.<client\|server>.tbpk`. packs are unsigned for now. See [README](xtask/README.md#pkgen).
 
 |args|desc|
 |--|--|
@@ -43,8 +55,8 @@ Build .tbpk packs from a manifest.toml. packs are named `<realm_id>-<pack_versio
 |--target|client, server, or both. defaults to both|
 |--zstd-level|zstd level chunks are compressed at, or `none` to store them uncompressed. defaults to `ZSTD_LEVEL`, any other level changes chunk bytes and hashes|
 
-### cargo regen
-Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped. See [README](scripts/example_generator/README.md).
+### cargo xtask regen
+Generate example dev directories in `tests/examples/source_to_tbpk/generated`, for test and example packs. existing examples are skipped. See [README](xtask/README.md#regen).
 
 |args|desc|
 |--|--|
@@ -53,7 +65,7 @@ Generate example dev directories in `tests/examples/source_to_tbpk/generated`, f
 |--min|smallest file size in bytes, only with `--type random`. defaults to 1|
 |--max|largest file size in bytes, only with `--type random`. defaults to 1 MiB|
 |--entropy|how random the file bytes are, so how well they compress: low, med, high. defaults to high|
-|--auto|runs pkgen on each example afterwards, packs go to `out/tbpk_generator/<example>`|
+|--auto|packs each example like `cargo xtask pkgen` afterwards, packs go to `out/tbpk_generator/<example>`|
 
 ## Layout
 Here is the outline of the layout for the project:
@@ -77,13 +89,13 @@ Contains all the crates for the repo. `/crates/runtime` holds crates any binary 
 Contains the documentation for the project. [ARCHITECTURE](docs/ARCHITECTURE.md) explains how everything fits together. In `/docs/formats` is the documentation for custom file types.
 
 ### /out
-A temporary directory for binary outputs. Also includes `.tbpk` files in `/out/tbpk_generator` usually.
+A temporary directory for binary outputs. Also includes `.tbpk` files from `cargo xtask pkgen` in `/out/tbpk_generator` usually.
 
 ### /scripts
 Contains scripts run in some of the [aliases](#commands). 
 
 ### /tests
-The directory containing tests and examples for local testing. `/tests/examples/source_to_tbpk` holds dev directories (`basic1`, `many_small1`, and `basic1_should_fail`, which must fail to load). In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s (gitignored, made by `cargo regen`).
+The directory containing tests and examples for local testing. `/tests/examples/source_to_tbpk` holds dev directories (`basic1`, `many_small1`, and `basic1_should_fail`, which must fail to load). In `/tests/examples/source_to_tbpk/generated` are generated source `manifest.toml`s (gitignored, made by `cargo xtask regen`).
 
 ### /.gitignore
 Gitignore.
@@ -113,14 +125,11 @@ What's broken, missing and out of date, with why and how for each item.
 
 ## Binaries
 
-### Pack Generator (tbpk_generator)
-Generates .tbpk files from a manifest and asset directory. Working, writes unsigned packs. See [README](bins/tbpk_generator/README.md).
-
 ### Client (terobit_client)
 Runs and parses .client.tbpk files. Currently opens an empty window. With `--dev` it loads a dev directory's assets, but nothing uses them yet. See [README](bins/terobit_client/README.md).
 
 ### Editor (terobit_editor)
-Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, tbpk_generator and `cargo rcl` stand in for it. See [README](bins/terobit_editor/README.md).
+Runs, parses, edits, and creates .tbpk files. The main editing suite for Terobit realms. Not started, `cargo xtask pkgen` and `cargo xtask run client` stand in for it. See [README](bins/terobit_editor/README.md).
 
 ### Server (terobit_server)
 Runs .server.tbpk files, and handles client connections for realm servers. Not started. See [README](bins/terobit_server/README.md).

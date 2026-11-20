@@ -13,7 +13,7 @@ for whoever hosts the game.
 ```
 dev directory (manifest.toml + files)
    |
-   |  cargo pkgen (tbpk_generator)                          working
+   |  cargo xtask pkgen                                     working
    v
 <realm_id>-<pack_version>.client.tbpk    .server.tbpk       unsigned
    |
@@ -34,9 +34,7 @@ release build can't read a dev directory.
 | [terobit_client](../bins/terobit_client/README.md) | the game client players run                  | empty window       |
 | [terobit_server](../bins/terobit_server/README.md) | runs server packs, hosts players             | hello world        |
 | [terobit_editor](../bins/terobit_editor/README.md) | client plus tools, replaces `--dev` and pkgen | hello world       |
-| [tbpk_generator](../bins/tbpk_generator/README.md) | `cargo pkgen`, builds packs                  | working            |
-| [run_client_script](../scripts/run_client_script/README.md) | `cargo rcl`, builds and runs the client | working        |
-| [example_generator](../scripts/example_generator/README.md) | `cargo regen`, makes test dev directories | working       |
+| [xtask](../xtask/README.md)                      | `cargo xtask`: `run client`, `runbuild client`, `pkgen`, `regen` | working   |
 
 ## Crates
 
@@ -84,7 +82,7 @@ animation, audio, picking, then client plugins.
 ## Building a pack
 
 This part works. `PackWriter` in `runtime_assets::pack::writers` does it, and
-`tbpk_generator` drives it.
+`cargo xtask pkgen` drives it.
 
 1. `load_manifest` parses `manifest.toml` and checks ids, handles and every path against
    the [path rules](formats/common/CONVENTIONS.md#paths-inside-a-pack)

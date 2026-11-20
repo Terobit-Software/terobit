@@ -13,7 +13,7 @@ together, see [ARCHITECTURE](docs/ARCHITECTURE.md).
 |------------------------------|---------------------------------------------------------------------------|
 | format docs (`docs/formats`) | detailed and mostly current, all versions still draft                     |
 | manifest.toml loading        | works, validated, well tested                                             |
-| pack writing (`cargo pkgen`) | works, writes unsigned v1 archives                                        |
+| pack writing (`cargo xtask pkgen`) | works, writes unsigned v1 archives                                        |
 | pack reading                 | stub: only checks a file is at least 24 bytes                             |
 | dev directory loading        | works: assets load by handle through `pack://`, only the reading side's entries |
 | signing / licenses           | signing exists in the writer, no key loading, no verification             |
@@ -38,7 +38,7 @@ Fix these first. Each one stops something that looks finished from working.
 
 - [x] **B8.** `--dev` only exists in builds with the `dev` feature (`client_dev/dev`,
   forwarded by `terobit_client/dev`). Other builds don't compile developer mode and ignore
-  `--dev` with a warning. `cargo rcl` turns the feature on unless `--final`, and CI runs
+  `--dev` with a warning. `cargo xtask run client` turns the feature on unless `--final`, and CI runs
   `client_dev`'s tests both ways.
 
 - [x] **B9.** Logs are named after the program (`tbpk-generator.log.<date>`) and every OS
@@ -55,7 +55,7 @@ them is a bug.
   The doc records libzstd 1.5.7, and `zstd` and `zstd-sys` are pinned with `=` in
   `Cargo.toml`.
 - [x] **D2.** `pack::writers` only compiles with `runtime_assets`' `writer` feature, so the
-  client doesn't ship the pack writer. `tbpk_generator` turns it on.
+  client doesn't ship the pack writer. `xtask` turns it on for `pkgen`.
 
 - [x] **D3.** The README said `cargo rcl` runs the client with `--pack-file .`. It passes
   the absolute path of `tests/examples/source_to_tbpk/basic1`. Fixed in the README.
@@ -74,12 +74,12 @@ Roughly in the order they depend on each other.
   manifest and signature, index hash, then chunk reads that check the hash before
   decompressing.
   - Needs: `Deserialize` on every format type (they only derive `Serialize` now).
-  - Test: a round trip, `cargo pkgen` on `basic1`, read every file back, compare bytes. Then
+  - Test: a round trip, `cargo xtask pkgen` on `basic1`, read every file back, compare bytes. Then
     add the golden files [VERSIONING](docs/formats/common/VERSIONING.md#golden-files)
     describes.
 
 - [ ] **F2. Signing keys and signature checks.**
-  `PackSigner` can sign, but nothing loads a key (`tbpk_generator` has a TODO for it),
+  `PackSigner` can sign, but nothing loads a key (`xtask/src/pkgen.rs` has a TODO for it),
   nothing verifies a `.tbsig`, no root public keys are built in, and the revocation list
   has no format yet.
 
@@ -144,13 +144,12 @@ Roughly in the order they depend on each other.
   `resource::<RuntimeFlags>()` (`client_dev/src/lib.rs:24`). Use `get_resource` and warn,
   like it already does for `RuntimePackConfig`.
 
-- [ ] **C6. One argument parser.** `run_client_script` uses clap. `tbpk_generator` and
-  `example_generator` use `RuntimeFlags` and validate by hand, so they have no `--help`.
-  clap is already a workspace dependency.
+- [x] **C6. One argument parser.** The workspace tools (`run client`, `pkgen`, `regen`)
+  are all in `xtask` and use clap, so they all have `--help`.
 
-- [ ] **C7. Rewrite `example_generator`.** Its first line says it needs a rewrite. It also
-  has no size class between 4 KiB and 256 KiB, the sizes that fill shared small-file
-  chunks, unless you use `--type random`.
+- [ ] **C7. Rewrite `cargo xtask regen`** (`xtask/src/regen.rs`). Its module doc says it
+  needs a rewrite. It also has no size class between 4 KiB and 256 KiB, the sizes that
+  fill shared small-file chunks, unless you use `--type random`.
 
 - [ ] **C8. `basic1_should_fail` copies 8.7 MB of assets it never reads.** It only tests that
   `self:cube.material` is rejected, which fails before any file is opened. Keep only its

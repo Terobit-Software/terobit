@@ -9,10 +9,10 @@ out
 !.github
 !_bindings*
 
-# large test packs, regenerate with `cargo regen`
+# large test packs, regenerate with `cargo xtask regen`
 tests/examples/source_to_tbpk/many_large1
 tests/examples/source_to_tbpk/many_large2
 tests/examples/source_to_tbpk/generated
 
-# built from tests/examples/sdk/hello_world1, rebuild instead of committing
-tests/examples/source_to_tbpk/hello_world1/scripts/*.wasm
+# built by each script's build.py, rebuild with `cargo x pkgen` or `cargo x rb cl`
+tests/examples/source_to_tbpk/hello_world1/scripts/**/*.wasm

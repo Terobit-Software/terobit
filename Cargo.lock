@@ -2291,6 +2291,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa8876b300ab35ba921adea3dfd70157a46249b33f95c9084ae5709785478946"
+dependencies = [
+ "clap_builder",
+ "clap_derive",
+]
+
+[[package]]
+name = "clap_builder"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0797fb7aeb1406c84efac526901f7ec3ead2124f946b494e72879d4b54704d"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap_lex",
+ "strsim",
+]
+
+[[package]]
+name = "clap_derive"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9c751b79415d4e559e3d1fcf128e09e720eb673a06d26cf6f392d37d75b66e0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
+
+[[package]]
+name = "clap_lex"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
+
+[[package]]
 name = "client_consts"
 version = "0.1.0"
 
@@ -3148,18 +3188,6 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
-]
-
-[[package]]
-name = "example_generator"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "runtime_consts",
- "runtime_logging",
- "runtime_run_flags",
- "snafu",
- "tracing",
 ]
 
 [[package]]
@@ -5714,17 +5742,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "run_client_script"
-version = "0.1.0"
-dependencies = [
- "client_consts",
- "runtime_logging",
- "runtime_run_flags",
- "snafu",
- "tracing",
-]
-
-[[package]]
 name = "runtime_animation"
 version = "0.1.0"
 dependencies = [
@@ -5819,6 +5836,7 @@ name = "runtime_sandbox"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bytemuck",
  "runtime_assets",
  "runtime_consts",
  "snafu",
@@ -6389,19 +6407,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
-name = "tbpk_generator"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "runtime_assets",
- "runtime_consts",
- "runtime_logging",
- "runtime_run_flags",
- "snafu",
- "tracing",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6456,6 +6461,7 @@ version = "0.1.0"
 name = "terobit_v1"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "terobit_v1_abi",
  "terobit_v1_macros",
 ]
@@ -8292,6 +8298,20 @@ name = "xml-rs"
 version = "0.8.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
+
+[[package]]
+name = "xtask"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "clap",
+ "client_consts",
+ "runtime_assets",
+ "runtime_consts",
+ "runtime_logging",
+ "snafu",
+ "tracing",
+]
 
 [[package]]
 name = "yazi"

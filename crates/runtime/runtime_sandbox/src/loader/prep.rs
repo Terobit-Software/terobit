@@ -1,3 +1,4 @@
+use runtime_consts::sandbox::{MAIN_WASM_TICKS, WASM_CYCLE_TICKS};
 use snafu::{ResultExt, Snafu};
 use terobit_v1_abi::*;
 
@@ -19,10 +20,18 @@ pub fn prep_instance(
         .get_typed_func::<(), ()>(&mut *store, endpoints::MAIN_ENTRYPOINT)
         .context(NoMainEntryPointSnafu {})?;
 
-    // --- CALL --- //
-    main_entrypoint
-        .call(&mut *store, ())
-        .context(MainFailedSnafu {})?;
+    // --- DEADLINE --- //
+    store.set_epoch_deadline(MAIN_WASM_TICKS);
 
-    Ok(())
+    // --- CALL --- //
+    let main_result = main_entrypoint
+        .call(&mut *store, ())
+        .context(MainFailedSnafu {});
+
+    // --- RESET --- //
+    // drop back to the per-cycle budget so the longer main deadline doesn't carry over,
+    // even if main failed
+    store.set_epoch_deadline(WASM_CYCLE_TICKS);
+
+    main_result
 }
