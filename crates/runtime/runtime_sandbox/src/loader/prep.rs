@@ -1,3 +1,4 @@
+use crate::HostState;
 use runtime_consts::sandbox::{MAIN_WASM_TICKS, WASM_CYCLE_TICKS};
 use snafu::{ResultExt, Snafu};
 use terobit_v1_abi::*;
@@ -13,7 +14,7 @@ pub enum InstancePrepError {
 
 pub fn prep_instance(
     instance: &wasmtime::Instance,
-    store: &mut wasmtime::Store<()>,
+    store: &mut wasmtime::Store<HostState>,
 ) -> Result<(), InstancePrepError> {
     // --- INIT --- //
     let main_entrypoint = instance

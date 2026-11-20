@@ -2,11 +2,14 @@ use bevy::ecs::system::Commands;
 use bevy::ecs::{
     event::Event,
     observer::On,
-    system::{Res, ResMut},
+    system::Res,
+    world::{Mut, World},
 };
 use bevy::time::Time;
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 use runtime_consts::sandbox::WASM_CYCLE_TICKS;
+
+use crate::host::state::with_world;
 
 #[derive(Event)]
 pub struct LoadModuleEvent {
@@ -75,71 +78,76 @@ pub fn observe_pack_read_event(
 pub fn observe_load_module_event(
     event: On<LoadModuleEvent>,
     registry: Res<PackRegistry>,
-    time: Res<Time>,
-    mut _sand: ResMut<crate::RuntimeSandboxResource>,
     mut commands: Commands,
 ) {
     let handle = event.handle.clone();
     tracing::info!("New load module request from {}", handle);
 
-    let bytes = match get_module_bytes(&handle, &registry) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::error!("{}", snafu::Report::from_error(&e));
-            return;
-        }
-    };
+    match get_module_bytes(&handle, &registry) {
+        Ok(bytes) => commands.queue(move |world: &mut World| load_module(world, handle, bytes)),
+        Err(e) => tracing::error!("{}", snafu::Report::from_error(&e)),
+    }
+}
 
-    let sandbox = &mut *_sand;
+fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
+    let loaded_at = world.resource::<Time>().elapsed();
 
-    let module = match wasmtime::Module::new(&sandbox.engine, &bytes) {
-        Ok(m) => m,
-        Err(e) => {
-            tracing::error!("Failed to compile module `{}`: {:?}", handle, e);
-            return;
-        }
-    };
+    world.resource_scope(|world, mut sandbox: Mut<crate::RuntimeSandboxResource>| {
+        let crate::RuntimeSandboxResource {
+            engine,
+            store,
+            instances,
+            linker,
+        } = &mut *sandbox;
 
-    // instantiation may run the module's start function, so give it a cycle budget
-    sandbox.store.set_epoch_deadline(WASM_CYCLE_TICKS);
-
-    match sandbox.linker.instantiate(&mut sandbox.store, &module) {
-        Ok(v) => {
-            tracing::info!("Loaded module `{}`", handle);
-            let mut script = crate::ScriptInstance {
-                instance: v,
-                loaded_at: time.elapsed(),
-                frame: 0,
-                poisoned: false,
-            };
-
-            match prep_instance(&v, &mut sandbox.store) {
-                Ok(()) => {
-                    crate::commands::read_and_apply_commands(&v, &mut sandbox.store, &mut commands);
-                }
-                // main never ran, so the guest is clean; nothing was queued
-                Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {
-                    tracing::error!(
-                        "Failed to prep module `{}`: {}",
-                        handle,
-                        snafu::Report::from_error(&e)
-                    );
-                }
-                // main trapped partway: drop whatever it queued and stop running it
-                Err(e @ prep::InstancePrepError::MainFailed { .. }) => {
-                    tracing::error!(
-                        "Failed to prep module `{}`: {}",
-                        handle,
-                        snafu::Report::from_error(&e)
-                    );
-                    script.poison(&format!("main of `{}` trapped", handle));
-                }
+        let module = match wasmtime::Module::new(engine, &bytes) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Failed to compile module `{}`: {:?}", handle, e);
+                return;
             }
+        };
 
-            sandbox.instances.push(script);
+        // instantiation may run the module's start function, so give it a cycle budget
+        store.set_epoch_deadline(WASM_CYCLE_TICKS);
+
+        let v = match with_world(store, world, |store| linker.instantiate(store, &module)) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
+                return;
+            }
+        };
+
+        tracing::info!("Loaded module `{}`", handle);
+        let mut script = crate::ScriptInstance {
+            instance: v,
+            loaded_at,
+            frame: 0,
+            poisoned: false,
+        };
+
+        match with_world(store, world, |store| prep_instance(&v, store)) {
+            Ok(()) => crate::commands::read_and_apply_commands(&v, store, world),
+            // main never ran, so the guest is clean; nothing was queued
+            Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {
+                tracing::error!(
+                    "Failed to prep module `{}`: {}",
+                    handle,
+                    snafu::Report::from_error(&e)
+                );
+            }
+            // main trapped partway: drop whatever it queued and stop running it
+            Err(e @ prep::InstancePrepError::MainFailed { .. }) => {
+                tracing::error!(
+                    "Failed to prep module `{}`: {}",
+                    handle,
+                    snafu::Report::from_error(&e)
+                );
+                script.poison(&format!("main of `{}` trapped", handle));
+            }
         }
-        Err(e) => {
-            tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
-        }
-    };
+
+        instances.push(script);
+    });
 }

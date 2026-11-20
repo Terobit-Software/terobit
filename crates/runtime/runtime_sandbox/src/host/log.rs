@@ -1,13 +1,14 @@
+use crate::HostState;
 use wasmtime::{Caller, Linker, Result, bail};
 
 /// links `host::log` (see `terobit_v1_abi::crosspoints::log`).
-pub(crate) fn link(linker: &mut Linker<()>) -> Result<()> {
+pub(crate) fn link(linker: &mut Linker<HostState>) -> Result<()> {
     linker.func_wrap("host", "log", log)?;
     tracing::info!("Linked host::log");
     Ok(())
 }
 
-fn log(mut caller: Caller<'_, ()>, ptr: i32, len: i32) -> Result<()> {
+fn log(mut caller: Caller<'_, HostState>, ptr: i32, len: i32) -> Result<()> {
     let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
         bail!("guest has no exported `memory`");
     };
