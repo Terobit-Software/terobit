@@ -21,13 +21,20 @@ pub(crate) fn link(linker: &mut Linker<HostState>, pending: &PendingTitle) -> Re
     linker.func_wrap(
         "host",
         "set_title",
-        move |caller: Caller<'_, HostState>, ptr: i32, len: i32| set_title(caller, &pending, ptr, len),
+        move |caller: Caller<'_, HostState>, ptr: i32, len: i32| {
+            set_title(caller, &pending, ptr, len)
+        },
     )?;
     tracing::info!("Linked host::set_title");
     Ok(())
 }
 
-fn set_title(mut caller: Caller<'_, HostState>, pending: &PendingTitle, ptr: i32, len: i32) -> Result<()> {
+fn set_title(
+    mut caller: Caller<'_, HostState>,
+    pending: &PendingTitle,
+    ptr: i32,
+    len: i32,
+) -> Result<()> {
     let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
         bail!("guest has no exported `memory`");
     };

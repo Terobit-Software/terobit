@@ -11,8 +11,8 @@ pub mod frame_info;
 mod host;
 mod loader;
 mod update;
-pub use loader::*;
 pub use host::state::HostState;
+pub use loader::*;
 
 /// A loaded script and the per-script state the host tracks for it.
 pub struct ScriptInstance {
