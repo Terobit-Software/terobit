@@ -19,5 +19,9 @@ pub type Opcode = u32;
 /// Size of the record header (opcode + payload length).
 pub const HEADER_LEN: usize = 8;
 
+/// Max size of the command buffer that the host will accept, any larger and the script it poisoned
+/// 50mb
+pub const MAX_COMMAND_BUFFER_SIZE: u32 = 5e7 as u32;
+
 /// Spawn a new entity.
 pub const SPAWN: Opcode = 0;

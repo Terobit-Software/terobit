@@ -5,7 +5,7 @@ use bevy::ecs::{system::Commands, world::World};
 use crate::HostState;
 use snafu::{OptionExt, ResultExt, Snafu};
 use terobit_v1_abi::{
-    commands::{HEADER_LEN, Opcode, SPAWN},
+    commands::{HEADER_LEN, MAX_COMMAND_BUFFER_SIZE, Opcode, SPAWN},
     endpoints,
 };
 
@@ -38,6 +38,9 @@ pub enum ReadCommandsError {
 
     #[snafu(display("malformed command record at byte {offset}"))]
     Malformed { offset: usize },
+
+    #[snafu(display("command buffer too large, size is {size} bytes and the max is {max} bytes"))]
+    TooLarge { size: usize, max: usize },
 }
 
 /// Reads `instance`'s command buffer, parses it into records, then clears it
@@ -53,6 +56,13 @@ pub fn read_commands(
 
     if len == 0 {
         return Ok(Vec::new());
+    }
+
+    if len >= MAX_COMMAND_BUFFER_SIZE as i32 {
+        return Err(ReadCommandsError::TooLarge {
+            size: len as usize,
+            max: MAX_COMMAND_BUFFER_SIZE as usize,
+        });
     }
 
     let memory = instance
@@ -80,7 +90,7 @@ pub fn read_and_apply_commands(
     instance: &wasmtime::Instance,
     store: &mut wasmtime::Store<HostState>,
     world: &mut World,
-) {
+) -> Result<(), ReadCommandsError> {
     match read_commands(instance, store) {
         Ok(guest_commands) => {
             apply_commands(&mut world.commands(), &guest_commands);
@@ -89,11 +99,15 @@ pub fn read_and_apply_commands(
         Err(ReadCommandsError::MissingExport { name, .. }) => {
             tracing::trace!("guest has no `{}`, skipping its command buffer", name);
         }
+        Err(ReadCommandsError::TooLarge { size, max }) => {
+            return Err(ReadCommandsError::TooLarge { size, max });
+        }
         Err(e) => tracing::error!(
             "Failed to read guest command buffer: {}",
             snafu::Report::from_error(&e)
         ),
     }
+    return Ok(());
 }
 
 mod spawn;

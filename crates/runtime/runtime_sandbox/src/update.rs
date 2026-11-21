@@ -27,7 +27,11 @@ fn call_entrypoint(world: &mut World, name: &str) {
                 script.poison(&format!("`{}` trapped", name));
                 continue;
             }
-            read_and_apply_commands(&instance, store, world);
+            if let Err(e) = read_and_apply_commands(&instance, store, world) {
+                tracing::error!("`{}` failed: {:?}", name, e);
+                script.poison(&format!("`{}` trapped", name));
+                continue;
+            };
         }
     });
 }

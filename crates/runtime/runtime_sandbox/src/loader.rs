@@ -141,7 +141,12 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
         };
 
         match with_world(store, world, |store| prep_instance(&v, store)) {
-            Ok(()) => crate::commands::read_and_apply_commands(&v, store, world),
+            Ok(()) => {
+                if let Err(e) = crate::commands::read_and_apply_commands(&v, store, world) {
+                    tracing::error!("load module failed: {:?}", e);
+                    script.poison(&format!("error while loading buffer"));
+                };
+            }
             // main never ran, so the guest is clean; nothing was queued
             Err(e @ prep::InstancePrepError::NoMainEntryPoint { .. }) => {
                 tracing::error!(
