@@ -24,7 +24,6 @@ members = [
     "crates/runtime/runtime_scene",
     "crates/runtime/runtime_ui",
     "crates/runtime/runtime_window",
-    "crates/runtime/runtime_api",
     "crates/runtime/runtime_consts",
 
     # sdk

@@ -5749,10 +5749,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_api"
-version = "0.1.0"
-
-[[package]]
 name = "runtime_assets"
 version = "0.1.0"
 dependencies = [
