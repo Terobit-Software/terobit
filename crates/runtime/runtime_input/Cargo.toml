@@ -1,8 +1,0 @@
-[package]
-name = "runtime_input"
-version.workspace = true
-publish.workspace = true
-edition = "2024"
-
-[dependencies]
-bevy = { workspace = true, features = ["std", "bevy_input_focus", "bevy_gilrs", "keyboard", "mouse", "touch", "gestures", "gamepad"] }

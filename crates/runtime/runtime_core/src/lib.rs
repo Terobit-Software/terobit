@@ -13,6 +13,24 @@ use runtime_assets::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 use runtime_sandbox::RuntimeSandboxPlugin;
 
+mod animation;
+mod audio;
+mod input;
+mod picking;
+mod render;
+mod scene;
+mod ui;
+mod window;
+
+pub use animation::RuntimeAnimationPlugins;
+pub use audio::RuntimeAudioPlugins;
+pub use input::RuntimeInputPlugins;
+pub use picking::RuntimePickingPlugins;
+pub use render::RuntimeRenderPlugins;
+pub use scene::RuntimeScenePlugins;
+pub use ui::RuntimeUiPlugins;
+pub use window::RuntimeWindowPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

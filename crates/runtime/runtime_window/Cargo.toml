@@ -1,8 +1,0 @@
-[package]
-name = "runtime_window"
-version.workspace = true
-publish.workspace = true
-edition = "2024"
-
-[dependencies]
-bevy = { workspace = true, features = ["std", "bevy_window", "bevy_winit", "bevy_clipboard", "custom_cursor", "x11", "wayland"] }

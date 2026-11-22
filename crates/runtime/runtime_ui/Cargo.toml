@@ -1,8 +1,0 @@
-[package]
-name = "runtime_ui"
-version.workspace = true
-publish.workspace = true
-edition = "2024"
-
-[dependencies]
-bevy = { workspace = true, features = ["std", "bevy_text", "bevy_ui", "bevy_ui_render", "bevy_ui_widgets", "default_font"] }
