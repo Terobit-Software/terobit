@@ -5742,17 +5742,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_animation"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "runtime_api"
-version = "0.1.0"
-
-[[package]]
 name = "runtime_assets"
 version = "0.1.0"
 dependencies = [
@@ -5772,13 +5761,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_audio"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_consts"
 version = "0.1.0"
 
@@ -5793,13 +5775,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_input"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_logging"
 version = "0.1.0"
 dependencies = [
@@ -5808,20 +5783,6 @@ dependencies = [
  "tracing-appender",
  "tracing-panic",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "runtime_picking"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "runtime_render"
-version = "0.1.0"
-dependencies = [
- "bevy",
 ]
 
 [[package]]
@@ -5843,27 +5804,6 @@ dependencies = [
  "terobit_v1_abi",
  "tracing",
  "wasmtime",
-]
-
-[[package]]
-name = "runtime_scene"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "runtime_ui"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
-name = "runtime_window"
-version = "0.1.0"
-dependencies = [
- "bevy",
 ]
 
 [[package]]
@@ -6435,17 +6375,9 @@ dependencies = [
  "bevy",
  "client_consts",
  "client_dev",
- "runtime_animation",
- "runtime_audio",
  "runtime_core",
- "runtime_input",
  "runtime_logging",
- "runtime_picking",
- "runtime_render",
  "runtime_sandbox",
- "runtime_scene",
- "runtime_ui",
- "runtime_window",
  "tracing",
 ]
 

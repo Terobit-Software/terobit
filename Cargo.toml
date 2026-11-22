@@ -11,20 +11,11 @@ members = [
     "crates/client/client_dev",
 
     # runtime crates
-    "crates/runtime/runtime_animation",
     "crates/runtime/runtime_assets",
-    "crates/runtime/runtime_audio",
     "crates/runtime/runtime_core",
-    "crates/runtime/runtime_input",
     "crates/runtime/runtime_logging",
-    "crates/runtime/runtime_picking",
-    "crates/runtime/runtime_render",
     "crates/runtime/runtime_run_flags",
     "crates/runtime/runtime_sandbox",
-    "crates/runtime/runtime_scene",
-    "crates/runtime/runtime_ui",
-    "crates/runtime/runtime_window",
-    "crates/runtime/runtime_api",
     "crates/runtime/runtime_consts",
 
     # sdk
@@ -68,16 +59,8 @@ quote = "1.0.47"
 bytemuck = { version = "1.25.2", default-features = false, features = ["derive"] }
 
 # Internal crates
-runtime_animation = { path = "crates/runtime/runtime_animation" }
-runtime_audio = { path = "crates/runtime/runtime_audio" }
 runtime_core = { path = "crates/runtime/runtime_core" }
-runtime_input = { path = "crates/runtime/runtime_input" }
 runtime_logging = { path = "crates/runtime/runtime_logging" }
-runtime_picking = { path = "crates/runtime/runtime_picking" }
-runtime_render = { path = "crates/runtime/runtime_render" }
-runtime_scene = { path = "crates/runtime/runtime_scene" }
-runtime_ui = { path = "crates/runtime/runtime_ui" }
-runtime_window = { path = "crates/runtime/runtime_window" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
 runtime_assets = { path = "crates/runtime/runtime_assets" }
 runtime_sandbox = { path = "crates/runtime/runtime_sandbox" }
