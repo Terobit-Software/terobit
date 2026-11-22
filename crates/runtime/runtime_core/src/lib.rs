@@ -14,24 +14,21 @@ use runtime_run_flags::RuntimeRunFlagsPlugin;
 use runtime_sandbox::RuntimeSandboxPlugin;
 
 mod animation;
-pub use animation::RuntimeAnimationPlugins;
-
 mod audio;
-pub use audio::RuntimeAudioPlugins;
-
 mod input;
-pub use input::RuntimeInputPlugins;
-
 mod picking;
-pub use picking::RuntimePickingPlugins;
-
+mod render;
 mod scene;
-pub use scene::RuntimeScenePlugins;
-
 mod ui;
-pub use ui::RuntimeUiPlugins;
-
 mod window;
+
+pub use animation::RuntimeAnimationPlugins;
+pub use audio::RuntimeAudioPlugins;
+pub use input::RuntimeInputPlugins;
+pub use picking::RuntimePickingPlugins;
+pub use render::RuntimeRenderPlugins;
+pub use scene::RuntimeScenePlugins;
+pub use ui::RuntimeUiPlugins;
 pub use window::RuntimeWindowPlugins;
 
 pub struct RuntimeCorePlugins;

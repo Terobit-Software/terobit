@@ -5786,13 +5786,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_render"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_run_flags"
 version = "0.1.0"
 dependencies = [
@@ -6384,7 +6377,6 @@ dependencies = [
  "client_dev",
  "runtime_core",
  "runtime_logging",
- "runtime_render",
  "runtime_sandbox",
  "tracing",
 ]

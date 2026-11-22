@@ -43,22 +43,21 @@ client uses (`crates/server` and `crates/editor` will follow the same pattern).
 
 | crate               | what it does                                                                 |
 |---------------------|------------------------------------------------------------------------------|
-| `runtime_core`      | base plugins every app needs: task pools, time, transforms, states, the asset server, run flags and the pack reader. Add it first |
+| `runtime_core`      | every Bevy plugin group the runtime uses: `RuntimeCorePlugins` (task pools, time, transforms, states, the asset server, run flags, the pack reader; add it first) plus window, render, ui, input, scene, animation, audio and picking, one module each |
 | `runtime_assets`    | everything about packs: format types, `manifest.toml` loading, the pack writer, the pack reader and the asset registry. See its [README](../crates/runtime/runtime_assets/README.md) |
 | `runtime_consts`    | dependency free, `no_std` constants: pack format limits and versions, integrity contexts, wasm fuel, and the runtime tools' log names and paths |
 | `runtime_run_flags` | turns `--flag value value --other` into the `RuntimeFlags` resource         |
 | `runtime_logging`   | terminal and daily log file output, plus a panic hook that logs panics       |
-| `runtime_render`    | renderer, meshes, cameras, lights, PBR, sprites, glTF, gizmos                |
 | `runtime_sandbox`   | empty, will host wasm scripts (F6)                                           |
 | `client_consts`     | dependency free, `no_std` client constants: run flag names, the client's log names, binary name and output folder |
 | `client_dev`        | the client's `--dev` and `--pack-file` handling, compiled only with its `dev` feature |
 
-### Why so many small crates
+### Why the plugin groups share a crate
 
-Bevy is a workspace dependency with `default-features = false`, and each crate turns on
-only the Bevy features it uses. A binary picks the crates it needs, so the pack generator
-and the future server never compile the renderer or windowing. Small crates also rebuild
-faster.
+`runtime_core` holds every Bevy plugin group the runtime uses and turns on all the Bevy
+features they need, so any binary that depends on it compiles the renderer and windowing.
+The future server will need those feature-gated before it can build on `runtime_core`
+alone.
 
 ### Plugin order
 

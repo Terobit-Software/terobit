@@ -1,14 +1,10 @@
 use bevy::prelude::*;
 use client_dev::ClientDevPlugin;
-use runtime_core::RuntimeAnimationPlugins;
-use runtime_core::RuntimeAudioPlugins;
-use runtime_core::RuntimeCorePlugins;
-use runtime_core::RuntimeInputPlugins;
-use runtime_core::RuntimePickingPlugins;
-use runtime_core::RuntimeScenePlugins;
-use runtime_core::RuntimeUiPlugins;
-use runtime_core::RuntimeWindowPlugins;
-use runtime_render::RuntimeRenderPlugins;
+use runtime_core::{
+    RuntimeAnimationPlugins, RuntimeAudioPlugins, RuntimeCorePlugins, RuntimeInputPlugins,
+    RuntimePickingPlugins, RuntimeRenderPlugins, RuntimeScenePlugins, RuntimeUiPlugins,
+    RuntimeWindowPlugins,
+};
 
 fn main() {
     let (first, last) = client_consts::logging::CLIENT;

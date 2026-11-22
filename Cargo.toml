@@ -14,7 +14,6 @@ members = [
     "crates/runtime/runtime_assets",
     "crates/runtime/runtime_core",
     "crates/runtime/runtime_logging",
-    "crates/runtime/runtime_render",
     "crates/runtime/runtime_run_flags",
     "crates/runtime/runtime_sandbox",
     "crates/runtime/runtime_consts",
@@ -62,7 +61,6 @@ bytemuck = { version = "1.25.2", default-features = false, features = ["derive"]
 # Internal crates
 runtime_core = { path = "crates/runtime/runtime_core" }
 runtime_logging = { path = "crates/runtime/runtime_logging" }
-runtime_render = { path = "crates/runtime/runtime_render" }
 runtime_run_flags = { path = "crates/runtime/runtime_run_flags" }
 runtime_assets = { path = "crates/runtime/runtime_assets" }
 runtime_sandbox = { path = "crates/runtime/runtime_sandbox" }
