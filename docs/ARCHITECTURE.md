@@ -50,7 +50,6 @@ client uses (`crates/server` and `crates/editor` will follow the same pattern).
 | `runtime_logging`   | terminal and daily log file output, plus a panic hook that logs panics       |
 | `runtime_window`    | window, winit, clipboard, accessibility                                      |
 | `runtime_render`    | renderer, meshes, cameras, lights, PBR, sprites, glTF, gizmos                |
-| `runtime_ui`        | text, UI and UI widgets                                                      |
 | `runtime_sandbox`   | empty, will host wasm scripts (F6)                                           |
 | `client_consts`     | dependency free, `no_std` client constants: run flag names, the client's log names, binary name and output folder |
 | `client_dev`        | the client's `--dev` and `--pack-file` handling, compiled only with its `dev` feature |

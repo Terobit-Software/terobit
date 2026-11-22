@@ -28,6 +28,9 @@ pub use picking::RuntimePickingPlugins;
 mod scene;
 pub use scene::RuntimeScenePlugins;
 
+mod ui;
+pub use ui::RuntimeUiPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

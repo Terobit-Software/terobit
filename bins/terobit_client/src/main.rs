@@ -6,8 +6,8 @@ use runtime_core::RuntimeCorePlugins;
 use runtime_core::RuntimeInputPlugins;
 use runtime_core::RuntimePickingPlugins;
 use runtime_core::RuntimeScenePlugins;
+use runtime_core::RuntimeUiPlugins;
 use runtime_render::RuntimeRenderPlugins;
-use runtime_ui::RuntimeUiPlugins;
 use runtime_window::RuntimeWindowPlugins;
 
 fn main() {

@@ -5814,13 +5814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_ui"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_window"
 version = "0.1.0"
 dependencies = [
@@ -6400,7 +6393,6 @@ dependencies = [
  "runtime_logging",
  "runtime_render",
  "runtime_sandbox",
- "runtime_ui",
  "runtime_window",
  "tracing",
 ]
