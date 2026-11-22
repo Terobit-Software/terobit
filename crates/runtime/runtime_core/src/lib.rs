@@ -25,6 +25,9 @@ pub use input::RuntimeInputPlugins;
 mod picking;
 pub use picking::RuntimePickingPlugins;
 
+mod scene;
+pub use scene::RuntimeScenePlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {
