@@ -5775,13 +5775,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_input"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "runtime_logging"
 version = "0.1.0"
 dependencies = [
@@ -6418,7 +6411,6 @@ dependencies = [
  "client_consts",
  "client_dev",
  "runtime_core",
- "runtime_input",
  "runtime_logging",
  "runtime_picking",
  "runtime_render",

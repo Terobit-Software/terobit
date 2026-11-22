@@ -3,7 +3,7 @@ use client_dev::ClientDevPlugin;
 use runtime_core::RuntimeAnimationPlugins;
 use runtime_core::RuntimeAudioPlugins;
 use runtime_core::RuntimeCorePlugins;
-use runtime_input::RuntimeInputPlugins;
+use runtime_core::RuntimeInputPlugins;
 use runtime_picking::RuntimePickingPlugins;
 use runtime_render::RuntimeRenderPlugins;
 use runtime_scene::RuntimeScenePlugins;

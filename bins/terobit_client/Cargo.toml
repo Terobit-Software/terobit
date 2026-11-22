@@ -9,7 +9,6 @@ client_consts.workspace = true
 tracing.workspace = true
 bevy.workspace = true
 runtime_core.workspace = true
-runtime_input.workspace = true
 runtime_logging.workspace = true
 runtime_picking.workspace = true
 runtime_render.workspace = true

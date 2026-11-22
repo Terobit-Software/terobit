@@ -13,7 +13,6 @@ members = [
     # runtime crates
     "crates/runtime/runtime_assets",
     "crates/runtime/runtime_core",
-    "crates/runtime/runtime_input",
     "crates/runtime/runtime_logging",
     "crates/runtime/runtime_picking",
     "crates/runtime/runtime_render",
@@ -66,7 +65,6 @@ bytemuck = { version = "1.25.2", default-features = false, features = ["derive"]
 
 # Internal crates
 runtime_core = { path = "crates/runtime/runtime_core" }
-runtime_input = { path = "crates/runtime/runtime_input" }
 runtime_logging = { path = "crates/runtime/runtime_logging" }
 runtime_picking = { path = "crates/runtime/runtime_picking" }
 runtime_render = { path = "crates/runtime/runtime_render" }

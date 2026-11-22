@@ -19,6 +19,9 @@ pub use animation::RuntimeAnimationPlugins;
 mod audio;
 pub use audio::RuntimeAudioPlugins;
 
+mod input;
+pub use input::RuntimeInputPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

@@ -51,7 +51,6 @@ client uses (`crates/server` and `crates/editor` will follow the same pattern).
 | `runtime_window`    | window, winit, clipboard, accessibility                                      |
 | `runtime_render`    | renderer, meshes, cameras, lights, PBR, sprites, glTF, gizmos                |
 | `runtime_ui`        | text, UI and UI widgets                                                      |
-| `runtime_input`     | keyboard, mouse, gamepads, input focus                                       |
 | `runtime_scene`     | scenes and world serialization                                               |
 | `runtime_picking`   | Bevy's default picking                                                       |
 | `runtime_sandbox`   | empty, will host wasm scripts (F6)                                           |
