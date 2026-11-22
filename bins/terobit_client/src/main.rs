@@ -7,8 +7,8 @@ use runtime_core::RuntimeInputPlugins;
 use runtime_core::RuntimePickingPlugins;
 use runtime_core::RuntimeScenePlugins;
 use runtime_core::RuntimeUiPlugins;
+use runtime_core::RuntimeWindowPlugins;
 use runtime_render::RuntimeRenderPlugins;
-use runtime_window::RuntimeWindowPlugins;
 
 fn main() {
     let (first, last) = client_consts::logging::CLIENT;

@@ -31,6 +31,9 @@ pub use scene::RuntimeScenePlugins;
 mod ui;
 pub use ui::RuntimeUiPlugins;
 
+mod window;
+pub use window::RuntimeWindowPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

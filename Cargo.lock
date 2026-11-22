@@ -5814,13 +5814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runtime_window"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6393,7 +6386,6 @@ dependencies = [
  "runtime_logging",
  "runtime_render",
  "runtime_sandbox",
- "runtime_window",
  "tracing",
 ]
 

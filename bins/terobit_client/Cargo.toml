@@ -11,7 +11,6 @@ bevy.workspace = true
 runtime_core.workspace = true
 runtime_logging.workspace = true
 runtime_render.workspace = true
-runtime_window.workspace = true
 runtime_sandbox.workspace = true
 client_dev.workspace = true
 
