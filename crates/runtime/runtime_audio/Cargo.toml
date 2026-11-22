@@ -1,8 +1,0 @@
-[package]
-name = "runtime_audio"
-version.workspace = true
-publish.workspace = true
-edition = "2024"
-
-[dependencies]
-bevy = { workspace = true, features = ["std", "bevy_audio", "vorbis"] }

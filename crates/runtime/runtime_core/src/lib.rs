@@ -16,6 +16,9 @@ use runtime_sandbox::RuntimeSandboxPlugin;
 mod animation;
 pub use animation::RuntimeAnimationPlugins;
 
+mod audio;
+pub use audio::RuntimeAudioPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

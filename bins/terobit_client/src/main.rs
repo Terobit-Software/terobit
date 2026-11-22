@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use client_dev::ClientDevPlugin;
-use runtime_audio::RuntimeAudioPlugins;
 use runtime_core::RuntimeAnimationPlugins;
+use runtime_core::RuntimeAudioPlugins;
 use runtime_core::RuntimeCorePlugins;
 use runtime_input::RuntimeInputPlugins;
 use runtime_picking::RuntimePickingPlugins;
