@@ -22,6 +22,9 @@ pub use audio::RuntimeAudioPlugins;
 mod input;
 pub use input::RuntimeInputPlugins;
 
+mod picking;
+pub use picking::RuntimePickingPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

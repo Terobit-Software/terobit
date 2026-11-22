@@ -5,7 +5,7 @@ publish.workspace = true
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state", "bevy_asset", "bevy_animation", "gltf_animation", "bevy_audio", "vorbis", "bevy_input_focus", "bevy_gilrs", "keyboard", "mouse", "touch", "gestures", "gamepad"] }
+bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state", "bevy_asset", "bevy_animation", "gltf_animation", "bevy_audio", "vorbis", "bevy_input_focus", "bevy_gilrs", "keyboard", "mouse", "touch", "gestures", "gamepad", "bevy_picking", "mesh_picking", "sprite_picking", "ui_picking"] }
 runtime_run_flags.workspace = true
 runtime_assets.workspace = true
 runtime_sandbox.workspace = true

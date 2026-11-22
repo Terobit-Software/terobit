@@ -4,7 +4,7 @@ use runtime_core::RuntimeAnimationPlugins;
 use runtime_core::RuntimeAudioPlugins;
 use runtime_core::RuntimeCorePlugins;
 use runtime_core::RuntimeInputPlugins;
-use runtime_picking::RuntimePickingPlugins;
+use runtime_core::RuntimePickingPlugins;
 use runtime_render::RuntimeRenderPlugins;
 use runtime_scene::RuntimeScenePlugins;
 use runtime_ui::RuntimeUiPlugins;
