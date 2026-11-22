@@ -13,6 +13,9 @@ use runtime_assets::RuntimePackReaderPlugin;
 use runtime_run_flags::RuntimeRunFlagsPlugin;
 use runtime_sandbox::RuntimeSandboxPlugin;
 
+mod animation;
+pub use animation::RuntimeAnimationPlugins;
+
 pub struct RuntimeCorePlugins;
 
 impl PluginGroup for RuntimeCorePlugins {

@@ -8,7 +8,6 @@ edition = "2024"
 client_consts.workspace = true
 tracing.workspace = true
 bevy.workspace = true
-runtime_animation.workspace = true
 runtime_audio.workspace = true
 runtime_core.workspace = true
 runtime_input.workspace = true

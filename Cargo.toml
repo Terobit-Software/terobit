@@ -11,7 +11,6 @@ members = [
     "crates/client/client_dev",
 
     # runtime crates
-    "crates/runtime/runtime_animation",
     "crates/runtime/runtime_assets",
     "crates/runtime/runtime_audio",
     "crates/runtime/runtime_core",
@@ -67,7 +66,6 @@ quote = "1.0.47"
 bytemuck = { version = "1.25.2", default-features = false, features = ["derive"] }
 
 # Internal crates
-runtime_animation = { path = "crates/runtime/runtime_animation" }
 runtime_audio = { path = "crates/runtime/runtime_audio" }
 runtime_core = { path = "crates/runtime/runtime_core" }
 runtime_input = { path = "crates/runtime/runtime_input" }

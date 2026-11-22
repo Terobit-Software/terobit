@@ -5,7 +5,7 @@ publish.workspace = true
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state", "bevy_asset"] }
+bevy = { workspace = true, features = ["std", "async_executor", "multi_threaded", "bevy_state", "bevy_asset", "bevy_animation", "gltf_animation"] }
 runtime_run_flags.workspace = true
 runtime_assets.workspace = true
 runtime_sandbox.workspace = true
