@@ -22,49 +22,7 @@ together, see [ARCHITECTURE](docs/ARCHITECTURE.md).
 | tests                        | 69 pass in a default workspace run (`runtime_assets` 45), `client_dev` runs 10 with `--features dev` |
 | CI                           | `cargo fmt --check` failed on this branch (one import order), fixed 2026-10-24 |
 
-## 1. Broken now
-
-Fix these first. Each one stops something that looks finished from working.
-
-- [x] **B1-B5. Dev directory assets load.** `RuntimePackReaderPlugin` registers the
-  `pack://` asset source before `AssetPlugin` and owns the one `PackRegistry`. Reading a dev
-  directory puts its shared and reading-side entries in the registry. `PackAssets::load`
-  turns a handle into `pack://<pack path>`, and the reader only serves files that side
-  declares.
-- [x] **B6.** The pack writer reads file sizes once and builds the manifest from the list it
-  chunked.
-- [x] **B7.** "id in both `[assets]` and a side" and "scripts must be `.wasm`" are checked when
-  the manifest loads.
-
-- [x] **B8.** `--dev` only exists in builds with the `dev` feature (`client_dev/dev`,
-  forwarded by `terobit_client/dev`). Other builds don't compile developer mode and ignore
-  `--dev` with a warning. `cargo xtask run client` turns the feature on unless `--final`, and CI runs
-  `client_dev`'s tests both ways.
-
-- [x] **B9.** Logs are named after the program (`tbpk-generator.log.<date>`) and every OS
-  uses `<first>/<last>`: `~/Library/Logs/Terobit/Client/` on macOS,
-  `~/.local/share/terobit/client/logs/` on Linux, `%LOCALAPPDATA%\terobit\client\logs\` on
-  Windows.
-
-## 2. Docs and code disagree
-
-The [format README](docs/formats/README.md) says that when code and docs disagree, one of
-them is a bug.
-
-- [x] **D1.** The zstd level is 5 in both the code and [tbman v1](docs/formats/tbman/v1.md#compression).
-  The doc records libzstd 1.5.7, and `zstd` and `zstd-sys` are pinned with `=` in
-  `Cargo.toml`.
-- [x] **D2.** `pack::writers` only compiles with `runtime_assets`' `writer` feature, so the
-  client doesn't ship the pack writer. `xtask` turns it on for `pkgen`.
-
-- [x] **D3.** The README said `cargo rcl` runs the client with `--pack-file .`. It passes
-  the absolute path of `tests/examples/source_to_tbpk/basic1`. Fixed in the README.
-- [x] **D4.** The README listed `/rust-toolchain.md`. The file is `rust-toolchain.toml`.
-  Fixed.
-- [x] **D5.** [tbpk REF](docs/formats/tbpk/REF.md#building) said the pack tool in
-  `runtime_assets::pack` was planned. It exists at `runtime_assets::pack::writers`. Fixed.
-
-## 3. Not built yet
+## 1. Not built yet
 
 Roughly in the order they depend on each other.
 
@@ -117,7 +75,7 @@ Roughly in the order they depend on each other.
 - [ ] **F11. Installed store.** The client's on-disk store (chunks by hash, partial updates)
   from [tbpk REF](docs/formats/tbpk/REF.md#installed).
 
-## 4. Cleanup
+## 2. Cleanup
 
 - [ ] **C1. The chunker logs at `info!` for every file and every chunk.** 29 `info!` calls
   in `chunker.rs`, several per chunk. Packing the 4 files in `basic1` prints 365 lines, so
@@ -144,9 +102,6 @@ Roughly in the order they depend on each other.
   `resource::<RuntimeFlags>()` (`client_dev/src/lib.rs:24`). Use `get_resource` and warn,
   like it already does for `RuntimePackConfig`.
 
-- [x] **C6. One argument parser.** The workspace tools (`run client`, `pkgen`, `regen`)
-  are all in `xtask` and use clap, so they all have `--help`.
-
 - [ ] **C7. Rewrite `cargo xtask regen`** (`xtask/src/regen.rs`). Its module doc says it
   needs a rewrite. It also has no size class between 4 KiB and 256 KiB, the sizes that
   fill shared small-file chunks, unless you use `--type random`.
@@ -162,7 +117,7 @@ Roughly in the order they depend on each other.
 - [ ] **C10. Remove or finish stubs.** `HeaderReader` (empty), `ManifestSource::get_v1`
   (never called), and the `// implemented` comments in `PackWriter`.
 
-## 5. Tooling and CI
+## 3. Tooling and CI
 
 - [ ] **T1. Pin the Rust version.** `rust-toolchain.toml` lists targets but no `channel`, so
   every fresh machine downloads std for all five targets, and the compiler version depends
@@ -176,14 +131,8 @@ Roughly in the order they depend on each other.
 - [ ] **T3. Add clippy.** `cargo clippy --workspace --all-targets -- -D warnings` once C2 is
   done.
 
-- [x] **T4.** Dependabot ignores `zstd`, `zstd-safe` and `zstd-sys`, since a new zstd can
-  change chunk bytes.
+## 4. Docs to write
 
-## 6. Docs to write
-
-- [x] READMEs for every binary and script (were `# TODO`). Done, update them as things change.
-- [x] [ARCHITECTURE](docs/ARCHITECTURE.md): how the pieces fit together and why.
-- [x] [runtime_assets README](crates/runtime/runtime_assets/README.md).
 - [ ] Revocation list format ([INTEGRITY](docs/formats/common/INTEGRITY.md#revocation) says
   it gets its own doc).
 - [ ] The signed "last logged in user" record (F3).
