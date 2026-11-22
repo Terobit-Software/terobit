@@ -144,7 +144,7 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
             Ok(()) => {
                 if let Err(e) = crate::commands::read_and_apply_commands(&v, store, world) {
                     tracing::error!("load module failed: {:?}", e);
-                    script.poison(&format!("error while loading buffer"));
+                    script.poison(&format!("error while loading buffer: {:?}", e));
                 };
             }
             // main never ran, so the guest is clean; nothing was queued
