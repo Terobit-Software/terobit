@@ -3,6 +3,25 @@ This file contains rules and conventions applied throughout this repo when editi
 
 ---
 
+## AI or LLM Usage
+There are things that AI can be used for, but it should not replace your own programming. Here are some do's and dont's:
+
+### Do:
+- Use AI to do monotounous or repetitive tasks
+- Help understand code
+- Find issues or bugs that YOU didn't notice
+- Write boilerplate or bare structures that YOU designed
+- Write tests, though verify functionality
+
+### Dont:
+- Don't use AI or generative tools to refactor full codebases or crates
+- Don't use AI or generative tools to write full code
+- Don't design structures, algorithmic usage, or code with AI, with no guidance or independent verification
+- Don't write documentation
+- Don't use AI to ever write or edit sensitive systems
+
+When working with AI or generative tools, ALWAYS review what it outputs and NEVER trust it blindly.
+
 ## Workspace Deps
 All dependencies should be contained at the workspace level. Crates and binaries should never have different versioned dependencies.
 
