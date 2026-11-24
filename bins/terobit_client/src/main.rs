@@ -7,10 +7,13 @@ use runtime_core::{
 };
 
 fn main() {
+    // the client logging name
     let (first, last) = client_consts::logging::CLIENT;
+    // keeps the file logging guard alive
     let _guard = runtime_logging::init_logging(first, last);
 
-    // order matters: core (assets) before window/render, render before ui
+    // order does matter, make sure runtime plugins are loaded before client plugins
+    // unless explicitly required
     App::new()
         .add_plugins(RuntimeCorePlugins)
         .add_plugins(RuntimeInputPlugins)
