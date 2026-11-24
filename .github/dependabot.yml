@@ -1,23 +1,21 @@
 version: 2
 updates:
-  # Rust dependencies (Cargo, workspace root)
+  # check cargo deps
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "daily" # Options: daily, weekly, monthly
+      interval: "daily" # options are daily, weekly, and monthly
     commit-message:
       prefix: "deps"
     labels:
       - "dependencies"
       - "rust"
-    # the zstd version is pinned by manifest v1 (docs/formats/tbman/v1.md#compression).
-    # a new one can change chunk bytes, so it only moves with a new manifest version
+    # pin zstd version
     ignore:
       - dependency-name: "zstd"
       - dependency-name: "zstd-safe"
       - dependency-name: "zstd-sys"
-    # Group minor/patch bumps into one PR to avoid PR fatigue; breaking
-    # majors (wgpu, winit, ...) arrive as individual PRs instead.
+    # group minor and pathces together
     groups:
       rust-minor-patch:
         patterns:
@@ -26,7 +24,7 @@ updates:
           - "minor"
           - "patch"
 
-  # Keep the actions used in CI workflows up to date
+  # check the ci deps
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
