@@ -1,8 +1,5 @@
 name: Version check
 
-# Every PR into main must bump the shared workspace version in /Cargo.toml,
-# and that version must differ from what main currently has.
-
 on:
   pull_request:
     branches: [main]
@@ -11,11 +8,13 @@ permissions:
   contents: read
 
 jobs:
+  # check the version in workspace Cargo.toml
   version:
+    # run on ubuntu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
+      # reads the version on main and compares it with pr, if they match, fails
       - name: Compare versions with main
         run: |
           set -euo pipefail
