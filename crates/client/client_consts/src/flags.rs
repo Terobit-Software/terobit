@@ -1,6 +1,6 @@
 //! run flags read through `RuntimeFlags`
 
-/// turns on developer mode, needs the client's `dev` feature
+/// turns on developer mode, needs `dev` feat
 pub const DEV: &str = "--dev";
-/// the pack or dev directory developer mode loads
+/// flag for the pack file or dev dir
 pub const PACK_FILE: &str = "--pack-file";
