@@ -20,6 +20,9 @@ libraries:
 |------|---------------------------------------------------------|
 | `--dev` | runs the client in developer mode, allows use of dev
 directory instead of a `.tbpk`. |
-| `--pack-file <path>` | the path to the `.client.tbpk` file or dev directory if `--dev` is enabled. |
+| `--pack-file <path>` | the path to the `.client.tbpk` file or
+dev directory if `--dev` is enabled. |
 
-Please note running client with `cargo xtask run client --final` strips the `--dev` flag and `dev` cargo feature flag so it will refuse the `--pack-file` flag.
+Please note running client with `cargo xtask run client --final`
+strips the `--dev` flag and `dev` cargo feature flag so it will
+refuse the `--pack-file` flag.
