@@ -1,4 +1,4 @@
-//! Constants for the 
+//! constants for the client
 
 #![no_std]
 
