@@ -35,7 +35,8 @@ impl PluginGroup for RuntimeRenderPlugins {
             .add(AntiAliasPlugin)
             .add(SpritePlugin)
             .add(SpriteRenderPlugin)
-            // after RenderPlugin (compressed texture support) and before PbrPlugin (gltf material handler)
+            // after RenderPlugin (compressed texture support) and before PbrPlugin (gltf material
+            // handler)
             .add(GltfPlugin::default())
             .add(PbrPlugin::default())
             .add(GizmoPlugin)

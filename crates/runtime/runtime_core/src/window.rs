@@ -6,7 +6,8 @@ use bevy::{
     winit::WinitPlugin,
 };
 
-/// Must be added after `RuntimeCorePlugins` (custom cursors need the `AssetServer`).
+/// Must be added after `RuntimeCorePlugins` (custom cursors need the
+/// `AssetServer`).
 pub struct RuntimeWindowPlugins;
 
 impl PluginGroup for RuntimeWindowPlugins {

@@ -22,7 +22,8 @@ impl Entity {
         self
     }
 
-    /// Queues the spawn. The host creates the entity when it next reads commands.
+    /// Queues the spawn. The host creates the entity when it next reads
+    /// commands.
     pub fn spawn(self) {
         Commands::spawn(self.components);
     }

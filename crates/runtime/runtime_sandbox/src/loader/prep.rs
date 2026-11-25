@@ -30,8 +30,8 @@ pub fn prep_instance(
         .context(MainFailedSnafu {});
 
     // --- RESET --- //
-    // drop back to the per-cycle budget so the longer main deadline doesn't carry over,
-    // even if main failed
+    // drop back to the per-cycle budget so the longer main deadline doesn't
+    // carry over, even if main failed
     store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
     main_result

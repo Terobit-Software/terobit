@@ -1,7 +1,8 @@
 use crate::pack::{CommonHeader, TbManifest, TbSignature};
 use runtime_consts::pack::TOC_LEN;
 
-/// a `.tbpk` archive, everything except the data section, which is read chunk by chunk
+/// a `.tbpk` archive, everything except the data section, which is read chunk
+/// by chunk
 pub struct TbPack {
     /// the common header, magic `TBPK`
     pub header: CommonHeader,
@@ -15,15 +16,16 @@ pub struct TbPack {
     pub index: IndexV1,
 }
 
-/// a section a signature covers. `raw` is exactly what is on disk and what gets signed or
-/// verified, never re-encode `parsed` to check a signature. readers decode `parsed` only
-/// after `raw` verifies
+/// a section a signature covers. `raw` is exactly what is on disk and what gets
+/// signed or verified, never re-encode `parsed` to check a signature. readers
+/// decode `parsed` only after `raw` verifies
 pub struct Signed<T> {
     pub raw: Vec<u8>,
     pub parsed: T,
 }
 
-/// fixed width little endian, right after the common header. offsets are from the start of the file
+/// fixed width little endian, right after the common header. offsets are from
+/// the start of the file
 pub struct TableOfContents {
     pub manifest_offset: u64,
     pub manifest_len: u64,
@@ -57,11 +59,12 @@ impl TableOfContents {
     }
 }
 
-/// the index section, postcard encoded. its length and hash are in the signed manifest
+/// the index section, postcard encoded. its length and hash are in the signed
+/// manifest
 #[derive(serde::Serialize)]
 pub struct IndexV1 {
-    /// most raw bytes a chunk can hold. 1 mib when written by the v1 tool, readers accept
-    /// any power of two from 64 kib to 16 mib
+    /// most raw bytes a chunk can hold. 1 mib when written by the v1 tool,
+    /// readers accept any power of two from 64 kib to 16 mib
     pub chunk_size: u32,
     /// in data section order
     pub chunks: Vec<ChunkEntry>,

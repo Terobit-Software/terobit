@@ -12,8 +12,8 @@ fn main() {
     // keeps the file logging guard alive
     let _guard = runtime_logging::init_logging(first, last);
 
-    // order does matter, make sure runtime plugins are loaded before client plugins
-    // unless explicitly required
+    // order does matter, make sure runtime plugins are loaded before client
+    // plugins unless explicitly required
     App::new()
         .add_plugins(RuntimeCorePlugins)
         .add_plugins(RuntimeInputPlugins)

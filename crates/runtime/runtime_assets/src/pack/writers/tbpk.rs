@@ -207,7 +207,8 @@ impl PackSigner {
         Ok(Self { key, cert })
     }
 
-    /// signs exactly the bytes that get written, never a re-encoding of `parsed`
+    /// signs exactly the bytes that get written, never a re-encoding of
+    /// `parsed`
     pub fn sign(&self, manifest: &Signed<TbManifest>) -> SignatureV1 {
         let digest = pack_digest(&manifest.raw);
         let signature = self.key.sign(&digest).to_bytes();
@@ -225,7 +226,8 @@ pub struct PackWriter {
     tbpk: Option<TbPack>,
     // implemented
     chunk_size: u32,
-    /// zstd level chunks are compressed at. defaults to the manifest version's pinned level
+    /// zstd level chunks are compressed at. defaults to the manifest version's
+    /// pinned level
     zstd_level: Option<i32>,
     /// each side's chunks, indexed by `Target as usize`. filled by `build_tbpk`
     chunks: [Option<SideChunks>; 2],
@@ -259,9 +261,9 @@ impl PackWriter {
         self
     }
 
-    /// overrides the zstd level, `None` stores every chunk uncompressed. anything other than
-    /// `ZSTD_LEVEL` makes chunk bytes and hashes differ from what the manifest version pins,
-    /// so it's for testing speed and size
+    /// overrides the zstd level, `None` stores every chunk uncompressed.
+    /// anything other than `ZSTD_LEVEL` makes chunk bytes and hashes differ
+    /// from what the manifest version pins, so it's for testing speed and size
     pub fn with_zstd_level(mut self, level: Option<i32>) -> Result<Self, PackWriterError> {
         match level {
             Some(level) => {
@@ -311,7 +313,8 @@ impl PackWriter {
         self.manifest_source.as_ref().context(NoManifestSnafu)
     }
 
-    /// reads and compresses every file on one side, returns the file list it chunked
+    /// reads and compresses every file on one side, returns the file list it
+    /// chunked
     fn chunk(&mut self, target: Target) -> Result<Vec<FileEntry>, PackWriterError> {
         info!("Chunking {target:?} files");
         let source = self.get_manifest_source()?;
@@ -348,7 +351,8 @@ impl PackWriter {
         Ok(index)
     }
 
-    /// the index section's bytes. the manifest's index hash is over exactly these
+    /// the index section's bytes. the manifest's index hash is over exactly
+    /// these
     fn encode_index(&self, target: Target) -> Result<Vec<u8>, PackWriterError> {
         postcard::to_allocvec(&self.get_index(target)?).context(EncodeIndexSnafu { target })
     }
@@ -403,7 +407,8 @@ impl PackWriter {
         })
     }
 
-    /// needs the index built first, since the manifest holds its length and hash
+    /// needs the index built first, since the manifest holds its length and
+    /// hash
     fn get_manifest(
         &self,
         target: Target,
@@ -472,10 +477,12 @@ impl PackWriter {
     #[tracing::instrument(skip(self))]
     pub fn build_tbpk(&mut self, target: Target) -> Result<(), PackWriterError> {
         info!("Building {target:?} pack");
-        // the index comes from the chunks, and the manifest holds the index's hash
+        // the index comes from the chunks, and the manifest holds the index's
+        // hash
         let files = self.chunk(target)?;
 
-        // the signature covers the manifest's bytes, so the manifest has to exist first
+        // the signature covers the manifest's bytes, so the manifest has to
+        // exist first
         let manifest = self.get_signed_manifest(target, files)?;
         let signature = self.get_tb_signature(target, &manifest)?;
         let toc = self.get_table_of_contents(target, &manifest, signature.as_ref())?;

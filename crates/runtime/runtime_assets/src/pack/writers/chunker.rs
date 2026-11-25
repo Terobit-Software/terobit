@@ -113,8 +113,8 @@ fn throughput(bytes: u64, elapsed: Duration) -> f64 {
     bytes as f64 / MIB as f64 / secs
 }
 
-/// one side's chunked files. the stored chunk bytes live in a temp file, so memory use is
-/// bounded by the chunk size however big the pack is
+/// one side's chunked files. the stored chunk bytes live in a temp file, so
+/// memory use is bounded by the chunk size however big the pack is
 pub(crate) struct SideChunks {
     /// in data section order
     pub entries: Vec<ChunkEntry>,
@@ -177,8 +177,8 @@ impl Drop for SpoolFile {
     }
 }
 
-/// chunks `files` (from `root`) following "writing chunks" in the tbpk v1 doc, so the same
-/// content always produces the same chunks
+/// chunks `files` (from `root`) following "writing chunks" in the tbpk v1 doc,
+/// so the same content always produces the same chunks
 pub(crate) fn chunk_files(
     root: &Path,
     files: &[FileEntry],
@@ -230,8 +230,8 @@ pub(crate) fn chunk_files(
             info!("File `{}`: open took {opened:?}", entry.path);
 
             let add_started = Instant::now();
-            // a small file bigger than the chunk size can't fit in one chunk, so it's
-            // chunked like a large file
+            // a small file bigger than the chunk size can't fit in one chunk,
+            // so it's chunked like a large file
             let large = entry.size >= LARGE_FILE_THRESHOLD || entry.size > chunk_size as u64;
             let kind = if large { "large" } else { "small" };
             let added = if large {
@@ -311,8 +311,8 @@ struct Chunker {
     open: Vec<u8>,
     spool: SpoolFile,
     out: BufWriter<File>,
-    /// when the open small-file chunk got its first file, how long reading into it has taken,
-    /// and how many files it holds
+    /// when the open small-file chunk got its first file, how long reading into
+    /// it has taken, and how many files it holds
     open_since: Option<Instant>,
     open_read: Duration,
     open_files: u32,
@@ -363,7 +363,8 @@ impl Chunker {
             .context(TooManyChunksSnafu { index })
     }
 
-    /// starts its own chunks and fills as many as it needs, never sharing the last one
+    /// starts its own chunks and fills as many as it needs, never sharing the
+    /// last one
     fn add_large(&mut self, mut file: File, size: u64) -> Result<FileLocation, ChunkerError> {
         self.close_open()?;
         let location = FileLocation {
@@ -474,8 +475,8 @@ impl Chunker {
         Ok(())
     }
 
-    /// compresses one chunk and appends it to the data section. stored uncompressed if zstd
-    /// saves less than 20%, or if there's no zstd level
+    /// compresses one chunk and appends it to the data section. stored
+    /// uncompressed if zstd saves less than 20%, or if there's no zstd level
     fn push_chunk(&mut self, raw: &[u8]) -> Result<(), ChunkerError> {
         let started = Instant::now();
         let index = self.entries.len();
@@ -590,7 +591,8 @@ impl Chunker {
     }
 }
 
-/// a file that grew since its size was read would make the manifest's size wrong
+/// a file that grew since its size was read would make the manifest's size
+/// wrong
 fn check_eof(file: &mut File, size: u64) -> Result<(), ChunkerError> {
     let mut byte = [0u8; 1];
     let read = file.read(&mut byte).context(CheckEofSnafu { size })?;
@@ -605,7 +607,8 @@ mod chunker_tests {
 
     const CHUNK_SIZE: u32 = 64 * 1024;
 
-    /// writes `files` into a fresh temp dir and returns it with their entries, sorted by path
+    /// writes `files` into a fresh temp dir and returns it with their entries,
+    /// sorted by path
     fn setup(name: &str, files: &[(&str, Vec<u8>)]) -> (PathBuf, Vec<FileEntry>) {
         let root =
             std::env::temp_dir().join(format!("terobit_chunker_{}_{name}", std::process::id()));

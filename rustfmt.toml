@@ -1,0 +1,6 @@
+unstable_features = true
+wrap_comments = true
+comment_width = 80 # wrap comments at 80 chars
+
+# TO RUN:
+# cargo +nightly fmt

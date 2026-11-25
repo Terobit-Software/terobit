@@ -9,8 +9,8 @@ use crate::registry::TbpkSource;
 #[derive(Resource, Clone, Default)]
 pub struct PackRegistry(Arc<RwLock<TbpkSource>>);
 
-// the source is only ever replaced whole, so a panic can't leave it half written and a
-// poisoned lock is safe to use
+// the source is only ever replaced whole, so a panic can't leave it half
+// written and a poisoned lock is safe to use
 impl PackRegistry {
     /// replaces the loaded pack
     pub fn set(&self, source: TbpkSource) {
@@ -32,7 +32,8 @@ impl PackRegistry {
         self.source().resolve_script(handle).map(str::to_owned)
     }
 
-    /// where a pack path is on disk, `None` if the loaded pack doesn't have that file
+    /// where a pack path is on disk, `None` if the loaded pack doesn't have
+    /// that file
     pub fn full_path(&self, path: &Path) -> Option<PathBuf> {
         self.source().full_path(path)
     }

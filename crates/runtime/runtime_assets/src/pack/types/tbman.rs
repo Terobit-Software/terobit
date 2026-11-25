@@ -10,7 +10,8 @@ pub struct TbManifest {
 }
 
 impl TbManifest {
-    /// encodes the whole file once, so the bytes that get signed are the bytes that get written
+    /// encodes the whole file once, so the bytes that get signed are the bytes
+    /// that get written
     pub fn encode(body: ManifestV1) -> Result<Signed<TbManifest>, EncodeError> {
         let (header, raw) = encode_file(MagicValue::TBMN, TBMAN_CURRENT_VERSION, &body)?;
         Ok(Signed {
@@ -22,7 +23,8 @@ impl TbManifest {
 
 #[derive(serde::Serialize)]
 pub struct ManifestV1 {
-    /// which side this pack is for. covered by the signature, so it can't be swapped
+    /// which side this pack is for. covered by the signature, so it can't be
+    /// swapped
     pub target: Target,
     /// the realm (game) this pack belongs to
     pub realm_id: u64,
@@ -30,16 +32,17 @@ pub struct ManifestV1 {
     pub owner_id: u64,
     /// whether playing needs a license. see tblic
     pub access: Access,
-    /// version of this pack's content, bumped on every publish. the client and server
-    /// pack from one publish share the same value, and online play rejects a client whose
-    /// pack_version doesn't match the server's.
+    /// version of this pack's content, bumped on every publish. the client and
+    /// server pack from one publish share the same value, and online play
+    /// rejects a client whose pack_version doesn't match the server's.
     /// not related to the format version in the header.
     pub pack_version: u32,
     /// sorted by path, byte order
     pub files: Vec<FileEntry>,
     pub assets: Vec<AssetEntry>,
     pub scripts: Vec<ScriptEntry>,
-    /// the pack index, which says where every file's bytes are and holds every chunk's hash
+    /// the pack index, which says where every file's bytes are and holds every
+    /// chunk's hash
     pub index: IndexRef,
 }
 
@@ -54,7 +57,8 @@ pub enum Target {
 pub enum Access {
     /// anyone can play
     Free = 0,
-    /// the client needs a valid license for this realm and the last logged in user
+    /// the client needs a valid license for this realm and the last logged in
+    /// user
     Licensed = 1,
 }
 

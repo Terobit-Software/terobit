@@ -9,10 +9,12 @@ pub struct Certificate {
     /// the signing key's ed25519 public key
     #[serde_as(as = "Bytes")]
     public_key: [u8; 32],
-    /// first 8 bytes of hash(KEY_ID, root public key). picks the root key, not a security check
+    /// first 8 bytes of hash(KEY_ID, root public key). picks the root key, not
+    /// a security check
     #[serde_as(as = "Bytes")]
     root_key_id: [u8; 8],
-    /// root key's ed25519 signature over hash(CERT, [purpose as u8] ++ public_key)
+    /// root key's ed25519 signature over hash(CERT, [purpose as u8] ++
+    /// public_key)
     #[serde_as(as = "Bytes")]
     root_signature: [u8; 64],
 }

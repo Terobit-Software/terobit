@@ -2,8 +2,9 @@ use crate::ecs::components::{Component, ComponentId};
 
 /// Position, rotation and scale of an entity.
 ///
-/// `#[repr(C)]` and `Pod` so it can be copied to and from host memory as raw bytes
-/// (40 bytes, no padding). Rotation is a quaternion in `[x, y, z, w]` order.
+/// `#[repr(C)]` and `Pod` so it can be copied to and from host memory as raw
+/// bytes (40 bytes, no padding). Rotation is a quaternion in `[x, y, z, w]`
+/// order.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Transform {

@@ -3,8 +3,8 @@ use snafu::{OptionExt, Snafu, ensure};
 use std::fmt;
 use std::str::FromStr;
 
-/// an asset or script handle, `namespace:id`. always valid, since the only ways to make
-/// one check it against the rule in the conventions doc
+/// an asset or script handle, `namespace:id`. always valid, since the only ways
+/// to make one check it against the rule in the conventions doc
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AssetHandle {
     namespace: String,

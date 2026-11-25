@@ -1,7 +1,8 @@
-//! `cargo xtask run client`: builds the client and runs it from a clean `out/client`, so
-//! runtime output never mixes with `target/` and the working directory looks like an install.
-//! `cargo xtask runbuild client` builds a pack's client scripts (and packs it with
-//! `--package`) first, then does the same
+//! `cargo xtask run client`: builds the client and runs it from a clean
+//! `out/client`, so runtime output never mixes with `target/` and the working
+//! directory looks like an install. `cargo xtask runbuild client` builds a
+//! pack's client scripts (and packs it with `--package`) first, then does the
+//! same
 
 use std::fs;
 use std::io;
@@ -27,7 +28,8 @@ const DEFAULT_PACK_FILE: &str = "tests/examples/source_to_tbpk/basic1";
 
 #[derive(Debug, Args)]
 pub struct ClientArgs {
-    /// Build with the `release` profile and without the `dev` feature, and run without the dev flags
+    /// Build with the `release` profile and without the `dev` feature, and run
+    /// without the dev flags
     #[arg(long = "final")]
     r#final: bool,
 
@@ -35,7 +37,8 @@ pub struct ClientArgs {
     #[arg(long)]
     strip_defaults: bool,
 
-    /// Pack or dev directory the client loads, relative to the current directory
+    /// Pack or dev directory the client loads, relative to the current
+    /// directory
     #[arg(
         long,
         default_value = DEFAULT_PACK_FILE,
@@ -50,12 +53,13 @@ pub struct RunBuildClientArgs {
     #[arg(long)]
     manifest: PathBuf,
 
-    /// Build the client pack with pkgen and run that, instead of the dev directory
+    /// Build the client pack with pkgen and run that, instead of the dev
+    /// directory
     #[arg(long)]
     package: bool,
 
-    /// Build with the `release` profile and without the `dev` feature, run without the dev
-    /// flags, and pass `--final` to each script's build.py
+    /// Build with the `release` profile and without the `dev` feature, run
+    /// without the dev flags, and pass `--final` to each script's build.py
     #[arg(long = "final")]
     r#final: bool,
 
@@ -71,7 +75,8 @@ enum BuildProfile {
 }
 
 impl BuildProfile {
-    /// name passed to `cargo build --profile`, also the directory under `target/` it builds to
+    /// name passed to `cargo build --profile`, also the directory under
+    /// `target/` it builds to
     fn name(&self) -> &'static str {
         match self {
             BuildProfile::Release => "release",
@@ -153,8 +158,9 @@ pub fn run(args: ClientArgs) -> Result<(), ClientError> {
     launch(&cwd, args.r#final, args.strip_defaults, &pack_file)
 }
 
-/// `cargo xtask runbuild client`: builds the client scripts into the dev directory, or packs
-/// it with `--package` (which builds them too), then runs the client on it
+/// `cargo xtask runbuild client`: builds the client scripts into the dev
+/// directory, or packs it with `--package` (which builds them too), then runs
+/// the client on it
 #[tracing::instrument(skip_all, fields(manifest = ?args.manifest, package = args.package, r#final = args.r#final))]
 pub fn run_build(args: RunBuildClientArgs) -> Result<(), ClientError> {
     let cwd = std::env::current_dir().context(CurrentDirSnafu)?;
@@ -202,8 +208,9 @@ pub fn run_build(args: RunBuildClientArgs) -> Result<(), ClientError> {
     )
 }
 
-/// builds the client, stages it in a clean `out/client` and runs it there with the dev flags
-/// pointing at `pack_file` (an absolute path), unless `is_final` or `strip_defaults`
+/// builds the client, stages it in a clean `out/client` and runs it there with
+/// the dev flags pointing at `pack_file` (an absolute path), unless `is_final`
+/// or `strip_defaults`
 #[tracing::instrument(skip_all, fields(is_final, strip_defaults, pack_file = ?pack_file))]
 fn launch(
     cwd: &Path,

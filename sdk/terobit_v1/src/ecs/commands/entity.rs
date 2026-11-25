@@ -18,7 +18,8 @@ impl Spawn {
 impl Command for Spawn {
     const OPCODE: Opcode = SPAWN;
 
-    /// Payload: for each component, `id: u32 LE`, `len: u32 LE`, then `len` bytes.
+    /// Payload: for each component, `id: u32 LE`, `len: u32 LE`, then `len`
+    /// bytes.
     fn encode(&self, payload: &mut Vec<u8>) {
         for (id, bytes) in &self.components {
             payload.extend_from_slice(&id.to_le_bytes()); // the component id

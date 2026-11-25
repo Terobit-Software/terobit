@@ -64,7 +64,8 @@ entrypoint!(
 );
 
 entrypoint!(
-    /// Called every frame after physics, but before pre-rendering. Update stage 2.
+    /// Called every frame after physics, but before pre-rendering. Update stage
+    /// 2.
     ///
     /// `fn()` -> `()`
     ///
@@ -82,7 +83,8 @@ entrypoint!(
 );
 
 entrypoint!(
-    /// Called every frame before rendering, but after post-physics. Update stage 3.
+    /// Called every frame before rendering, but after post-physics. Update
+    /// stage 3.
     ///
     /// `fn()` -> `()`
     ///

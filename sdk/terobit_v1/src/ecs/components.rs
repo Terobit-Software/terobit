@@ -5,7 +5,8 @@ pub trait Component {
     const ID: ComponentId;
 }
 
-/// One component or a tuple of components, e.g. `Transform` or `(Transform, Name)`.
+/// One component or a tuple of components, e.g. `Transform` or `(Transform,
+/// Name)`.
 pub trait Components {
     const IDS: &'static [ComponentId];
 }

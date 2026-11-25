@@ -179,8 +179,8 @@ impl ManifestSource {
         Ok(manifest)
     }
 
-    /// ids are never 0, every handle and path follows the conventions doc, and each side
-    /// follows the source.md rules
+    /// ids are never 0, every handle and path follows the conventions doc, and
+    /// each side follows the source.md rules
     fn validate(&self) -> Result<(), ManifestValidateError> {
         ensure!(self.realm_id != 0, ZeroRealmIdSnafu);
         ensure!(self.owner_id != 0, ZeroOwnerIdSnafu);
@@ -258,8 +258,8 @@ impl ManifestSource {
         }
     }
 
-    /// `(id, path)` of every asset one side can see: the shared ones, then that side's.
-    /// the client and server namespaces are separate
+    /// `(id, path)` of every asset one side can see: the shared ones, then that
+    /// side's. the client and server namespaces are separate
     pub(crate) fn assets_for(&self, target: Target) -> impl Iterator<Item = (&String, &String)> {
         self.assets.iter().chain(&self.side(target).assets)
     }
@@ -278,8 +278,8 @@ impl ManifestSource {
     }
 
     #[cfg(feature = "writer")]
-    /// one side's files: the shared assets plus that side's assets and scripts, sorted by
-    /// path in byte order, with sizes read from disk
+    /// one side's files: the shared assets plus that side's assets and scripts,
+    /// sorted by path in byte order, with sizes read from disk
     pub(crate) fn get_side_files(
         &self,
         target: Target,
@@ -311,8 +311,8 @@ impl ManifestSource {
     }
 
     #[cfg(feature = "writer")]
-    /// one side's manifest. `files` must be that side's `get_side_files`, the list the
-    /// index was chunked from
+    /// one side's manifest. `files` must be that side's `get_side_files`, the
+    /// list the index was chunked from
     pub(crate) fn get_v1_side(
         &self,
         target: Target,

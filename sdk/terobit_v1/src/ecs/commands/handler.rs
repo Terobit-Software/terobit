@@ -42,8 +42,8 @@ impl Commands {
             if buffer.is_empty() {
                 return;
             }
-            // SAFETY: the host only reads `len` bytes from `ptr` during the call,
-            // and wasm32 pointers and lengths always fit in an i32.
+            // SAFETY: the host only reads `len` bytes from `ptr` during the
+            // call, and wasm32 pointers and lengths always fit in an i32.
             unsafe {
                 terobit_v1_abi::crosspoints::commands::flush_commands(
                     buffer.as_ptr() as i32,

@@ -1,4 +1,5 @@
-//! Workspace tasks, run with `cargo xtask <command>` (or `cargo x`) from the workspace root
+//! Workspace tasks, run with `cargo xtask <command>` (or `cargo x`) from the
+//! workspace root
 
 mod pkgen;
 mod regen;
@@ -34,7 +35,8 @@ enum Command {
     /// Build .tbpk packs from a dev directory's manifest.toml
     Pkgen(pkgen::PkgenArgs),
 
-    /// Write generated example dev directories for testing pkgen and the chunker
+    /// Write generated example dev directories for testing pkgen and the
+    /// chunker
     Regen(regen::RegenArgs),
 }
 
@@ -54,7 +56,8 @@ enum TaskError {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    // returning ExitCode (instead of process::exit) lets the guard drop and flush logs
+    // returning ExitCode (instead of process::exit) lets the guard drop and
+    // flush logs
     let _guard = runtime_logging::init_logging(LOG_NAME.0, LOG_NAME.1);
 
     let result = match cli.command {

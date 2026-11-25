@@ -1,11 +1,12 @@
 //! builds a dev directory's scripts before they're packed or run.
 //!
-//! a script path like `scripts/client/main.wasm` can have a source folder next to it, the
-//! same path without `.wasm` (`scripts/client/main/`). if that folder has a `build.py`, it's
-//! run from inside the folder as `python build.py` (`python build.py --final` for final
-//! builds, `python3` instead of `python` outside Windows) and
-//! must write `script.wasm` into the folder, which is then copied over `main.wasm`. without
-//! the folder, the `.wasm` already there is used as is
+//! a script path like `scripts/client/main.wasm` can have a source folder next
+//! to it, the same path without `.wasm` (`scripts/client/main/`). if that
+//! folder has a `build.py`, it's run from inside the folder as `python
+//! build.py` (`python build.py --final` for final builds, `python3` instead of
+//! `python` outside Windows) and must write `script.wasm` into the folder,
+//! which is then copied over `main.wasm`. without the folder, the `.wasm`
+//! already there is used as is
 
 use std::fs;
 use std::io;
@@ -84,8 +85,8 @@ pub enum ScriptError {
     },
 }
 
-/// builds every script one side of the manifest runs, see the module doc. stops at the
-/// first script that fails
+/// builds every script one side of the manifest runs, see the module doc. stops
+/// at the first script that fails
 #[tracing::instrument(skip_all, fields(?target, is_final))]
 pub fn build_side(
     source: &ManifestSource,

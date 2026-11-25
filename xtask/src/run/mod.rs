@@ -14,7 +14,8 @@ pub enum RunCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum RunBuildCommand {
-    /// Build the client scripts of a pack, optionally package it, then run the client on it
+    /// Build the client scripts of a pack, optionally package it, then run the
+    /// client on it
     #[command(visible_alias = "cl")]
     Client(client::RunBuildClientArgs),
 }

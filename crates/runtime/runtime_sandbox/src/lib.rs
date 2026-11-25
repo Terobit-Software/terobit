@@ -115,8 +115,9 @@ impl Plugin for RuntimeSandboxPlugin {
     }
 }
 
-/// increments the engine's epoch every `WASM_EPOCH_TICK` so store deadlines measure wall-clock time.
-/// holds only a weak handle, so the thread exits once the engine is dropped
+/// increments the engine's epoch every `WASM_EPOCH_TICK` so store deadlines
+/// measure wall-clock time. holds only a weak handle, so the thread exits once
+/// the engine is dropped
 fn spawn_epoch_ticker(engine: &wasmtime::Engine) {
     let weak = engine.weak();
     let spawned = std::thread::Builder::new()

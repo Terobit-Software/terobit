@@ -1,4 +1,5 @@
-//! folders and names used to build and run the client, relative to the workspace root
+//! folders and names used to build and run the client, relative to the
+//! workspace root
 
 /// where `cargo xtask run client` stages the client and its assets
 pub const CLIENT_OUT: &str = "out/client";

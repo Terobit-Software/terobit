@@ -6,7 +6,8 @@ unsafe extern "C" {
     ///
     /// `fn(i32, i32)` -> (nothing)
     ///
-    /// (pointer to command buffer in guest memory, byte length of buffer) -> (nothing)
+    /// (pointer to command buffer in guest memory, byte length of buffer) ->
+    /// (nothing)
     ///
     /// See [`crate::commands`] for the buffer layout.
     pub fn flush_commands(ptr: i32, len: i32);

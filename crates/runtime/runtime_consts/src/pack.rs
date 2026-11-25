@@ -1,6 +1,7 @@
 use crate::units::{KIB, MIB};
 
-/// size of the common header in bytes. fixed width, so it never depends on the struct layout
+/// size of the common header in bytes. fixed width, so it never depends on the
+/// struct layout
 pub const HEADER_LEN: u32 = 24;
 
 pub const TBPK_CURRENT_VERSION: u16 = 1;
@@ -25,7 +26,8 @@ pub const LARGE_FILE_THRESHOLD: u64 = 256 * KIB;
 
 /// zstd level used to compress chunks in packs whose manifest is v1
 pub const ZSTD_LEVEL: i32 = 5;
-/// a chunk is stored compressed only if zstd saves at least this percent of its raw bytes
+/// a chunk is stored compressed only if zstd saves at least this percent of its
+/// raw bytes
 pub const MIN_COMPRESSION_SAVINGS_PERCENT: u64 = 20;
 
 /// most bytes a whole pack path can take

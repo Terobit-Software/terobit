@@ -29,8 +29,8 @@ fn env(var: &'static str) -> Result<String, LoggingError> {
 }
 
 #[inline]
-/// Returns the directory where log files should be stored, `<first>/<last>` under each OS's
-/// usual folder. capitalized on macOS, lowercase elsewhere
+/// Returns the directory where log files should be stored, `<first>/<last>`
+/// under each OS's usual folder. capitalized on macOS, lowercase elsewhere
 fn get_log_directory(
     first_name: &'static str,
     last_name: &'static str,
@@ -43,7 +43,8 @@ fn get_log_directory(
                 .join(last_name),
         )
     }
-    // $XDG_DATA_HOME, falling back to ~/.local/share per the XDG base directory spec
+    // $XDG_DATA_HOME, falling back to ~/.local/share per the XDG base directory
+    // spec
     #[cfg(target_os = "linux")]
     {
         let base = match std::env::var("XDG_DATA_HOME")
@@ -118,12 +119,13 @@ fn file_writer(
     Ok((writer, guard, log_dir))
 }
 
-/// both names should be formatted as `Name`, NOT `name` or `NAME`. Only the first letter should be
-/// capitalized, macOS log folders use them as given
+/// both names should be formatted as `Name`, NOT `name` or `NAME`. Only the
+/// first letter should be capitalized, macOS log folders use them as given
 ///
-/// never fails: if the log file can't be set up, logs only go to the terminal and a warning
-/// says why. the returned guard must stay alive for the whole program or buffered file logs
-/// get dropped, it is `None` when there is no log file
+/// never fails: if the log file can't be set up, logs only go to the terminal
+/// and a warning says why. the returned guard must stay alive for the whole
+/// program or buffered file logs get dropped, it is `None` when there is no log
+/// file
 pub fn init_logging(first_name: &'static str, last_name: &'static str) -> Option<WorkerGuard> {
     let (file_layer, guard, file_result) = match file_writer(first_name, last_name) {
         Ok((writer, guard, log_dir)) => (
@@ -152,7 +154,8 @@ pub fn init_logging(first_name: &'static str, last_name: &'static str) -> Option
         prev_hook(panic_info);
     }));
 
-    // only fails if a subscriber is already set, which then gets these logs instead
+    // only fails if a subscriber is already set, which then gets these logs
+    // instead
     if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
         tracing::warn!(
             "Logging for {first_name}{last_name} wasn't set up because a global tracing subscriber is already set, logs go to that one instead: {}",

@@ -6,18 +6,20 @@ use runtime_consts::pack::PACK_ASSET_SOURCE;
 use std::path::Path;
 use tracing::info;
 
-/// reads packs into the `PackRegistry` and serves them as the `pack://` asset source. add it
-/// before `AssetPlugin`
+/// reads packs into the `PackRegistry` and serves them as the `pack://` asset
+/// source. add it before `AssetPlugin`
 pub struct RuntimePackReaderPlugin;
 
 #[derive(Event)]
 pub struct LoadPackFileEvent {
     pub path: Box<Path>,
-    /// the side reading the pack, only the shared entries and this side's are loaded
+    /// the side reading the pack, only the shared entries and this side's are
+    /// loaded
     pub target: Target,
 }
 
-/// a pack was read into the `PackRegistry`, its assets and scripts can be loaded now
+/// a pack was read into the `PackRegistry`, its assets and scripts can be
+/// loaded now
 #[derive(Event)]
 pub struct PackReadEvent {
     /// the side that read the pack

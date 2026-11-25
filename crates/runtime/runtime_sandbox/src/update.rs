@@ -5,10 +5,10 @@ use terobit_v1_abi::endpoints;
 use crate::{RuntimeSandboxResource, commands::read_and_apply_commands, host::state::with_world};
 
 /// calls `name` on every instance that exports it, under a fresh epoch deadline
-/// so every cycle (pre-physics, post-physics, pre-render, post-render) gets a full time budget.
-/// each instance's command buffer is read and applied at the end of its cycle.
-/// an instance that traps is poisoned: its commands from that cycle are dropped
-/// and it is skipped from then on
+/// so every cycle (pre-physics, post-physics, pre-render, post-render) gets a
+/// full time budget. each instance's command buffer is read and applied at the
+/// end of its cycle. an instance that traps is poisoned: its commands from that
+/// cycle are dropped and it is skipped from then on
 fn call_entrypoint(world: &mut World, name: &str) {
     world.resource_scope(|world, mut sandbox: Mut<RuntimeSandboxResource>| {
         let RuntimeSandboxResource {

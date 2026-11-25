@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use crate::ManifestSource;
 use crate::pack::{AssetHandle, Target};
 
-/// one side of a loaded pack: the assets and scripts it declares and the files it can read
+/// one side of a loaded pack: the assets and scripts it declares and the files
+/// it can read
 #[derive(Default)]
 pub struct TbpkSource {
     /// where the pack's files are on disk
@@ -17,8 +18,8 @@ pub struct TbpkSource {
 }
 
 impl TbpkSource {
-    /// a dev directory read in place. like a built pack, it only has the shared entries and
-    /// those of `target`
+    /// a dev directory read in place. like a built pack, it only has the shared
+    /// entries and those of `target`
     pub fn dev(manifest: &ManifestSource, target: Target) -> Self {
         Self {
             root: manifest.get_root().to_owned(),
@@ -43,7 +44,8 @@ impl TbpkSource {
         self.assets.get(&handle.to_string()).map(String::as_str)
     }
 
-    /// every script this side runs, sorted so they load in the same order every run
+    /// every script this side runs, sorted so they load in the same order every
+    /// run
     pub fn script_handles(&self) -> Vec<AssetHandle> {
         let mut handles: Vec<AssetHandle> = self
             .scripts
@@ -69,7 +71,8 @@ impl TbpkSource {
         self.scripts.get(&handle.to_string()).map(String::as_str)
     }
 
-    /// where a pack path is on disk, `None` if it isn't one of this side's files
+    /// where a pack path is on disk, `None` if it isn't one of this side's
+    /// files
     pub fn full_path(&self, path: &Path) -> Option<PathBuf> {
         self.files.contains(path).then(|| self.root.join(path))
     }

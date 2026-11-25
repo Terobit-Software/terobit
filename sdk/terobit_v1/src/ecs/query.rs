@@ -44,7 +44,8 @@ impl<T: Components> QueryTerm for Write<T> {
     };
 }
 
-/// One modifier or a tuple of modifiers, e.g. `(With<(Name, Transform)>, Write<Mesh>)`.
+/// One modifier or a tuple of modifiers, e.g. `(With<(Name, Transform)>,
+/// Write<Mesh>)`.
 pub trait QueryFilter {
     const TERMS: &'static [Term];
 }

@@ -108,7 +108,8 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
             }
         };
 
-        // instantiation may run the module's start function, so give it a cycle budget
+        // instantiation may run the module's start function, so give it a cycle
+        // budget
         store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
         let v = match with_world(store, world, |store| linker.instantiate(store, &module)) {

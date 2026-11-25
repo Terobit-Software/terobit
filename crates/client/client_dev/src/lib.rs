@@ -63,7 +63,8 @@ mod plugin_tests {
     #[derive(Resource, Default)]
     struct LoadedPacks(Vec<PathBuf>);
 
-    /// builds the app with a `RuntimePackConfig` and records every `LoadPackFileEvent`
+    /// builds the app with a `RuntimePackConfig` and records every
+    /// `LoadPackFileEvent`
     fn app_with_pack_config(args: &[&str]) -> App {
         let mut app = App::new();
         app.insert_resource(RuntimeFlags::from_args(

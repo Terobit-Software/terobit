@@ -8,7 +8,8 @@ use bevy::{
 };
 use wasmtime::{Caller, Linker, Result, bail};
 
-/// The last title a guest asked for, waiting to be applied to the primary window.
+/// The last title a guest asked for, waiting to be applied to the primary
+/// window.
 ///
 /// The store has no access to the world, so `host::set_title` writes here and
 /// [`apply_pending_title`] copies it into the window.

@@ -4,6 +4,7 @@ unsafe extern "C" {
     ///
     /// `fn(i32, i32)` -> (nothing)
     ///
-    /// (pointer to message bytes in guest memory, byte length of message) -> (nothing)
+    /// (pointer to message bytes in guest memory, byte length of message) ->
+    /// (nothing)
     pub fn log(ptr: i32, len: i32);
 }

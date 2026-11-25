@@ -17,7 +17,8 @@ pub struct FrameInfo {
 }
 
 impl FrameInfo {
-    /// Fetches the timing information for the current frame from the host drop spot.
+    /// Fetches the timing information for the current frame from the host drop
+    /// spot.
     pub fn get() -> Self {
         FRAME_INFO.with(Cell::get)
     }

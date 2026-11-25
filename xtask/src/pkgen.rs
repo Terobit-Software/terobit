@@ -1,6 +1,6 @@
-//! `cargo xtask pkgen`: builds `.tbpk` packs from a dev directory. it stands in for the
-//! editor's publish step until the editor exists. each target's scripts are built first,
-//! see [`crate::scripts`]
+//! `cargo xtask pkgen`: builds `.tbpk` packs from a dev directory. it stands in
+//! for the editor's publish step until the editor exists. each target's scripts
+//! are built first, see [`crate::scripts`]
 
 use std::fmt;
 use std::num::ParseIntError;
@@ -18,7 +18,8 @@ use crate::scripts::{self, ScriptError};
 
 #[derive(Debug, Args)]
 pub struct PkgenArgs {
-    /// The dev directory's manifest.toml, asset paths are relative to its folder
+    /// The dev directory's manifest.toml, asset paths are relative to its
+    /// folder
     #[arg(long)]
     pub manifest: PathBuf,
 
@@ -30,8 +31,9 @@ pub struct PkgenArgs {
     #[arg(long, value_enum, default_value_t = TargetArg::Both)]
     pub target: TargetArg,
 
-    /// Zstd level chunks are compressed at, or `none` to store them uncompressed. Any other
-    /// level than the default changes chunk bytes and hashes, so only use it to test speed and size
+    /// Zstd level chunks are compressed at, or `none` to store them
+    /// uncompressed. Any other level than the default changes chunk bytes and
+    /// hashes, so only use it to test speed and size
     #[arg(long, value_parser = parse_zstd_level, default_value_t = ZstdLevel(Some(ZSTD_LEVEL)))]
     pub zstd_level: ZstdLevel,
 
@@ -137,8 +139,9 @@ pub enum PkgenError {
     TargetsFailed { failed: Vec<Target>, total: usize },
 }
 
-/// a failed target is logged and doesn't stop the other, the error only says which failed.
-/// returns the written packs' paths, in the order of `args.target`
+/// a failed target is logged and doesn't stop the other, the error only says
+/// which failed. returns the written packs' paths, in the order of
+/// `args.target`
 #[tracing::instrument(skip_all, fields(manifest = %args.manifest.display(), r#final = args.r#final))]
 pub fn run(args: &PkgenArgs) -> Result<Vec<PathBuf>, PkgenError> {
     let targets = args.target.targets();
