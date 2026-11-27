@@ -7,18 +7,28 @@ This file contains rules and conventions applied throughout this repo when editi
 There are things that AI can be used for, but it should not replace your own programming. Here are some do's and dont's:
 
 ### Do:
-- Use AI to do monotounous or repetitive tasks
-- Help understand code
-- Find issues or bugs that YOU didn't notice
-- Write boilerplate or bare structures that YOU designed
-- Write tests, though verify functionality
+- Use AI to do monotounous or repetitive tasks that are simple and straightforward.
+  * Renaming things, moving things, changing small configs
+- Help understand code, though it should not provide fixing code.
+  * What does X do and how does it depend on Y?
+- Find issues or bugs that YOU didn't notice. Check your own work first, then ask for help.
+  * Why isn't the system I wrote in X not doing Y somtimes?
+- Write boilerplate or bare structures that YOU designed. Should not be full code, should only be basic structs, functions, consts, etc.
+  * Based off the documentation I wrote in X, write the basic struct.
+- Write tests, though YOU must verify functionality.
+  * Write tests for X checking Y.
 
 ### Dont:
-- Don't use AI or generative tools to refactor full codebases or crates
-- Don't use AI or generative tools to write full code
-- Don't design structures, algorithmic usage, or code with AI, with no guidance or independent verification
-- Don't write documentation
-- Don't use AI to ever write or edit sensitive systems
+- Don't use AI or generative tools to refactor full codebases or crates.
+  * DONT: Port X crate into Python.
+- Don't use AI or generative tools to write full code.
+  * DONT: Write a crate for X that does Y.
+- Don't design structures, algorithmic usage, or code with AI, with no guidance or independent verification.
+  * DONT: Write a struct for parsing X and commit.
+- Don't write documentation. This includes ALL documentation that isn't temporary.
+  * DONT: Write rust-docs for X crate.
+- Don't use AI to ever write or edit sensitive systems. This includes ANYTHING that handles tokens, logins, personal information, or performance critical logic.
+  * DONT: Write JWT logic for the X crate.
 
 When working with AI or generative tools, ALWAYS review what it outputs and NEVER trust it blindly.
 
