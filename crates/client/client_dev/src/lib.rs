@@ -5,9 +5,11 @@ use runtime_run_flags::RuntimeFlags;
 #[cfg(feature = "dev")]
 mod dev;
 
+/// A plugin handling developer mode.
 pub struct ClientDevPlugin;
 
 #[derive(Resource)]
+/// A resource defining whether developer mode is enabled or not.
 pub struct DeveloperModeStatus {
     value: bool,
 }
@@ -26,6 +28,7 @@ impl Plugin for ClientDevPlugin {
             .get_flags()
             .contains_key(DEV)
         {
+            // if it has both the flag and the feature, enable dev mode
             #[cfg(feature = "dev")]
             {
                 dev::enable(app);
@@ -38,6 +41,7 @@ impl Plugin for ClientDevPlugin {
             );
         }
 
+        // otherwise we run in normal mode
         tracing::info!("Client running in normal mode");
         app.world_mut()
             .insert_resource(DeveloperModeStatus { value: false });
