@@ -16,6 +16,7 @@ pub(crate) fn enable(app: &mut App) {
     app.world_mut()
         .insert_resource(DeveloperModeStatus { value: true });
 
+    // get the pack config, and allow dev dirs
     if let Some(mut config) = app.world_mut().get_resource_mut::<RuntimePackConfig>() {
         config.set_allow_dir_read(true);
     } else {
@@ -24,6 +25,7 @@ pub(crate) fn enable(app: &mut App) {
         )
     }
 
+    // get the pack file path, and fire the event for the first one
     match pack_file(app.world().resource::<RuntimeFlags>()) {
         Some(path) => {
             app.world_mut().trigger(LoadPackFileEvent {
@@ -42,6 +44,7 @@ pub(crate) fn enable(app: &mut App) {
 fn pack_file(flags: &RuntimeFlags) -> Option<Box<Path>> {
     let values = flags.get_flags().get(PACK_FILE)?;
     match values.as_slice() {
+        // no path provided
         [] => {
             error!(
                 "{} was given without a path, expected `{} <path to .tbpk or dev directory>`. No pack will be loaded",
@@ -49,6 +52,7 @@ fn pack_file(flags: &RuntimeFlags) -> Option<Box<Path>> {
             );
             None
         }
+        // get only the first one and return that
         [first, rest @ ..] => {
             if !rest.is_empty() {
                 warn!(
