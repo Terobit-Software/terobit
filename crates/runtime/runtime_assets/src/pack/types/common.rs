@@ -76,7 +76,8 @@ pub struct EncodeError {
 }
 
 impl CommonHeader {
-    /// create a new header from a magic value, version, and body length. currently, the flags and reserved are empty (0)
+    /// create a new header from a magic value, version, and body length.
+    /// currently, the flags and reserved are empty (0)
     pub fn new(magic: MagicValue, version: u16, body_length: u64) -> Self {
         Self {
             magic,
