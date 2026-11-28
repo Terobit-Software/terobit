@@ -1,5 +1,7 @@
 use core::time::Duration;
 
+use crate::units::MIB;
+
 /// wasm import modules this build of the host provides. a script may only import from these,
 /// the pack writer and the loader both refuse anything else (tbman v1, "scripts").
 /// a new api version adds its module here, and old ones stay as long as games use them
@@ -27,3 +29,6 @@ pub const WASM_CYCLE_TICKS: u64 = budget_ticks(WASM_CYCLE_BUDGET);
 
 /// epoch ticks for an instance's main entrypoint
 pub const MAIN_WASM_TICKS: u64 = budget_ticks(MAIN_WASM_BUDGET);
+
+/// max memory in bytes for one script
+pub const WASM_MEMORY_LIMIT: usize = (512 * MIB) as usize;

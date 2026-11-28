@@ -1,10 +1,24 @@
 use std::ptr::NonNull;
 
 use bevy::ecs::world::World;
+use runtime_consts::sandbox::WASM_MEMORY_LIMIT;
+use wasmtime::{StoreLimits, StoreLimitsBuilder};
 
-#[derive(Default)]
 pub struct HostState {
     pub(crate) world: Option<NonNull<World>>,
+    /// caps how far this script's memory can grow, see [`WASM_MEMORY_LIMIT`]
+    pub(crate) limits: StoreLimits,
+}
+
+impl HostState {
+    pub(crate) fn new() -> Self {
+        Self {
+            world: None,
+            limits: StoreLimitsBuilder::new()
+                .memory_size(WASM_MEMORY_LIMIT)
+                .build(),
+        }
+    }
 }
 
 unsafe impl Send for HostState {}

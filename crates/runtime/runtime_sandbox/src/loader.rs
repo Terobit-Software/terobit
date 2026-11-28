@@ -122,7 +122,8 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
         };
 
         // every script gets its own store, so scripts can't see or corrupt each other's state
-        let mut store = wasmtime::Store::new(engine, HostState::default());
+        let mut store = wasmtime::Store::new(engine, HostState::new());
+        store.limiter(|state| &mut state.limits);
 
         // instantiation may run the module's start function, so give it a cycle budget
         store.set_epoch_deadline(WASM_CYCLE_TICKS);
