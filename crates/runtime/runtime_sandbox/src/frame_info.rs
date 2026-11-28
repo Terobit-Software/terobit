@@ -58,13 +58,10 @@ pub fn write_frame_info(
 /// Writes the current frame's [`FrameInfo`] into every instance, then advances
 /// its frame counter. Runs once per frame, before the first update stage.
 pub fn write_frame_info_update(mut sandbox: ResMut<RuntimeSandboxResource>, time: Res<Time>) {
-    let RuntimeSandboxResource {
-        store, instances, ..
-    } = &mut *sandbox;
-
-    for script in instances.iter_mut().filter(|s| !s.poisoned) {
+    for script in sandbox.instances.iter_mut().filter(|s| !s.poisoned) {
         let ScriptInstance {
             instance,
+            store,
             loaded_at,
             frame,
             ..

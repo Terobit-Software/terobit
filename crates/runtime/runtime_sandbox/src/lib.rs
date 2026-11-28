@@ -2,7 +2,7 @@ use bevy::{
     ecs::resource::Resource,
     prelude::{App, First, IntoScheduleConfigs, Plugin, Update},
 };
-use runtime_consts::sandbox::{WASM_CYCLE_TICKS, WASM_EPOCH_TICK};
+use runtime_consts::sandbox::WASM_EPOCH_TICK;
 
 pub struct RuntimeSandboxPlugin;
 
@@ -16,7 +16,10 @@ pub use loader::*;
 
 /// A loaded script and the per-script state the host tracks for it.
 pub struct ScriptInstance {
+    /// The actual instance
     pub instance: wasmtime::Instance,
+    /// This script's store
+    pub store: wasmtime::Store<HostState>,
     /// `Time::elapsed()` when the script was loaded.
     pub loaded_at: std::time::Duration,
     /// Frame number the next frame info write will carry, starting at 0.
@@ -44,7 +47,6 @@ impl ScriptInstance {
 #[derive(Resource)]
 pub struct RuntimeSandboxResource {
     pub engine: wasmtime::Engine,
-    pub store: wasmtime::Store<HostState>,
     pub instances: Vec<ScriptInstance>,
     pub linker: wasmtime::Linker<HostState>,
 }
@@ -61,11 +63,6 @@ impl Plugin for RuntimeSandboxPlugin {
         tracing::info!("Created wasm engine");
 
         spawn_epoch_ticker(&engine);
-
-        let mut store = wasmtime::Store::new(&engine, HostState::default());
-        tracing::info!("Created wasm store");
-
-        store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
         let mut linker = wasmtime::Linker::new(&engine);
         tracing::info!("Created wasm linker");
@@ -90,7 +87,6 @@ impl Plugin for RuntimeSandboxPlugin {
 
         app.insert_resource(RuntimeSandboxResource {
             engine,
-            store,
             instances: Vec::new(),
             linker,
         });

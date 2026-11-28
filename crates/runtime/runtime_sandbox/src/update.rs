@@ -11,14 +11,11 @@ use crate::{RuntimeSandboxResource, commands::read_and_apply_commands, host::sta
 /// and it is skipped from then on
 fn call_entrypoint(world: &mut World, name: &str) {
     world.resource_scope(|world, mut sandbox: Mut<RuntimeSandboxResource>| {
-        let RuntimeSandboxResource {
-            store, instances, ..
-        } = &mut *sandbox;
-
-        store.set_epoch_deadline(WASM_CYCLE_TICKS);
-
-        for script in instances.iter_mut().filter(|s| !s.poisoned) {
+        for script in sandbox.instances.iter_mut().filter(|s| !s.poisoned) {
             let instance = script.instance;
+            let store = &mut script.store;
+            store.set_epoch_deadline(WASM_CYCLE_TICKS);
+
             let Ok(func) = instance.get_typed_func::<(), ()>(&mut *store, name) else {
                 continue;
             };

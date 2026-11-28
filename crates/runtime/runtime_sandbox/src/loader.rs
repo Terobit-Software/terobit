@@ -10,6 +10,7 @@ use runtime_assets::script_imports::{ScriptImportError, check_script_imports};
 use runtime_assets::{PackReadEvent, pack::AssetHandle, registry::PackRegistry};
 use runtime_consts::sandbox::WASM_CYCLE_TICKS;
 
+use crate::HostState;
 use crate::host::state::with_world;
 
 #[derive(Event)]
@@ -108,7 +109,6 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
     world.resource_scope(|world, mut sandbox: Mut<crate::RuntimeSandboxResource>| {
         let crate::RuntimeSandboxResource {
             engine,
-            store,
             instances,
             linker,
         } = &mut *sandbox;
@@ -121,10 +121,15 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
             }
         };
 
+        // every script gets its own store, so scripts can't see or corrupt each other's state
+        let mut store = wasmtime::Store::new(engine, HostState::default());
+
         // instantiation may run the module's start function, so give it a cycle budget
         store.set_epoch_deadline(WASM_CYCLE_TICKS);
 
-        let v = match with_world(store, world, |store| linker.instantiate(store, &module)) {
+        let v = match with_world(&mut store, world, |store| {
+            linker.instantiate(store, &module)
+        }) {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("Failed to instantiate module `{}`: {:?}", handle, e);
@@ -135,14 +140,17 @@ fn load_module(world: &mut World, handle: AssetHandle, bytes: Vec<u8>) {
         tracing::info!("Loaded module `{}`", handle);
         let mut script = crate::ScriptInstance {
             instance: v,
+            store,
             loaded_at,
             frame: 0,
             poisoned: false,
         };
 
-        match with_world(store, world, |store| prep_instance(&v, store)) {
+        match with_world(&mut script.store, world, |store| prep_instance(&v, store)) {
             Ok(()) => {
-                if let Err(e) = crate::commands::read_and_apply_commands(&v, store, world) {
+                if let Err(e) =
+                    crate::commands::read_and_apply_commands(&v, &mut script.store, world)
+                {
                     tracing::error!("load module failed: {:?}", e);
                     script.poison(&format!("error while loading buffer: {:?}", e));
                 };
