@@ -1,22 +1,24 @@
 use runtime_consts::pack::HEADER_LEN;
 use snafu::{ResultExt, Snafu};
 
-/// the magic value of the file
+/// a file's magic value.
 #[derive(Clone, Copy, Debug)]
 pub enum MagicValue {
-    /// terobit pack file
+    /// pack file - the below files in one (tbmn, tbsg, ...)
     TBPK,
-    /// terobit manifest file
+    /// manifest file - gives details about the file
     TBMN,
-    /// terobit signature file
+    /// signature file - signs the file to prevent tampering
     TBSG,
-    /// terobit license file
+    /// license file - a license
+    /// TODO: discern the difference between a signature and a license
     TBLC,
-    /// terobit resource file
+    /// resource file - contains assets and other things
     TBRS,
 }
 
-/// not serde, always encode with `to_bytes` so it stays fixed width
+/// a header used across all `.tb__` files.
+/// not serde, always encode with `to_bytes` so it stays fixed width.
 pub struct CommonHeader {
     /// the magic value of the file
     pub magic: MagicValue,
@@ -45,7 +47,7 @@ impl MagicValue {
         }
     }
 
-    /// the magic as text, for logs and errors
+    /// the magic as static str
     pub fn as_str(&self) -> &'static str {
         match self {
             MagicValue::TBPK => "TBPK",
@@ -74,6 +76,7 @@ pub struct EncodeError {
 }
 
 impl CommonHeader {
+    /// create a new header from a magic value, version, and body length. currently, the flags and reserved are empty (0)
     pub fn new(magic: MagicValue, version: u16, body_length: u64) -> Self {
         Self {
             magic,
@@ -88,6 +91,7 @@ impl CommonHeader {
     /// fixed width little endian. not postcard, which would varint the integers
     pub fn to_bytes(&self) -> [u8; HEADER_LEN as usize] {
         let mut out = [0u8; HEADER_LEN as usize];
+        // note: not le because its a string lol not a number
         out[0..4].copy_from_slice(&self.magic.bytes());
         out[4..6].copy_from_slice(&self.version.to_le_bytes());
         out[6..8].copy_from_slice(&self.flags.to_le_bytes());
@@ -98,7 +102,7 @@ impl CommonHeader {
     }
 }
 
-/// encodes a whole file, the common header then the postcard encoded body
+/// encodes a whole file. the common header then the postcard encoded body
 pub fn encode_file<T: serde::Serialize>(
     magic: MagicValue,
     version: u16,
